@@ -361,7 +361,7 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
                 alignItems: 'center',
                 justifyContent: 'space-between',
                 padding: '0.6rem 0.8rem',
-                background: 'rgba(255, 255, 255, 0.03)',
+                background: 'var(--bg-subcard)',
                 border: '1px solid var(--border-color)',
                 borderRadius: 'var(--radius-sm)',
                 marginBottom: '1rem',
@@ -424,7 +424,7 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
               </div>
             </div>
 
-            <div style={{ marginTop: '1.25rem', padding: '0.85rem', background: 'rgba(0,0,0,0.2)', borderRadius: '0.5rem', border: '1px solid var(--border-color)' }}>
+            <div className="control-subcard">
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
                 <strong style={{ fontSize: '0.78rem', color: 'var(--text-primary)' }}>
                   Ajuste Fino de Posición
@@ -656,7 +656,7 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
                 ) : (
                   <div className="form-group" style={{ marginTop: '0.85rem' }}>
                     {/* CATÁLOGO DE LOGOS GUARDADOS */}
-                    <div style={{ background: 'rgba(0,0,0,0.2)', padding: '0.75rem', borderRadius: '0.5rem' }}>
+                    <div className="control-subcard" style={{ marginTop: 0 }}>
                       <strong style={{ fontSize: '0.8rem', color: 'var(--text-primary)', display: 'block', marginBottom: '0.5rem' }}>
                         <FolderHeart size={15} style={{ display: 'inline', marginRight: '4px', color: 'var(--color-brand)' }} />
                         Catálogo de Logos PNG Guardados ({savedLogos.length})
@@ -751,7 +751,7 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
                     </div>
 
                     {watermark.imageDataUrl && (
-                      <div style={{ marginTop: '0.85rem', padding: '0.65rem', background: 'rgba(0,0,0,0.2)', borderRadius: '0.5rem' }}>
+                      <div className="control-subcard">
                         <div className="toggle-header" style={{ marginBottom: '0.4rem' }}>
                           <label style={{ fontSize: '0.78rem', fontWeight: 600 }}>
                             <Palette size={14} style={{ display: 'inline', marginRight: '4px', color: '#f59e0b' }} />
@@ -783,7 +783,7 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
                 )}
 
                 {/* EFECTOS DE SOMBRA Y BORDE */}
-                <div style={{ marginTop: '0.85rem', padding: '0.65rem', background: 'rgba(0,0,0,0.2)', borderRadius: '0.5rem' }}>
+                <div className="control-subcard">
                   <strong style={{ fontSize: '0.78rem', color: 'var(--text-primary)', display: 'block', marginBottom: '0.4rem' }}>
                     <Layers size={14} style={{ display: 'inline', marginRight: '4px', color: 'var(--color-brand)' }} />
                     Efectos de Marca y Sombra
@@ -942,7 +942,7 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
             </div>
 
             {/* BIBLIOTECA DE MARCOS GUARDADOS */}
-            <div style={{ marginTop: '1rem', background: 'rgba(0,0,0,0.2)', padding: '0.75rem', borderRadius: '0.5rem' }}>
+            <div className="control-subcard">
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
                 <strong style={{ fontSize: '0.8rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                   <FolderHeart size={14} style={{ color: 'var(--color-brand-light)' }} />
@@ -1091,7 +1091,7 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
                 </div>
 
                 {/* PALETAS DE COLOR PREDISEÑADAS */}
-                <div style={{ background: 'rgba(0,0,0,0.2)', padding: '0.65rem', borderRadius: '0.5rem' }}>
+                <div className="control-subcard">
                   <label style={{ fontSize: '0.75rem', fontWeight: 600, display: 'block', marginBottom: '0.4rem' }}>
                     Estilos Rápidos de Color:
                   </label>
@@ -1159,7 +1159,7 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
                   </div>
                 </div>
 
-                <div style={{ background: 'rgba(0,0,0,0.2)', padding: '0.65rem', borderRadius: '0.5rem' }}>
+                <div className="control-subcard">
                   <label style={{ fontSize: '0.78rem', fontWeight: 600, display: 'block', marginBottom: '0.35rem' }}>
                     Color / Gradiente de Marco:
                   </label>
@@ -1191,7 +1191,7 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
                   </div>
                 </div>
 
-                <div style={{ background: 'rgba(0,0,0,0.2)', padding: '0.65rem', borderRadius: '0.5rem' }}>
+                <div className="control-subcard">
                   <label style={{ fontSize: '0.78rem', fontWeight: 600, display: 'block', marginBottom: '0.35rem' }}>
                     Grosor de Bordes (px):
                   </label>
@@ -1242,7 +1242,7 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
                   </div>
                 </div>
 
-                <div style={{ background: 'rgba(0,0,0,0.2)', padding: '0.65rem', borderRadius: '0.5rem' }}>
+                <div className="control-subcard">
                   <label style={{ fontSize: '0.78rem', fontWeight: 600, display: 'block', marginBottom: '0.35rem' }}>
                     Línea / Filete Interior:
                   </label>
@@ -1264,7 +1264,7 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
                   </div>
                 </div>
 
-                <div style={{ background: 'rgba(0,0,0,0.2)', padding: '0.65rem', borderRadius: '0.5rem' }}>
+                <div className="control-subcard">
                   <label style={{ fontSize: '0.78rem', fontWeight: 600, display: 'block', marginBottom: '0.35rem' }}>
                     Leyenda y Textos del Banner:
                   </label>

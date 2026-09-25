@@ -17,6 +17,7 @@ interface PreviewStageProps {
   photo: PhotoItem;
   watermark: WatermarkSettings;
   frame: FrameSettings;
+  isFilmstripCollapsed?: boolean;
   onSingleExport: () => void;
   onUpdateCrop: (crop: CropSettings) => void;
 }
@@ -35,6 +36,7 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
   photo,
   watermark,
   frame,
+  isFilmstripCollapsed = false,
   onSingleExport,
   onUpdateCrop,
 }) => {
@@ -70,8 +72,9 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
 
       if (canvasContainerRef.current) {
         canvasContainerRef.current.innerHTML = '';
+        const maxHeightCalc = isFilmstripCollapsed ? 'calc(100vh - 170px)' : 'calc(100vh - 280px)';
         canvas.style.maxWidth = zoomLevel === 1 ? '100%' : 'none';
-        canvas.style.maxHeight = zoomLevel === 1 ? 'calc(100vh - 280px)' : 'none';
+        canvas.style.maxHeight = zoomLevel === 1 ? maxHeightCalc : 'none';
         canvas.style.width = zoomLevel === 1 ? 'auto' : `${canvas.width * zoomLevel}px`;
         canvas.style.borderRadius = '0.5rem';
         canvas.style.boxShadow = '0 25px 60px -15px rgba(0, 0, 0, 0.9)';
@@ -100,7 +103,7 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
     return () => {
       isCancelled = true;
     };
-  }, [photo, photo.adjustments, photo.crop, watermark, frame, zoomLevel, showOriginal]);
+  }, [photo, photo.adjustments, photo.crop, watermark, frame, zoomLevel, showOriginal, isFilmstripCollapsed]);
 
   // Atajo de teclado (Presionar 'B' o 'Espacio' para comparar)
   useEffect(() => {

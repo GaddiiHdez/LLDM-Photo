@@ -1,14 +1,18 @@
 import React from 'react';
-import { Download, Plus, Sliders } from 'lucide-react';
+import { Download, Plus, Sliders, Sun, Moon } from 'lucide-react';
 
 interface HeaderProps {
   totalPhotos: number;
+  theme: 'light' | 'dark';
+  onToggleTheme: () => void;
   onAddPhotosClick: () => void;
   onExportBatch: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   totalPhotos,
+  theme,
+  onToggleTheme,
   onAddPhotosClick,
   onExportBatch,
 }) => {
@@ -35,6 +39,25 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       <div className="header-actions">
+        {/* Selector de Tema Dual: Blanco Premium / Grafito Oscuro */}
+        <button
+          onClick={onToggleTheme}
+          className="theme-toggle-btn"
+          title={theme === 'light' ? 'Cambiar a modo Grafito Oscuro' : 'Cambiar a modo Blanco Premium'}
+        >
+          {theme === 'light' ? (
+            <>
+              <Moon size={14} className="theme-toggle-icon" />
+              <span>Grafito</span>
+            </>
+          ) : (
+            <>
+              <Sun size={14} className="theme-toggle-icon" />
+              <span>Blanco</span>
+            </>
+          )}
+        </button>
+
         {totalPhotos > 0 && (
           <>
             <button

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Header } from './components/Header';
 import { BatchDropzone } from './components/BatchDropzone';
 import { ThumbnailBar } from './components/ThumbnailBar';
@@ -69,6 +69,32 @@ export const App: React.FC = () => {
 
   const savedLogos = getSavedLogos();
   const defaultLogo = savedLogos.find((l) => l.isDefault) || savedLogos.find((l) => l.id === 'official-logo-lineal') || savedLogos[0];
+
+  // Theme State: 'light' (Blanco Premium) o 'dark' (Grafito Oscuro)
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    try {
+      const savedTheme = localStorage.getItem('lldm_studio_theme') as 'light' | 'dark';
+      return savedTheme || 'light';
+    } catch {
+      return 'light';
+    }
+  });
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    try {
+      localStorage.setItem('lldm_studio_theme', theme);
+    } catch (err) {
+      console.warn('Error guardando preferencia de tema:', err);
+    }
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
+  };
+
+  // Filmstrip Collapsed State
+  const [isFilmstripCollapsed, setIsFilmstripCollapsed] = useState<boolean>(false);
 
   // State
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
@@ -282,6 +308,8 @@ export const App: React.FC = () => {
       {/* Top Header Bar */}
       <Header
         totalPhotos={photos.length}
+        theme={theme}
+        onToggleTheme={toggleTheme}
         onAddPhotosClick={() => {
           const input = document.createElement('input');
           input.type = 'file';
@@ -306,6 +334,7 @@ export const App: React.FC = () => {
             photo={activePhoto}
             watermark={watermark}
             frame={frame}
+            isFilmstripCollapsed={isFilmstripCollapsed}
             onSingleExport={handleSingleExport}
             onUpdateCrop={handleUpdateCrop}
           />
@@ -331,6 +360,8 @@ export const App: React.FC = () => {
         <ThumbnailBar
           photos={photos}
           activePhotoId={activePhotoId}
+          isCollapsed={isFilmstripCollapsed}
+          onToggleCollapse={() => setIsFilmstripCollapsed((prev) => !prev)}
           onSelectPhoto={setActivePhotoId}
           onDeletePhoto={handleDeletePhoto}
           onAddMorePhotos={() => {
