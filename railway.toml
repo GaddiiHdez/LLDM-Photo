@@ -1,0 +1,8 @@
+# Railway Static Deploy Config
+# Railway detecta automáticamente Vite/Node y ejecutará npm run build
+
+[build]
+builder = "nixpacks"
+
+[deploy]
+startCommand = "npx serve dist -s -p $PORT"
