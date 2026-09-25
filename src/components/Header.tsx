@@ -1,18 +1,16 @@
 import React from 'react';
-import { Camera, Download, Plus, Wand2, Sliders } from 'lucide-react';
+import { Camera, Download, Plus, Sliders } from 'lucide-react';
 
 interface HeaderProps {
   totalPhotos: number;
   onAddPhotosClick: () => void;
   onExportBatch: () => void;
-  onApplyPresetAll: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   totalPhotos,
   onAddPhotosClick,
   onExportBatch,
-  onApplyPresetAll,
 }) => {
   return (
     <header className="app-header">
@@ -35,16 +33,6 @@ export const Header: React.FC<HeaderProps> = ({
       <div className="header-actions">
         {totalPhotos > 0 && (
           <>
-            <button
-              onClick={onApplyPresetAll}
-              className="btn-secondary header-btn"
-              title="Aplicar la optimización adaptativa actual a todas las fotografías de la sesión"
-            >
-              <Wand2 size={15} style={{ color: '#fbbf24' }} />
-              <span className="btn-label-desktop">Auto-Mejorar Sesión ({totalPhotos})</span>
-              <span className="btn-label-mobile">Auto ({totalPhotos})</span>
-            </button>
-
             <button
               onClick={onAddPhotosClick}
               className="btn-secondary header-btn"

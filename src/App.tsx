@@ -291,7 +291,6 @@ export const App: React.FC = () => {
           input.click();
         }}
         onExportBatch={handleExportBatch}
-        onApplyPresetAll={handleApplySettingsToAll}
       />
 
       {/* Main Studio Area */}
@@ -308,7 +307,6 @@ export const App: React.FC = () => {
             watermark={watermark}
             frame={frame}
             onSingleExport={handleSingleExport}
-            onApplyPreset={() => handleApplyPreset('auto-church')}
             onUpdateCrop={handleUpdateCrop}
           />
 

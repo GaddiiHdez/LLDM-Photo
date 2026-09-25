@@ -1,4 +1,4 @@
-export type AspectRatioType = 'original' | '1:1' | '4:5' | '3:4' | '9:16' | '16:9';
+export type AspectRatioType = 'original' | '1:1' | '4:5' | '3:4' | '9:16' | '16:9' | '3:2' | '2:3';
 export type OrientationType = 'landscape' | 'portrait';
 
 export interface CropSettings {

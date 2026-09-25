@@ -4,7 +4,6 @@ import {
   ZoomIn,
   ZoomOut,
   RefreshCw,
-  Wand2,
   Image as ImageIcon,
   Activity,
   Move,
@@ -19,7 +18,6 @@ interface PreviewStageProps {
   watermark: WatermarkSettings;
   frame: FrameSettings;
   onSingleExport: () => void;
-  onApplyPreset: () => void;
   onUpdateCrop: (crop: CropSettings) => void;
 }
 
@@ -38,7 +36,6 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
   watermark,
   frame,
   onSingleExport,
-  onApplyPreset,
   onUpdateCrop,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -255,16 +252,6 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
           >
             {zoomLevel > 1 ? <ZoomOut size={14} /> : <ZoomIn size={14} />}
             <span>{Math.round(zoomLevel * 100)}%</span>
-          </button>
-
-          {/* Auto-Mejorar Foto Activa */}
-          <button
-            onClick={onApplyPreset}
-            className="btn-secondary btn-sm auto-enhance-btn"
-            title="Aplicar preset de revelado inteligente"
-          >
-            <Wand2 size={14} style={{ color: '#fbbf24' }} />
-            <span className="btn-label-desktop">Auto-Mejorar</span>
           </button>
 
           {/* Exportar Foto Individual */}

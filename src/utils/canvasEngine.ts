@@ -33,27 +33,34 @@ function createTintedLogoCanvas(logoImg: HTMLImageElement, color: string): HTMLC
 }
 
 /**
- * Calcula la relación de aspecto objetivo (W / H) según el ratio y orientación elegidos
+ * Calcula la relación de aspecto objetivo (W / H) según el ratio elegido y las dimensiones de la foto
  */
-function getTargetAspectRatio(ratio: AspectRatioType, isPortrait: boolean): number | null {
-  if (ratio === 'original') return null;
-
-  let r = 1;
-  if (ratio === '1:1') r = 1.0;
-  else if (ratio === '4:5') r = 4 / 5;
-  else if (ratio === '3:4') r = 3 / 4;
-  else if (ratio === '9:16') r = 9 / 16;
-  else if (ratio === '16:9') r = 16 / 9;
-
-  // Ajustar según orientación seleccionada
-  if (isPortrait && r > 1) r = 1 / r;
-  if (!isPortrait && r < 1) r = 1 / r;
-
-  return r;
+export function getTargetAspectRatio(ratio: AspectRatioType, rawWidth: number, rawHeight: number): number {
+  if (ratio === 'original') {
+    return rawWidth / rawHeight;
+  }
+  switch (ratio) {
+    case '1:1':
+      return 1.0;
+    case '4:5':
+      return 4 / 5;
+    case '9:16':
+      return 9 / 16;
+    case '16:9':
+      return 16 / 9;
+    case '3:4':
+      return 3 / 4;
+    case '3:2':
+      return 3 / 2;
+    case '2:3':
+      return 2 / 3;
+    default:
+      return rawWidth / rawHeight;
+  }
 }
 
 /**
- * Renderiza la imagen procesada con Recorte Adaptativo (6000x4000 Nikon, 1:1, 4:5, 9:16), Marcos y Marca de Agua
+ * Renderiza la imagen procesada con Recorte Adaptativo estricto sin deformación, Tone-mapping, Marcos y Marca de Agua
  */
 export async function renderProcessedPhoto(
   imgSource: HTMLImageElement | string,
@@ -68,37 +75,34 @@ export async function renderProcessedPhoto(
   const rawWidth = img.naturalWidth || img.width || 6000;
   const rawHeight = img.naturalHeight || img.height || 4000;
 
-  // --- 1. CÁLCULO DE DIMENSIONES RE-ENCUADRADAS (CROPPED GEOMETRY) ---
-  const targetRatio = getTargetAspectRatio(crop.aspectRatio, crop.orientation === 'portrait');
-  let croppedWidth = rawWidth;
-  let croppedHeight = rawHeight;
+  // --- 1. CÁLCULO DE DIMENSIONES RE-ENCUADRADAS (CROPPED GEOMETRY SIN DEFORMACIÓN) ---
+  const targetRatio = getTargetAspectRatio(crop.aspectRatio, rawWidth, rawHeight);
+  const rawRatio = rawWidth / rawHeight;
 
-  if (targetRatio) {
-    const currentRatio = rawWidth / rawHeight;
-    if (currentRatio > targetRatio) {
-      // Recortar ancho sobrante
-      croppedWidth = Math.round(rawHeight * targetRatio);
-      croppedHeight = rawHeight;
-    } else {
-      // Recortar alto sobrante
-      croppedWidth = rawWidth;
-      croppedHeight = Math.round(rawWidth / targetRatio);
-    }
+  let baseSrcW: number;
+  let baseSrcH: number;
+
+  if (rawRatio > targetRatio) {
+    // La imagen es más ancha que el objetivo: se recorta el ancho sobrante
+    baseSrcH = rawHeight;
+    baseSrcW = rawHeight * targetRatio;
+  } else {
+    // La imagen es más alta que el objetivo: se recorta la altura sobrante
+    baseSrcW = rawWidth;
+    baseSrcH = rawWidth / targetRatio;
   }
 
-  // Dimensiones finales del canvas de la foto antes del marco
-  let width = croppedWidth;
-  let height = croppedHeight;
+  // Dimensiones finales del canvas de salida de la foto
+  let width: number;
+  let height: number;
+  const maxTargetDim = maxDimension > 0 ? maxDimension : 4000;
 
-  // Redimensionar para vista previa ligera en vivo si maxDimension > 0
-  if (maxDimension > 0 && (width > maxDimension || height > maxDimension)) {
-    if (width > height) {
-      height = Math.round((height * maxDimension) / width);
-      width = maxDimension;
-    } else {
-      width = Math.round((width * maxDimension) / height);
-      height = maxDimension;
-    }
+  if (targetRatio >= 1) {
+    width = Math.min(rawWidth, maxTargetDim);
+    height = Math.round(width / targetRatio);
+  } else {
+    height = Math.min(rawHeight, maxTargetDim);
+    width = Math.round(height * targetRatio);
   }
 
   // --- CÁLCULO DE MARGENES PARA MARCOS DIGITALES ---
@@ -179,13 +183,13 @@ export async function renderProcessedPhoto(
 
   ctx.filter = `brightness(${b}%) contrast(${c}%) saturate(${s}%)`;
 
-  // Calcular la ventana de origen (Source Rect) considerando zoom y offsets
-  const zoomScale = Math.max(1.0, crop.zoom || 1.0);
-  const srcW = croppedWidth / zoomScale;
-  const srcH = croppedHeight / zoomScale;
+  // Calcular la ventana de origen (Source Rect) considerando zoom y offsets sobre baseSrcW / baseSrcH
+  const zoomScale = Math.max(1.0, Math.min(3.0, crop.zoom || 1.0));
+  const srcW = baseSrcW / zoomScale;
+  const srcH = baseSrcH / zoomScale;
 
-  const maxOffX = (rawWidth - srcW) / 2;
-  const maxOffY = (rawHeight - srcH) / 2;
+  const maxOffX = Math.max(0, (rawWidth - srcW) / 2);
+  const maxOffY = Math.max(0, (rawHeight - srcH) / 2);
 
   const shiftX = ((crop.offsetX || 0) / 50) * maxOffX;
   const shiftY = ((crop.offsetY || 0) / 50) * maxOffY;
@@ -256,12 +260,33 @@ export async function renderProcessedPhoto(
     }
   }
 
-  // --- 6. OVERLAY PNG TRANSPARENTE SUBIDO ---
+  // --- 6. OVERLAY PNG TRANSPARENTE SUBIDO (SIN DEFORMACIÓN) ---
   if (frame.style === 'custom-png' && frame.pngDataUrl) {
     try {
       const pngFrame = await loadImage(frame.pngDataUrl);
       ctx.save();
-      ctx.drawImage(pngFrame, 0, 0, canvas.width, canvas.height);
+      const frameRatio = pngFrame.width / pngFrame.height;
+      const canvasRatio = canvas.width / canvas.height;
+
+      // Si las relaciones de aspecto son muy similares (menos de 15% de diferencia), ajustar a todo el canvas
+      if (Math.abs(frameRatio - canvasRatio) < 0.15) {
+        ctx.drawImage(pngFrame, 0, 0, canvas.width, canvas.height);
+      } else {
+        // Si no coinciden (ej. marco horizontal en lienzo vertical), dibujar en modo 'contain' para NO deformar textos/logos
+        let fw = canvas.width;
+        let fh = canvas.height;
+        let fx = 0;
+        let fy = 0;
+
+        if (frameRatio > canvasRatio) {
+          fh = canvas.width / frameRatio;
+          fy = (canvas.height - fh) / 2;
+        } else {
+          fw = canvas.height * frameRatio;
+          fx = (canvas.width - fw) / 2;
+        }
+        ctx.drawImage(pngFrame, fx, fy, fw, fh);
+      }
       ctx.restore();
     } catch (err) {
       console.error('Error dibujando marco PNG transparente:', err);

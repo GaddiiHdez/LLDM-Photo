@@ -217,13 +217,22 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
     },
   ];
 
-  const aspectRatios: { id: AspectRatioType; label: string; icon: any; desc: string }[] = [
-    { id: 'original', label: 'Nativo (Nikon 3:2)', icon: Maximize2, desc: '6000 × 4000 px' },
-    { id: '1:1', label: 'Cuadrado 1:1', icon: Square, desc: 'Feed de Instagram' },
-    { id: '4:5', label: 'Vertical 4:5', icon: Smartphone, desc: 'Publicación Vertical IG' },
-    { id: '3:4', label: 'Retrato 3:4', icon: Crop, desc: 'Formato Estándar' },
-    { id: '9:16', label: 'Historia 9:16', icon: Smartphone, desc: 'Reels / Stories / Shorts' },
-    { id: '16:9', label: 'Panorámico 16:9', icon: Monitor, desc: 'Pantalla Completa' },
+  const isPhotoVertical = photo ? photo.height > photo.width : false;
+  const aspectRatios: { id: AspectRatioType; label: string; icon: any; desc: string; badge: string }[] = [
+    {
+      id: 'original',
+      label: `Original de Cámara (${isPhotoVertical ? 'Vertical' : 'Horizontal'})`,
+      icon: Maximize2,
+      desc: `${photo?.width || 6000} × ${photo?.height || 4000} px · Sin Recorte`,
+      badge: 'NATIVO',
+    },
+    { id: '1:1', label: 'Cuadrado (1:1)', icon: Square, desc: 'Feed de Instagram / Portada', badge: '1:1' },
+    { id: '4:5', label: 'Vertical Post (4:5)', icon: Smartphone, desc: 'Publicación Vertical IG', badge: '4:5' },
+    { id: '9:16', label: 'Historia Vertical (9:16)', icon: Smartphone, desc: 'Reels / Stories / TikTok', badge: '9:16' },
+    { id: '16:9', label: 'Panorámico (16:9)', icon: Monitor, desc: 'Pantalla Completa / YouTube', badge: '16:9' },
+    { id: '3:4', label: 'Retrato Clásico (3:4)', icon: Crop, desc: 'Fotografía Editorial', badge: '3:4' },
+    { id: '3:2', label: 'Horizontal Clásico (3:2)', icon: Maximize2, desc: 'Estándar Paisaje', badge: '3:2' },
+    { id: '2:3', label: 'Vertical Clásico (2:3)', icon: Smartphone, desc: 'Estándar Retrato', badge: '2:3' },
   ];
 
   return (
@@ -276,16 +285,24 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
         </button>
       </div>
 
-      {/* Global Session Sync Banner */}
-      <div className="apply-all-banner">
-        <button onClick={onApplySettingsToAll} className="btn-secondary btn-block sync-all-btn">
-          <CheckCheck size={14} style={{ color: 'var(--color-brand-light)' }} />
-          <span>Sincronizar ajustes con todo el lote</span>
+      {/* Barra de Sincronización de Sesión Minimalista */}
+      <div className="session-sync-bar">
+        <button
+          onClick={onApplySettingsToAll}
+          className="sync-pill-btn"
+          title="Copiar los ajustes actuales a todas las fotos del lote"
+        >
+          <CheckCheck size={13} style={{ color: 'var(--color-brand-light)' }} />
+          <span>Sincronizar Lote</span>
         </button>
 
-        <button onClick={handleSaveCurrentDefault} className="btn-primary btn-block default-save-btn">
+        <button
+          onClick={handleSaveCurrentDefault}
+          className={`default-pill-btn ${savedDefaultToast ? 'saved' : ''}`}
+          title="Guardar esta configuración como inicio predeterminado"
+        >
           <Bookmark size={13} />
-          <span>{savedDefaultToast ? 'Plantilla Predeterminada Guardada ✓' : 'Guardar como Plantilla de Inicio'}</span>
+          <span>{savedDefaultToast ? 'Guardado ✓' : 'Guardar Preset'}</span>
         </button>
       </div>
 
@@ -329,32 +346,47 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
           </div>
         )}
 
-        {/* TAB 2: FORMATO / RECORTE Y ORIENTACIÓN */}
+        {/* TAB 2: FORMATO / RECORTE Y ENCUADRE PROFESIONAL */}
         {activeTab === 'crop' && (
           <div className="control-section">
-            <h3 className="section-title">Relación de Aspecto & Formato</h3>
-            <p className="section-desc">Diseñado para sensor Nikon 6000×4000 px y redes sociales</p>
+            <h3 className="section-title">Encuadre & Relación de Aspecto</h3>
+            <p className="section-desc">Recorta y encuadra sin deformar la foto original</p>
 
-            <div className="form-group" style={{ marginBottom: '1rem' }}>
-              <label>Orientación de Salida:</label>
-              <div className="radio-group">
-                <button
-                  onClick={() => handleCropChange('orientation', 'landscape')}
-                  className={`radio-label ${photo.crop?.orientation === 'landscape' ? 'active' : ''}`}
-                >
-                  Horizontal (Paisaje)
-                </button>
-                <button
-                  onClick={() => handleCropChange('orientation', 'portrait')}
-                  className={`radio-label ${photo.crop?.orientation === 'portrait' ? 'active' : ''}`}
-                >
-                  Vertical (Retrato)
-                </button>
+            {/* Detector de Orientación Automático */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '0.6rem 0.8rem',
+                background: 'rgba(255, 255, 255, 0.03)',
+                border: '1px solid var(--border-color)',
+                borderRadius: 'var(--radius-sm)',
+                marginBottom: '1rem',
+              }}
+            >
+              <div>
+                <span style={{ fontSize: '0.68rem', color: 'var(--text-muted)', display: 'block' }}>SENSOR DETECTADO</span>
+                <strong style={{ fontSize: '0.78rem', color: 'var(--text-primary)' }}>
+                  {isPhotoVertical ? 'Vertical (Retrato)' : 'Horizontal (Paisaje)'} · {photo?.width || 6000}×{photo?.height || 4000}
+                </strong>
               </div>
+              <span
+                style={{
+                  fontSize: '0.65rem',
+                  fontWeight: 700,
+                  color: 'var(--color-brand-light)',
+                  background: 'rgba(59, 130, 246, 0.15)',
+                  padding: '0.2rem 0.5rem',
+                  borderRadius: '0.3rem',
+                }}
+              >
+                CÁMARA REAL
+              </span>
             </div>
 
             <div className="form-group">
-              <label>Formato de Recorte:</label>
+              <label>Selecciona el Formato de Salida:</label>
               <div className="preset-grid">
                 {aspectRatios.map((ar) => {
                   const Icon = ar.icon;
@@ -365,9 +397,23 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
                       onClick={() => handleCropChange('aspectRatio', ar.id)}
                       className={`preset-card ${isActive ? 'active' : ''}`}
                     >
-                      <Icon size={20} style={{ color: isActive ? 'var(--color-brand)' : 'var(--text-secondary)' }} />
-                      <div className="preset-info">
-                        <strong className="preset-name">{ar.label}</strong>
+                      <div className={`preset-icon-wrapper ${isActive ? 'active' : ''}`}>
+                        <Icon size={18} />
+                      </div>
+                      <div className="preset-info" style={{ flex: 1 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <strong className="preset-name">{ar.label}</strong>
+                          <span
+                            style={{
+                              fontSize: '0.62rem',
+                              fontFamily: 'var(--font-mono)',
+                              color: isActive ? 'var(--color-brand-light)' : 'var(--text-muted)',
+                              fontWeight: 700,
+                            }}
+                          >
+                            {ar.badge}
+                          </span>
+                        </div>
                         <span className="preset-desc">{ar.desc}</span>
                       </div>
                     </button>
@@ -376,10 +422,26 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
               </div>
             </div>
 
-            <div style={{ marginTop: '1.25rem', padding: '0.75rem', background: 'rgba(0,0,0,0.2)', borderRadius: '0.5rem' }}>
-              <strong style={{ fontSize: '0.8rem', color: 'var(--text-primary)', display: 'block', marginBottom: '0.65rem' }}>
-                🎯 Ajuste Fino de Re-encuadre
-              </strong>
+            <div style={{ marginTop: '1.25rem', padding: '0.85rem', background: 'rgba(0,0,0,0.2)', borderRadius: '0.5rem', border: '1px solid var(--border-color)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                <strong style={{ fontSize: '0.78rem', color: 'var(--text-primary)' }}>
+                  Ajuste Fino de Posición
+                </strong>
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleCropChange('offsetX', 0);
+                    handleCropChange('offsetY', 0);
+                    handleCropChange('zoom', 1.0);
+                  }}
+                  className="btn-secondary btn-sm"
+                  style={{ fontSize: '0.68rem', padding: '0.2rem 0.5rem' }}
+                  title="Restablecer encuadre al centro"
+                >
+                  <RotateCcw size={11} />
+                  <span>Centrar</span>
+                </button>
+              </div>
 
               <div className="slider-group">
                 <div className="slider-header">
@@ -409,15 +471,15 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
                 />
               </div>
 
-              <div className="slider-group">
+              <div className="slider-group" style={{ marginBottom: 0 }}>
                 <div className="slider-header">
-                  <label>Enfoque / Acercamiento (Zoom)</label>
+                  <label>Acercamiento / Escala (Zoom)</label>
                   <span>{((photo.crop?.zoom || 1) * 100).toFixed(0)}%</span>
                 </div>
                 <input
                   type="range"
                   min="1"
-                  max="2"
+                  max="2.5"
                   step="0.05"
                   value={photo.crop?.zoom || 1}
                   onChange={(e) => handleCropChange('zoom', Number(e.target.value))}
@@ -430,7 +492,32 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
         {/* TAB 3: AJUSTES MANUALES DE LUZ */}
         {activeTab === 'adjust' && (
           <div className="control-section">
-            <h3 className="section-title">Ajustes Finos de Imagen</h3>
+            <h3 className="section-title">Ajustes de Revelado & Luz</h3>
+            <p className="section-desc">Control fino del sensor, rango dinámico y temperatura de color</p>
+
+            {/* Botón único de auto-tono en el panel de Luz */}
+            <div style={{ display: 'flex', gap: '0.45rem', marginBottom: '1.25rem' }}>
+              <button
+                type="button"
+                onClick={() => onApplyPreset('auto-church')}
+                className="btn-secondary"
+                style={{ flex: 1, fontSize: '0.78rem', justifyContent: 'center', background: 'rgba(56, 189, 248, 0.1)', borderColor: 'rgba(56, 189, 248, 0.3)' }}
+                title="Calcular y aplicar balance tonal óptimo automáticamente"
+              >
+                <Wand2 size={13} style={{ color: '#38bdf8' }} />
+                <span>Auto-Tono Inteligente</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => onApplyPreset('custom')}
+                className="btn-secondary"
+                title="Restablecer todos los sliders a neutro"
+                style={{ padding: '0.45rem 0.65rem' }}
+              >
+                <RotateCcw size={13} />
+              </button>
+            </div>
 
             <div className="slider-group">
               <div className="slider-header">
