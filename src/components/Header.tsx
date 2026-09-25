@@ -1,5 +1,5 @@
 import React from 'react';
-import { Camera, Download, Plus, Sliders } from 'lucide-react';
+import { Download, Plus, Sliders } from 'lucide-react';
 
 interface HeaderProps {
   totalPhotos: number;
@@ -16,7 +16,11 @@ export const Header: React.FC<HeaderProps> = ({
     <header className="app-header">
       <div className="header-brand">
         <div className="brand-logo">
-          <Camera size={20} />
+          <img
+            src="/logo-lldm-studio.jpg"
+            alt="LLDM Photo Studio"
+            className="brand-logo-img"
+          />
         </div>
         <div className="brand-titles">
           <h1 className="brand-title">

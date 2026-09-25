@@ -129,16 +129,25 @@ body {
 }
 
 .brand-logo {
-  width: 2.6rem;
-  height: 2.6rem;
-  border-radius: 0.75rem;
-  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 0.65rem;
+  background: #090d16;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
-  box-shadow: 0 0 20px rgba(37, 99, 235, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 0 20px rgba(245, 158, 11, 0.25), 0 0 4px rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.45);
+  overflow: hidden;
+  padding: 1px;
+}
+
+.brand-logo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 0.55rem;
+  display: block;
 }
 
 .brand-title {
@@ -781,6 +790,33 @@ input[type="range"] {
   border-color: var(--color-brand);
   background: rgba(59, 130, 246, 0.08);
   transform: translateY(-3px);
+}
+
+.dropzone-brand-emblem {
+  width: 5.5rem;
+  height: 5.5rem;
+  margin: 0 auto 1.5rem auto;
+  border-radius: 1.25rem;
+  padding: 3px;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.7), rgba(59, 130, 246, 0.4));
+  box-shadow: 0 0 35px rgba(245, 158, 11, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.dropzone-container:hover .dropzone-brand-emblem {
+  transform: scale(1.05);
+  box-shadow: 0 0 45px rgba(245, 158, 11, 0.55);
+}
+
+.dropzone-brand-logo {
+  width: 100%;
+  height: 100%;
+  border-radius: 1.1rem;
+  object-fit: cover;
+  display: block;
 }
 
 .dropzone-icon {

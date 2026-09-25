@@ -126,10 +126,12 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
   };
 
   const handleSelectSavedLogo = (l: SavedLogo) => {
+    const isLineal = l.id === 'official-logo-lineal' || l.name.toLowerCase().includes('lineal');
     onUpdateWatermark({
       type: 'image',
       imageDataUrl: l.imageDataUrl,
       enabled: true,
+      ...(isLineal ? { opacity: 0.75 } : {}),
     });
   };
 
@@ -699,14 +701,21 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
                                   <img
                                     src={l.imageDataUrl}
                                     alt={l.name}
-                                    style={{ width: '2rem', height: '2rem', objectFit: 'contain', background: '#1e293b', borderRadius: '0.25rem', padding: '2px' }}
+                                    style={{ width: '2.2rem', height: '2.2rem', objectFit: 'contain', background: '#0a0f1d', borderRadius: '0.25rem', padding: '2px', border: '1px solid rgba(255,255,255,0.08)' }}
                                   />
                                   <div>
-                                    <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-primary)', display: 'block' }}>
-                                      {l.name}
-                                    </span>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
+                                      <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-primary)', display: 'block' }}>
+                                        {l.name}
+                                      </span>
+                                      {l.isOfficial && (
+                                        <span style={{ fontSize: '0.58rem', background: 'rgba(245, 158, 11, 0.2)', color: '#fbbf24', border: '1px solid rgba(245, 158, 11, 0.4)', padding: '0.05rem 0.35rem', borderRadius: '9999px', fontWeight: 700 }}>
+                                          OFICIAL
+                                        </span>
+                                      )}
+                                    </div>
                                     {l.isDefault && (
-                                      <span style={{ fontSize: '0.65rem', color: '#f59e0b', fontWeight: 700 }}>★ LOGO DEFAULT</span>
+                                      <span style={{ fontSize: '0.65rem', color: '#f59e0b', fontWeight: 700 }}>★ FIRMA POR DEFECTO</span>
                                     )}
                                   </div>
                                 </div>
@@ -715,18 +724,20 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
                                   <button
                                     onClick={(e) => handleSetDefaultLogo(l.id, e)}
                                     style={{ background: 'transparent', border: 'none', color: l.isDefault ? '#f59e0b' : 'var(--text-muted)', cursor: 'pointer' }}
-                                    title="Establecer como logo predeterminado"
+                                    title="Establecer como marca de agua por defecto"
                                   >
                                     <Star size={14} fill={l.isDefault ? '#f59e0b' : 'none'} />
                                   </button>
 
-                                  <button
-                                    onClick={(e) => handleDeleteSavedLogo(l.id, e)}
-                                    style={{ background: 'transparent', border: 'none', color: 'var(--color-danger)', cursor: 'pointer' }}
-                                    title="Eliminar logo guardado"
-                                  >
-                                    <Trash2 size={14} />
-                                  </button>
+                                  {!l.isOfficial && (
+                                    <button
+                                      onClick={(e) => handleDeleteSavedLogo(l.id, e)}
+                                      style={{ background: 'transparent', border: 'none', color: 'var(--color-danger)', cursor: 'pointer' }}
+                                      title="Eliminar logo guardado"
+                                    >
+                                      <Trash2 size={14} />
+                                    </button>
+                                  )}
                                 </div>
                               </div>
                             );

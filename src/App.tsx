@@ -68,7 +68,7 @@ export const App: React.FC = () => {
   const defaultPngFrame = savedPngFrames.find((f) => f.isDefault) || savedPngFrames[0];
 
   const savedLogos = getSavedLogos();
-  const defaultLogo = savedLogos.find((l) => l.isDefault) || savedLogos[0];
+  const defaultLogo = savedLogos.find((l) => l.isDefault) || savedLogos.find((l) => l.id === 'official-logo-lineal') || savedLogos[0];
 
   // State
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
@@ -78,21 +78,21 @@ export const App: React.FC = () => {
   const [watermark, setWatermark] = useState<WatermarkSettings>(
     savedDefaults?.watermark || {
       enabled: true,
-      type: defaultLogo ? 'image' : 'text',
-      text: 'LLDM App • Fotografía de Iglesia',
-      imageDataUrl: defaultLogo ? defaultLogo.imageDataUrl : null,
+      type: 'image',
+      text: 'LLDM Photo Studio',
+      imageDataUrl: defaultLogo ? defaultLogo.imageDataUrl : '/logo-lldm-studio-lineal.jpg',
       position: 'bottom-right',
-      opacity: 0.85,
-      size: 25,
+      opacity: 0.75,
+      size: 24,
       color: '#ffffff',
       logoTintEnabled: false,
       logoTintColor: '#ffffff',
       dropShadow: true,
-      shadowColor: 'rgba(0, 0, 0, 0.85)',
+      shadowColor: 'rgba(0, 0, 0, 0.75)',
       shadowBlur: 8,
       strokeEnabled: false,
       strokeColor: '#000000',
-      strokeWidth: 3,
+      strokeWidth: 2,
       blendMode: 'normal',
     }
   );

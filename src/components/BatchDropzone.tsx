@@ -47,8 +47,12 @@ export const BatchDropzone: React.FC<BatchDropzoneProps> = ({
         style={{ display: 'none' }}
       />
 
-      <div className="dropzone-icon">
-        <UploadCloud size={48} />
+      <div className="dropzone-brand-emblem">
+        <img
+          src="/logo-lldm-studio.jpg"
+          alt="LLDM Photo Studio"
+          className="dropzone-brand-logo"
+        />
       </div>
 
       <div className="dropzone-badge-tag">
