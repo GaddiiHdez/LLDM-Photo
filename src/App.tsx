@@ -82,6 +82,7 @@ export const App: React.FC = () => {
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
+    document.body.setAttribute('data-theme', theme);
     try {
       localStorage.setItem('lldm_studio_theme', theme);
     } catch (err) {
@@ -91,6 +92,10 @@ export const App: React.FC = () => {
 
   const toggleTheme = () => {
     setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
+  };
+
+  const handleSelectTheme = (mode: 'light' | 'dark') => {
+    setTheme(mode);
   };
 
   // Filmstrip Collapsed State
@@ -309,6 +314,7 @@ export const App: React.FC = () => {
       <Header
         totalPhotos={photos.length}
         theme={theme}
+        onSelectTheme={handleSelectTheme}
         onToggleTheme={toggleTheme}
         onAddPhotosClick={() => {
           const input = document.createElement('input');
