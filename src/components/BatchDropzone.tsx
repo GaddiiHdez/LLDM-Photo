@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { UploadCloud, Image as ImageIcon, Sparkles, Frame } from 'lucide-react';
+import { UploadCloud, Image as ImageIcon, Sparkles, Frame, PlayCircle, Sliders, ShieldCheck } from 'lucide-react';
 
 interface BatchDropzoneProps {
   onFilesSelected: (files: FileList | File[]) => void;
@@ -48,38 +48,51 @@ export const BatchDropzone: React.FC<BatchDropzoneProps> = ({
       />
 
       <div className="dropzone-icon">
-        <UploadCloud size={54} />
+        <UploadCloud size={48} />
       </div>
 
-      <h2 className="dropzone-title">Arrastra y suelta tu lote de fotos RAW o JPG aquí</h2>
+      <div className="dropzone-badge-tag">
+        <ShieldCheck size={13} style={{ color: 'var(--color-brand-light)' }} />
+        <span>Procesamiento 100% Local y Privado en tu Navegador</span>
+      </div>
+
+      <h2 className="dropzone-title">Arrastra tu lote de fotos aquí</h2>
       <p className="dropzone-subtitle">
-        Soporta fotos Nikon (<code>.NEF</code>), Canon (<code>.CR2</code>), Sony (<code>.ARW</code>), Adobe (<code>.DNG</code>) y <code>.JPG</code> / <code>.PNG</code>
+        Soporte nativo para cámaras <strong>Nikon</strong> (<code>.NEF</code>), <strong>Canon</strong> (<code>.CR2</code>), <strong>Sony</strong> (<code>.ARW</code>), <strong>Adobe</strong> (<code>.DNG</code>) y archivos <code>.JPG</code> / <code>.PNG</code>
       </p>
 
       {/* Atajos de Funciones Principales de la App */}
       <div className="dropzone-features">
         <div
           className="feature-chip"
-          title="Función: Aplica equilibrio de color, sombras y nitidez adaptados a templos e iglesias"
+          title="Optimización adaptativa del rango dinámico para iluminaciones complejas de iglesia y templos"
         >
-          <Sparkles size={15} style={{ color: '#f59e0b' }} />
-          <span>Auto-Edición Iglesia</span>
+          <Sliders size={14} style={{ color: 'var(--color-brand-light)' }} />
+          <span>Revelado RAW 14-Bit</span>
         </div>
 
         <div
           className="feature-chip"
-          title="Función: Estampa tu logo o marca de agua automáticamente en la misma posición de todo el lote"
+          title="Superposición fija de logotipo o firma institucional en alta resolución"
         >
-          <ImageIcon size={15} style={{ color: '#3b82f6' }} />
-          <span>Marca de Agua Automática</span>
+          <ImageIcon size={14} style={{ color: '#38bdf8' }} />
+          <span>Firma & Marca de Agua</span>
         </div>
 
         <div
           className="feature-chip"
-          title="Función: Superpone marcos PNG prediseñados o crea banners de eventos con fecha y título"
+          title="Marcos oficiales PNG y plantillas prediseñadas para eventos y servicios"
         >
-          <Frame size={15} style={{ color: '#10b981' }} />
-          <span>Marcos de Eventos</span>
+          <Frame size={14} style={{ color: '#34d399' }} />
+          <span>Marcos Institucionales</span>
+        </div>
+
+        <div
+          className="feature-chip"
+          title="Ajuste automático inteligente de color, balance y nitidez con 1 solo clic"
+        >
+          <Sparkles size={14} style={{ color: '#fbbf24' }} />
+          <span>Presets Automáticos</span>
         </div>
       </div>
 
@@ -89,12 +102,12 @@ export const BatchDropzone: React.FC<BatchDropzoneProps> = ({
           onClick={() => fileInputRef.current?.click()}
         >
           <UploadCloud size={18} />
-          <span>Seleccionar Fotos de tu Cámara</span>
+          <span>Seleccionar Fotografías</span>
         </button>
 
         <button className="btn-secondary" onClick={onLoadSamples}>
-          <Sparkles size={18} style={{ color: '#f59e0b' }} />
-          <span>Probar con Fotos de Ejemplo</span>
+          <PlayCircle size={18} style={{ color: 'var(--color-brand-light)' }} />
+          <span>Ver Demostración con Muestras</span>
         </button>
       </div>
     </div>

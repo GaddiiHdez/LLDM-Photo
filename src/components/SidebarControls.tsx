@@ -17,6 +17,11 @@ import {
   Trash2,
   Star,
   FolderHeart,
+  Wand2,
+  SunMedium,
+  Contrast,
+  Calendar,
+  CheckCheck,
 } from 'lucide-react';
 import type {
   PhotoItem,
@@ -185,19 +190,39 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
     setTimeout(() => setSavedDefaultToast(false), 2500);
   };
 
-  const presetsList: { id: PresetType; label: string; icon: string; desc: string }[] = [
-    { id: 'auto-church', label: 'Auto Iglesia / Evento', icon: '✝️', desc: 'Mejora luz, sombras y contraste ideales para el templo' },
-    { id: 'warm-worship', label: 'Cálido Consagración', icon: '🌅', desc: 'Tonos cálidos y atmósfera dorada' },
-    { id: 'vibrant-praise', label: 'Alabanza Vívido', icon: '📸', desc: 'Colores vibrantes y escenario nítido' },
-    { id: 'elegant-bw', label: 'Blanco & Negro Elegante', icon: '🖤', desc: 'Monocromático de alto contraste' },
+  const presetsList: { id: PresetType; label: string; icon: React.FC<{ size?: number; className?: string }>; desc: string }[] = [
+    {
+      id: 'auto-church',
+      label: 'Auto Enhance',
+      icon: Wand2,
+      desc: 'Optimización inteligente de balance de blancos, sombras y rango dinámico',
+    },
+    {
+      id: 'warm-worship',
+      label: 'Warm Light',
+      icon: SunMedium,
+      desc: 'Atmósfera dorada envolvente, ideal para retratos y cultos de adoración',
+    },
+    {
+      id: 'vibrant-praise',
+      label: 'Vivid Stage',
+      icon: Sparkles,
+      desc: 'Colores vivos, micro-contraste y saturación selectiva para eventos',
+    },
+    {
+      id: 'elegant-bw',
+      label: 'Classic Monochrome',
+      icon: Contrast,
+      desc: 'Blanco y negro cinematográfico con transiciones tonales ricas',
+    },
   ];
 
   const aspectRatios: { id: AspectRatioType; label: string; icon: any; desc: string }[] = [
     { id: 'original', label: 'Nativo (Nikon 3:2)', icon: Maximize2, desc: '6000 × 4000 px' },
-    { id: '1:1', label: 'Cuadrado 1:1', icon: Square, desc: 'Instagram Feed' },
-    { id: '4:5', label: 'Vertical 4:5', icon: Smartphone, desc: 'Instagram Post' },
+    { id: '1:1', label: 'Cuadrado 1:1', icon: Square, desc: 'Feed de Instagram' },
+    { id: '4:5', label: 'Vertical 4:5', icon: Smartphone, desc: 'Publicación Vertical IG' },
     { id: '3:4', label: 'Retrato 3:4', icon: Crop, desc: 'Formato Estándar' },
-    { id: '9:16', label: 'Historia 9:16', icon: Smartphone, desc: 'Reels / Stories / Status' },
+    { id: '9:16', label: 'Historia 9:16', icon: Smartphone, desc: 'Reels / Stories / Shorts' },
     { id: '16:9', label: 'Panorámico 16:9', icon: Monitor, desc: 'Pantalla Completa' },
   ];
 
@@ -208,54 +233,59 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
         <button
           onClick={() => setActiveTab('presets')}
           className={`sidebar-tab ${activeTab === 'presets' ? 'active' : ''}`}
+          title="Preajustes de optimización"
         >
-          <Sparkles size={16} />
-          <span>Filtros</span>
+          <Wand2 size={15} />
+          <span>Presets</span>
         </button>
 
         <button
           onClick={() => setActiveTab('crop')}
           className={`sidebar-tab ${activeTab === 'crop' ? 'active' : ''}`}
+          title="Relación de aspecto y encuadre"
         >
-          <Crop size={16} />
-          <span>Formato</span>
+          <Crop size={15} />
+          <span>Encuadre</span>
         </button>
 
         <button
           onClick={() => setActiveTab('adjust')}
           className={`sidebar-tab ${activeTab === 'adjust' ? 'active' : ''}`}
+          title="Ajustes de iluminación y sensor RAW"
         >
-          <Sliders size={16} />
-          <span>Luz</span>
+          <Sliders size={15} />
+          <span>Luz & RAW</span>
         </button>
 
         <button
           onClick={() => setActiveTab('watermark')}
           className={`sidebar-tab ${activeTab === 'watermark' ? 'active' : ''}`}
+          title="Marca de agua y logotipo institucional"
         >
-          <ImageIcon size={16} />
-          <span>Marca</span>
+          <ImageIcon size={15} />
+          <span>Firma</span>
         </button>
 
         <button
           onClick={() => setActiveTab('frame')}
           className={`sidebar-tab ${activeTab === 'frame' ? 'active' : ''}`}
+          title="Marcos institucionales y de eventos"
         >
-          <Frame size={16} />
+          <Frame size={15} />
           <span>Marcos</span>
         </button>
       </div>
 
-      {/* Global Action Banner */}
-      <div className="apply-all-banner" style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-        <button onClick={onApplySettingsToAll} className="btn-secondary btn-block">
-          <Sparkles size={14} style={{ color: '#f59e0b' }} />
-          <span>Aplicar esta configuración a TODAS las fotos</span>
+      {/* Global Session Sync Banner */}
+      <div className="apply-all-banner">
+        <button onClick={onApplySettingsToAll} className="btn-secondary btn-block sync-all-btn">
+          <CheckCheck size={14} style={{ color: 'var(--color-brand-light)' }} />
+          <span>Sincronizar ajustes con todo el lote</span>
         </button>
 
-        <button onClick={handleSaveCurrentDefault} className="btn-primary btn-block" style={{ fontSize: '0.78rem' }}>
-          <Bookmark size={14} />
-          <span>{savedDefaultToast ? '¡Guardado como Predeterminado!' : 'Establecer como Plantilla Default'}</span>
+        <button onClick={handleSaveCurrentDefault} className="btn-primary btn-block default-save-btn">
+          <Bookmark size={13} />
+          <span>{savedDefaultToast ? 'Plantilla Predeterminada Guardada ✓' : 'Guardar como Plantilla de Inicio'}</span>
         </button>
       </div>
 
@@ -263,23 +293,29 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
         {/* TAB 1: PRESETS */}
         {activeTab === 'presets' && (
           <div className="control-section">
-            <h3 className="section-title">Preajustes de Auto-Edición</h3>
-            <p className="section-desc">Optimiza la foto con 1 solo clic según el ambiente de la iglesia</p>
+            <h3 className="section-title">Preajustes de Revelado</h3>
+            <p className="section-desc">Optimiza la iluminación y el color con 1 solo clic</p>
 
             <div className="preset-grid">
-              {presetsList.map((p) => (
-                <button
-                  key={p.id}
-                  onClick={() => onApplyPreset(p.id)}
-                  className={`preset-card ${photo.preset === p.id ? 'active' : ''}`}
-                >
-                  <span className="preset-icon">{p.icon}</span>
-                  <div className="preset-info">
-                    <strong className="preset-name">{p.label}</strong>
-                    <span className="preset-desc">{p.desc}</span>
-                  </div>
-                </button>
-              ))}
+              {presetsList.map((p) => {
+                const IconComponent = p.icon;
+                const isActive = photo.preset === p.id;
+                return (
+                  <button
+                    key={p.id}
+                    onClick={() => onApplyPreset(p.id)}
+                    className={`preset-card ${isActive ? 'active' : ''}`}
+                  >
+                    <div className={`preset-icon-wrapper ${isActive ? 'active' : ''}`}>
+                      <IconComponent size={18} />
+                    </div>
+                    <div className="preset-info">
+                      <strong className="preset-name">{p.label}</strong>
+                      <span className="preset-desc">{p.desc}</span>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
 
             <button
@@ -306,13 +342,13 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
                   onClick={() => handleCropChange('orientation', 'landscape')}
                   className={`radio-label ${photo.crop?.orientation === 'landscape' ? 'active' : ''}`}
                 >
-                  ↔️ Horizontal (Landscape)
+                  Horizontal (Paisaje)
                 </button>
                 <button
                   onClick={() => handleCropChange('orientation', 'portrait')}
                   className={`radio-label ${photo.crop?.orientation === 'portrait' ? 'active' : ''}`}
                 >
-                  ↕️ Vertical (Portrait)
+                  Vertical (Retrato)
                 </button>
               </div>
             </div>
@@ -790,28 +826,31 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
             </div>
 
             <div className="form-group">
-              <label>O selecciona un estilo de marco:</label>
+              <label>Estilo de Marco:</label>
               <select
                 value={frame.style}
                 onChange={(e) => onUpdateFrame({ style: e.target.value as FrameStyle })}
                 className="form-select"
               >
-                <option value="none">Sin Marco (Original)</option>
-                <option value="custom-png">🖼️ Marco PNG Subido por ti</option>
-                <option value="custom-designer">🎨 Diseñador de Marco Personalizado</option>
-                <option value="church-event">Marco de Evento de Iglesia (Banner Inferior)</option>
+                <option value="none">Sin Marco (Puro)</option>
+                <option value="custom-png">Marco PNG Personalizado</option>
+                <option value="custom-designer">Diseñador de Marco de Estudio</option>
+                <option value="church-event">Marco con Placa de Evento</option>
                 <option value="classic-white">Marco Clásico Blanco</option>
-                <option value="classic-dark">Marco Clásico Oscuro</option>
-                <option value="gold-accent">Marco Dorado Elegante</option>
-                <option value="polaroid-card">Marco Tarjeta Polaroid</option>
+                <option value="classic-dark">Marco Clásico Grafito</option>
+                <option value="gold-accent">Marco con Acento Dorado</option>
+                <option value="polaroid-card">Tarjeta Estilo Polaroid</option>
               </select>
             </div>
 
-            {/* TUS MARCOS PNG GUARDADOS PERSISTENTES */}
+            {/* BIBLIOTECA DE MARCOS GUARDADOS */}
             <div style={{ marginTop: '1rem', background: 'rgba(0,0,0,0.2)', padding: '0.75rem', borderRadius: '0.5rem' }}>
-              <strong style={{ fontSize: '0.8rem', color: 'var(--text-primary)', display: 'block', marginBottom: '0.5rem' }}>
-                📁 Biblioteca de Marcos PNG Guardados ({savedFrames.length})
-              </strong>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                <strong style={{ fontSize: '0.8rem', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                  <FolderHeart size={14} style={{ color: 'var(--color-brand-light)' }} />
+                  <span>Biblioteca de Marcos ({savedFrames.length})</span>
+                </strong>
+              </div>
 
               <input
                 ref={framePngInputRef}
@@ -895,6 +934,133 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
             {/* DISEÑADOR DE MARCO PERSONALIZADO */}
             {frame.style === 'custom-designer' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', marginTop: '1rem' }}>
+                {/* VISTA PREVIA EN VIVO DEL MARCO */}
+                <div style={{ background: 'rgba(0,0,0,0.3)', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid var(--border-color)' }}>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', display: 'block', marginBottom: '0.4rem', fontWeight: 600 }}>
+                    Vista Previa del Marco en Vivo
+                  </span>
+                  <div
+                    style={{
+                      width: '100%',
+                      aspectRatio: '16/10',
+                      background: frame.useGradient
+                        ? `linear-gradient(135deg, ${frame.borderColor || '#0f172a'}, ${frame.borderColor2 || '#1e3a8a'})`
+                        : (frame.borderColor || '#0f172a'),
+                      borderRadius: '0.375rem',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      padding: `${Math.max(4, (frame.borderTop || 20) * 0.2)}px ${Math.max(4, (frame.borderRight || 20) * 0.2)}px ${Math.max(12, (frame.borderBottom || 60) * 0.2)}px ${Math.max(4, (frame.borderLeft || 20) * 0.2)}px`,
+                      boxShadow: 'inset 0 0 10px rgba(0,0,0,0.5)',
+                      position: 'relative',
+                    }}
+                  >
+                    {/* Foto simulada en el interior */}
+                    <div
+                      style={{
+                        flex: 1,
+                        background: '#1e293b',
+                        borderRadius: '0.2rem',
+                        border: `${Math.max(1, (frame.innerStrokeWidth || 2) * 0.5)}px solid ${frame.innerStrokeColor || '#f59e0b'}`,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <ImageIcon size={18} style={{ color: 'rgba(255,255,255,0.25)' }} />
+                    </div>
+
+                    {/* Banner de texto en miniatura */}
+                    {(frame.eventTitle || frame.eventDate) && (
+                      <div
+                        style={{
+                          position: 'absolute',
+                          bottom: 2,
+                          left: 0,
+                          right: 0,
+                          textAlign: 'center',
+                          padding: '0 4px',
+                        }}
+                      >
+                        <span style={{ fontSize: '0.62rem', fontWeight: 700, color: frame.textColor || '#ffffff', display: 'block', lineHeight: 1.2 }}>
+                          {frame.eventTitle || 'Título del Evento'}
+                        </span>
+                        <span style={{ fontSize: '0.52rem', color: 'rgba(255,255,255,0.75)', display: 'block' }}>
+                          {frame.eventDate || 'Fecha'}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* PALETAS DE COLOR PREDISEÑADAS */}
+                <div style={{ background: 'rgba(0,0,0,0.2)', padding: '0.65rem', borderRadius: '0.5rem' }}>
+                  <label style={{ fontSize: '0.75rem', fontWeight: 600, display: 'block', marginBottom: '0.4rem' }}>
+                    Estilos Rápidos de Color:
+                  </label>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.35rem' }}>
+                    <button
+                      type="button"
+                      onClick={() => onUpdateFrame({
+                        borderColor: '#091428',
+                        borderColor2: '#1e3a8a',
+                        useGradient: true,
+                        innerStrokeColor: '#f59e0b',
+                        textColor: '#ffffff',
+                      })}
+                      className="btn-secondary btn-sm"
+                      style={{ fontSize: '0.7rem', justifyContent: 'flex-start', padding: '0.3rem 0.5rem' }}
+                    >
+                      <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#1e3a8a', display: 'inline-block', marginRight: 4 }} />
+                      Azul & Dorado
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onUpdateFrame({
+                        borderColor: '#111827',
+                        borderColor2: '#1f2937',
+                        useGradient: false,
+                        innerStrokeColor: '#e2e8f0',
+                        textColor: '#ffffff',
+                      })}
+                      className="btn-secondary btn-sm"
+                      style={{ fontSize: '0.7rem', justifyContent: 'flex-start', padding: '0.3rem 0.5rem' }}
+                    >
+                      <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#111827', display: 'inline-block', marginRight: 4 }} />
+                      Grafito Mate
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onUpdateFrame({
+                        borderColor: '#3b0716',
+                        borderColor2: '#831843',
+                        useGradient: true,
+                        innerStrokeColor: '#fbbf24',
+                        textColor: '#ffffff',
+                      })}
+                      className="btn-secondary btn-sm"
+                      style={{ fontSize: '0.7rem', justifyContent: 'flex-start', padding: '0.3rem 0.5rem' }}
+                    >
+                      <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#831843', display: 'inline-block', marginRight: 4 }} />
+                      Burdeos Noble
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onUpdateFrame({
+                        borderColor: '#ffffff',
+                        borderColor2: '#f1f5f9',
+                        useGradient: false,
+                        innerStrokeColor: '#0f172a',
+                        textColor: '#0f172a',
+                      })}
+                      className="btn-secondary btn-sm"
+                      style={{ fontSize: '0.7rem', justifyContent: 'flex-start', padding: '0.3rem 0.5rem' }}
+                    >
+                      <span style={{ width: 10, height: 10, borderRadius: '50%', background: '#ffffff', display: 'inline-block', marginRight: 4 }} />
+                      Marfil Puro
+                    </button>
+                  </div>
+                </div>
+
                 <div style={{ background: 'rgba(0,0,0,0.2)', padding: '0.65rem', borderRadius: '0.5rem' }}>
                   <label style={{ fontSize: '0.78rem', fontWeight: 600, display: 'block', marginBottom: '0.35rem' }}>
                     Color / Gradiente de Marco:
@@ -904,10 +1070,10 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
                       type="color"
                       value={frame.borderColor || '#0f172a'}
                       onChange={(e) => onUpdateFrame({ borderColor: e.target.value })}
-                      style={{ width: '2.5rem', height: '2rem', border: 'none', cursor: 'pointer' }}
+                      style={{ width: '2.5rem', height: '2rem', border: 'none', cursor: 'pointer', borderRadius: '0.25rem' }}
                     />
 
-                    <label style={{ fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                    <label style={{ fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.3rem', cursor: 'pointer' }}>
                       <input
                         type="checkbox"
                         checked={frame.useGradient}
@@ -921,7 +1087,7 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
                         type="color"
                         value={frame.borderColor2 || '#1e3a8a'}
                         onChange={(e) => onUpdateFrame({ borderColor2: e.target.value })}
-                        style={{ width: '2.5rem', height: '2rem', border: 'none', cursor: 'pointer' }}
+                        style={{ width: '2.5rem', height: '2rem', border: 'none', cursor: 'pointer', borderRadius: '0.25rem' }}
                       />
                     )}
                   </div>
@@ -933,7 +1099,7 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
                   </label>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
                     <div>
-                      <span style={{ fontSize: '0.7rem' }}>Arriba: {frame.borderTop}px</span>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Arriba: {frame.borderTop}px</span>
                       <input
                         type="range"
                         min="0"
@@ -944,7 +1110,7 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
                     </div>
 
                     <div>
-                      <span style={{ fontSize: '0.7rem' }}>Abajo: {frame.borderBottom}px</span>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Abajo: {frame.borderBottom}px</span>
                       <input
                         type="range"
                         min="0"
@@ -955,7 +1121,7 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
                     </div>
 
                     <div>
-                      <span style={{ fontSize: '0.7rem' }}>Izquierda: {frame.borderLeft}px</span>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Izquierda: {frame.borderLeft}px</span>
                       <input
                         type="range"
                         min="0"
@@ -966,7 +1132,7 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
                     </div>
 
                     <div>
-                      <span style={{ fontSize: '0.7rem' }}>Derecha: {frame.borderRight}px</span>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Derecha: {frame.borderRight}px</span>
                       <input
                         type="range"
                         min="0"
@@ -987,9 +1153,9 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
                       type="color"
                       value={frame.innerStrokeColor || '#f59e0b'}
                       onChange={(e) => onUpdateFrame({ innerStrokeColor: e.target.value })}
-                      style={{ width: '2rem', height: '1.8rem', border: 'none', cursor: 'pointer' }}
+                      style={{ width: '2rem', height: '1.8rem', border: 'none', cursor: 'pointer', borderRadius: '0.25rem' }}
                     />
-                    <span style={{ fontSize: '0.75rem' }}>Grosor:</span>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Grosor: {frame.innerStrokeWidth}px</span>
                     <input
                       type="range"
                       min="0"
@@ -1002,14 +1168,14 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
 
                 <div style={{ background: 'rgba(0,0,0,0.2)', padding: '0.65rem', borderRadius: '0.5rem' }}>
                   <label style={{ fontSize: '0.78rem', fontWeight: 600, display: 'block', marginBottom: '0.35rem' }}>
-                    Textos del Banner:
+                    Leyenda y Textos del Banner:
                   </label>
                   <div className="form-group">
                     <input
                       type="text"
                       value={frame.eventTitle || ''}
                       onChange={(e) => onUpdateFrame({ eventTitle: e.target.value })}
-                      placeholder="Título Principal (ej. Servicio de Doctrina)"
+                      placeholder="Título Principal (ej. Escuela Dominical)"
                       className="form-input"
                     />
                   </div>
@@ -1019,19 +1185,37 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
                       type="text"
                       value={frame.eventSubtitle || ''}
                       onChange={(e) => onUpdateFrame({ eventSubtitle: e.target.value })}
-                      placeholder="Subtítulo / Cita Bíblica"
+                      placeholder="Subtítulo / Congregación"
                       className="form-input"
                     />
                   </div>
 
-                  <div className="form-group">
+                  <div className="form-group" style={{ display: 'flex', gap: '0.4rem' }}>
                     <input
                       type="text"
                       value={frame.eventDate || ''}
                       onChange={(e) => onUpdateFrame({ eventDate: e.target.value })}
-                      placeholder="Fecha / Ubicación"
+                      placeholder="Fecha (ej. 25 de Septiembre de 2026)"
                       className="form-input"
                     />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const now = new Date();
+                        const formatted = now.toLocaleDateString('es-MX', {
+                          day: 'numeric',
+                          month: 'long',
+                          year: 'numeric',
+                        });
+                        onUpdateFrame({ eventDate: formatted });
+                      }}
+                      className="btn-secondary btn-sm"
+                      title="Insertar fecha de hoy"
+                      style={{ whiteSpace: 'nowrap' }}
+                    >
+                      <Calendar size={13} />
+                      <span>Hoy</span>
+                    </button>
                   </div>
                 </div>
               </div>
@@ -1040,7 +1224,7 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
             {frame.style === 'church-event' && (
               <>
                 <div className="form-group" style={{ marginTop: '0.85rem' }}>
-                  <label>Nombre del Evento / Culto:</label>
+                  <label>Nombre del Evento / Servicio:</label>
                   <input
                     type="text"
                     value={frame.eventTitle || ''}
@@ -1051,14 +1235,33 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
                 </div>
 
                 <div className="form-group">
-                  <label>Fecha o Leyenda Adicional:</label>
-                  <input
-                    type="text"
-                    value={frame.eventDate || ''}
-                    onChange={(e) => onUpdateFrame({ eventDate: e.target.value })}
-                    placeholder="Ej. Agosto 2026 • LLDM App"
-                    className="form-input"
-                  />
+                  <label>Fecha o Ubicación:</label>
+                  <div style={{ display: 'flex', gap: '0.4rem' }}>
+                    <input
+                      type="text"
+                      value={frame.eventDate || ''}
+                      onChange={(e) => onUpdateFrame({ eventDate: e.target.value })}
+                      placeholder="Ej. Septiembre 2026 • LLDM Vistas de la Cantera"
+                      className="form-input"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const now = new Date();
+                        const formatted = now.toLocaleDateString('es-MX', {
+                          day: 'numeric',
+                          month: 'long',
+                          year: 'numeric',
+                        });
+                        onUpdateFrame({ eventDate: formatted });
+                      }}
+                      className="btn-secondary btn-sm"
+                      title="Insertar fecha de hoy"
+                    >
+                      <Calendar size={13} />
+                      <span>Hoy</span>
+                    </button>
+                  </div>
                 </div>
               </>
             )}

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Camera, Download, Plus, Sparkles, Sliders } from 'lucide-react';
+import { Camera, Download, Plus, Wand2, Sliders } from 'lucide-react';
 
 interface HeaderProps {
   totalPhotos: number;
@@ -18,16 +18,16 @@ export const Header: React.FC<HeaderProps> = ({
     <header className="app-header">
       <div className="header-brand">
         <div className="brand-logo">
-          <Camera size={22} />
+          <Camera size={20} />
         </div>
-        <div>
+        <div className="brand-titles">
           <h1 className="brand-title">
             LLDM <span className="brand-highlight">Photo Studio</span>
-            <span className="badge-pro">PRO v2.0</span>
+            <span className="badge-pro">PRO</span>
           </h1>
           <p className="brand-subtitle">
-            <Sliders size={13} style={{ color: 'var(--color-brand-light)' }} />
-            <span>Motor de Procesamiento RAW 14-bits & Edición en Lote</span>
+            <Sliders size={12} style={{ color: 'var(--color-brand-light)' }} />
+            <span>Motor RAW 14-Bit & Edición en Lote</span>
           </p>
         </div>
       </div>
@@ -37,21 +37,32 @@ export const Header: React.FC<HeaderProps> = ({
           <>
             <button
               onClick={onApplyPresetAll}
-              className="btn-secondary"
-              title="Aplicar el preajuste automático a todas las fotos del lote"
+              className="btn-secondary header-btn"
+              title="Aplicar la optimización adaptativa actual a todas las fotografías de la sesión"
             >
-              <Sparkles size={16} style={{ color: '#f59e0b' }} />
-              <span>⚡ Auto-Mejorar Todo ({totalPhotos})</span>
+              <Wand2 size={15} style={{ color: '#fbbf24' }} />
+              <span className="btn-label-desktop">Auto-Mejorar Sesión ({totalPhotos})</span>
+              <span className="btn-label-mobile">Auto ({totalPhotos})</span>
             </button>
 
-            <button onClick={onAddPhotosClick} className="btn-secondary">
-              <Plus size={16} />
-              <span>📁 Añadir Fotos</span>
+            <button
+              onClick={onAddPhotosClick}
+              className="btn-secondary header-btn"
+              title="Añadir más fotos a la sesión actual"
+            >
+              <Plus size={15} />
+              <span className="btn-label-desktop">Añadir Fotos</span>
+              <span className="btn-label-mobile">Añadir</span>
             </button>
 
-            <button onClick={onExportBatch} className="btn-primary">
-              <Download size={16} />
-              <span>📥 Exportar Lote ZIP ({totalPhotos})</span>
+            <button
+              onClick={onExportBatch}
+              className="btn-primary header-btn"
+              title="Exportar todas las fotos procesadas en archivo ZIP de alta resolución"
+            >
+              <Download size={15} />
+              <span className="btn-label-desktop">Exportar ZIP ({totalPhotos})</span>
+              <span className="btn-label-mobile">Exportar ({totalPhotos})</span>
             </button>
           </>
         )}
