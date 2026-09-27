@@ -218,6 +218,8 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
     onUpdateFrame({
       style: 'custom-png',
       pngDataUrl: f.pngDataUrl,
+      eventTitle: f.defaultEventTitle || (f.isDynamic ? (frame.eventTitle || 'Escuela Dominical') : frame.eventTitle),
+      dynamicTextEnabled: Boolean(f.isDynamic || f.pngDataUrl.includes('notexto')),
     });
   };
 
@@ -1260,6 +1262,7 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
                           >
                             <img src={f.pngDataUrl} alt={f.name} className="logo-pill-img" />
                             <span className="logo-pill-name">{f.name.slice(0, 10)}</span>
+                            {f.isDynamic && <span className="param-modified-dot" title="Marco con texto dinámico" />}
                             {!f.id.includes('official') && (
                               <button
                                 type="button"
@@ -1274,6 +1277,96 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
                         );
                       })}
                     </div>
+
+                    {/* CONTROLES DE TEXTO DINÁMICO EN MARCO PNG */}
+                    {(() => {
+                      const selectedFrame = savedFrames.find((f) => f.pngDataUrl === frame.pngDataUrl);
+                      const isDynamic = Boolean(selectedFrame?.isDynamic || frame.pngDataUrl?.includes('notexto') || frame.dynamicTextEnabled);
+
+                      return (
+                        <div style={{ marginTop: '0.85rem', padding: '0.75rem', background: 'var(--bg-subcard)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.45rem' }}>
+                            <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--color-accent)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                              <Sparkles size={13} style={{ color: '#f59e0b' }} />
+                              {isDynamic ? 'Texto Dinámico del Marco' : 'Añadir Texto al Marco'}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => onUpdateFrame({ dynamicTextEnabled: !(frame.dynamicTextEnabled ?? true) })}
+                              className={`toggle-pill-btn ${(frame.dynamicTextEnabled ?? true) ? 'active' : ''}`}
+                              style={{ fontSize: '0.62rem', padding: '0.15rem 0.5rem' }}
+                            >
+                              {(frame.dynamicTextEnabled ?? true) ? '✓ Texto Activo' : 'Ocultar Texto'}
+                            </button>
+                          </div>
+
+                          {(frame.dynamicTextEnabled ?? true) && (
+                            <>
+                              <div style={{ marginBottom: '0.45rem' }}>
+                                <input
+                                  type="text"
+                                  value={frame.eventTitle || ''}
+                                  onChange={(e) => onUpdateFrame({ eventTitle: e.target.value, dynamicTextEnabled: true })}
+                                  placeholder="Ej. Escuela Dominical, Oración 7pm..."
+                                  className="form-input"
+                                  style={{ fontSize: '0.78rem' }}
+                                />
+                              </div>
+
+                              {/* Presets Rápidos con 1 Toque */}
+                              <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap', marginBottom: '0.55rem' }}>
+                                {[
+                                  'Escuela Dominical',
+                                  'Oración de 7:00 PM',
+                                  'Servicio de Doctrina',
+                                  'Culto de Jóvenes',
+                                  'Consagración',
+                                  'Estudio Bíblico',
+                                  'Bautismos',
+                                  'Presentación de Niños',
+                                  'Servicio Especial',
+                                ].map((ev) => {
+                                  const isEvActive = (frame.eventTitle || '').trim().toLowerCase() === ev.toLowerCase();
+                                  return (
+                                    <button
+                                      key={ev}
+                                      type="button"
+                                      onClick={() => onUpdateFrame({ eventTitle: ev, dynamicTextEnabled: true })}
+                                      className={`quick-chip-btn ${isEvActive ? 'active' : ''}`}
+                                    >
+                                      {ev}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+
+                              {/* Selector de Color del Texto */}
+                              <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                                <span style={{ fontSize: '0.66rem', color: 'var(--text-muted)' }}>Color:</span>
+                                <button
+                                  type="button"
+                                  onClick={() => onUpdateFrame({ dynamicTextColorStyle: 'gold' })}
+                                  className={`color-choice-pill ${(!frame.dynamicTextColorStyle || frame.dynamicTextColorStyle === 'gold') ? 'active' : ''}`}
+                                  style={{ padding: '0.22rem 0.5rem', fontSize: '0.66rem' }}
+                                >
+                                  <span className="color-dot" style={{ background: 'linear-gradient(135deg, #fef08a, #cea544)' }} />
+                                  <span>Oro Centenario</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => onUpdateFrame({ dynamicTextColorStyle: 'white' })}
+                                  className={`color-choice-pill ${frame.dynamicTextColorStyle === 'white' ? 'active' : ''}`}
+                                  style={{ padding: '0.22rem 0.5rem', fontSize: '0.66rem' }}
+                                >
+                                  <span className="color-dot" style={{ background: '#ffffff', border: '1px solid #cbd5e1' }} />
+                                  <span>Blanco</span>
+                                </button>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      );
+                    })()}
                   </div>
                 )}
               </>

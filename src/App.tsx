@@ -135,7 +135,7 @@ export const App: React.FC = () => {
   const [frame, setFrame] = useState<FrameSettings>(
     savedDefaults?.frame || {
       style: 'none',
-      pngDataUrl: defaultPngFrame ? defaultPngFrame.pngDataUrl : null,
+      pngDataUrl: defaultPngFrame ? defaultPngFrame.pngDataUrl : '/frames/marco-centenario-V2-notexto.png',
       pngFit: 'stretch',
       borderTop: 24,
       borderBottom: 24,
@@ -147,12 +147,15 @@ export const App: React.FC = () => {
       borderRadius: 0,
       innerStrokeColor: '#d4af37',
       innerStrokeWidth: 1,
-      eventTitle: 'Servicio de Alabanzas',
+      eventTitle: 'Escuela Dominical',
       eventSubtitle: 'Fotografía Oficial',
       eventDate: 'BereaSnap • Fotografía Oficial',
       textColor: '#ffffff',
       fontFamily: 'serif',
       textAlignment: 'center',
+      dynamicTextEnabled: true,
+      dynamicTextColorStyle: 'gold',
+      dynamicTextPosition: 'centenario-left',
     }
   );
 

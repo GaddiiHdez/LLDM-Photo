@@ -379,24 +379,90 @@ export async function drawProcessedPhotoToCanvas(
         const frameRatio = pngFrame.width / pngFrame.height;
         const canvasRatio = targetCanvas.width / targetCanvas.height;
 
+        let frameDrawX = 0;
+        let frameDrawY = 0;
+        let frameDrawW = targetCanvas.width;
+        let frameDrawH = targetCanvas.height;
+
         if (Math.abs(frameRatio - canvasRatio) < 0.15) {
           ctx.drawImage(pngFrame, 0, 0, targetCanvas.width, targetCanvas.height);
         } else {
-          let fw = targetCanvas.width;
-          let fh = targetCanvas.height;
-          let fx = 0;
-          let fy = 0;
-
           if (frameRatio > canvasRatio) {
-            fh = targetCanvas.width / frameRatio;
-            fy = (targetCanvas.height - fh) / 2;
+            frameDrawH = targetCanvas.width / frameRatio;
+            frameDrawY = (targetCanvas.height - frameDrawH) / 2;
           } else {
-            fw = targetCanvas.height * frameRatio;
-            fx = (targetCanvas.width - fw) / 2;
+            frameDrawW = targetCanvas.height * frameRatio;
+            frameDrawX = (targetCanvas.width - frameDrawW) / 2;
           }
-          ctx.drawImage(pngFrame, fx, fy, fw, fh);
+          ctx.drawImage(pngFrame, frameDrawX, frameDrawY, frameDrawW, frameDrawH);
         }
         ctx.restore();
+
+        // --- 6.1 RENDERIZADO DE TEXTO DINÁMICO EN MARCO PNG ---
+        const isDynamicTemplate = Boolean(
+          frame.pngDataUrl?.includes('notexto') ||
+          frame.dynamicTextEnabled ||
+          (!frame.pngDataUrl?.includes('oracion7pm') && !frame.pngDataUrl?.includes('escuela-dominical') && frame.eventTitle)
+        );
+
+        if (isDynamicTemplate && frame.eventTitle && frame.eventTitle.trim().length > 0) {
+          ctx.save();
+          const title = frame.eventTitle.trim().toUpperCase();
+
+          const isCentenarioBar = frame.dynamicTextPosition !== 'bottom-center' && 
+                                  (frame.dynamicTextPosition === 'centenario-left' || frame.pngDataUrl?.includes('centenario') || !frame.dynamicTextPosition);
+
+          if (isCentenarioBar) {
+            // Ubicación en barra inferior izquierda del marco Centenario
+            const textX = frameDrawX + frameDrawW * 0.121;
+            const textY = frameDrawY + frameDrawH * 0.9845;
+            const maxW = frameDrawW * 0.30;
+            const fontSize = Math.max(12, Math.round(frameDrawH * 0.0185));
+
+            ctx.font = `700 ${fontSize}px 'Cinzel', 'Cinzel Decorative', 'Times New Roman', 'Georgia', serif`;
+            ctx.textBaseline = 'middle';
+            ctx.textAlign = 'left';
+
+            // Relieve con sombra profunda
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.85)';
+            ctx.shadowBlur = Math.max(2, Math.round(fontSize * 0.15));
+            ctx.shadowOffsetX = Math.max(1, Math.round(fontSize * 0.06));
+            ctx.shadowOffsetY = Math.max(1, Math.round(fontSize * 0.06));
+
+            if (frame.dynamicTextColorStyle === 'white') {
+              ctx.fillStyle = '#ffffff';
+            } else if (frame.dynamicTextColorStyle === 'silver') {
+              ctx.fillStyle = '#cbd5e1';
+            } else {
+              // Oro Centenario Oficial
+              const goldGrad = ctx.createLinearGradient(0, textY - fontSize * 0.5, 0, textY + fontSize * 0.5);
+              goldGrad.addColorStop(0, '#fef08a');
+              goldGrad.addColorStop(0.25, '#dab768');
+              goldGrad.addColorStop(0.65, '#cea544');
+              goldGrad.addColorStop(1, '#9b711d');
+              ctx.fillStyle = goldGrad;
+            }
+
+            ctx.fillText(title, textX, textY, maxW);
+          } else {
+            // Posición centrada para otros marcos PNG generales
+            const textX = frameDrawX + frameDrawW * 0.5;
+            const textY = frameDrawY + frameDrawH * 0.975;
+            const fontSize = Math.max(14, Math.round(frameDrawH * 0.022));
+
+            ctx.font = `700 ${fontSize}px 'Cinzel', 'Outfit', sans-serif`;
+            ctx.textBaseline = 'middle';
+            ctx.textAlign = 'center';
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
+            ctx.shadowBlur = 6;
+            ctx.shadowOffsetX = 2;
+            ctx.shadowOffsetY = 2;
+            ctx.fillStyle = '#ffffff';
+            ctx.fillText(title, textX, textY, frameDrawW * 0.85);
+          }
+
+          ctx.restore();
+        }
       }
     } catch (err) {
       console.error('Error dibujando marco PNG transparente:', err);

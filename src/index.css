@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800;900&family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@300;400;500;600;700&display=swap');
 
 :root {
   --font-family: 'Outfit', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -2092,6 +2092,14 @@ input[type="range"] {
   background: var(--bg-card-hover);
   border-color: var(--border-active);
   color: var(--text-primary);
+}
+
+.quick-chip-btn.active {
+  background: rgba(245, 158, 11, 0.22);
+  border-color: #f59e0b;
+  color: #fbbf24;
+  font-weight: 700;
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.3);
 }
 
 .color-pill-btn {

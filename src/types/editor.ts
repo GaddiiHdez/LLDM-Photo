@@ -83,13 +83,17 @@ export interface FrameSettings {
   borderRadius: number;
   innerStrokeColor: string;
   innerStrokeWidth: number;
-  // Campos del Banner del Marco Personalizado
+  // Campos del Banner del Marco Personalizado y Dinámico
   eventTitle: string;
   eventSubtitle: string;
   eventDate: string;
   textColor: string;
   fontFamily: string;
   textAlignment: 'left' | 'center' | 'right';
+  // Soporte para Marcos PNG Dinámicos
+  dynamicTextEnabled?: boolean;
+  dynamicTextColorStyle?: 'gold' | 'white' | 'silver' | 'custom';
+  dynamicTextPosition?: 'centenario-left' | 'bottom-center' | 'bottom-left' | 'bottom-right';
 }
 
 export interface PhotoItem {

@@ -6,6 +6,9 @@ export interface SavedPngFrame {
   pngDataUrl: string;
   createdAt: string;
   isDefault?: boolean;
+  isOfficial?: boolean;
+  isDynamic?: boolean;
+  defaultEventTitle?: string;
 }
 
 export interface DefaultAppSettings {
@@ -14,19 +17,61 @@ export interface DefaultAppSettings {
   crop: CropSettings;
 }
 
-const STORAGE_KEY_FRAMES = 'lldm_saved_png_frames';
-const STORAGE_KEY_DEFAULTS = 'lldm_default_app_settings';
+const STORAGE_KEY_FRAMES = 'bereasnap_saved_png_frames';
+const STORAGE_KEY_DEFAULTS = 'bereasnap_default_app_settings';
+
+export const BUILTIN_FRAMES: SavedPngFrame[] = [
+  {
+    id: 'official-frame-centenario-dinamico',
+    name: 'Centenario (Personalizable)',
+    pngDataUrl: '/frames/marco-centenario-V2-notexto.png',
+    createdAt: 'Oficial',
+    isDefault: true,
+    isOfficial: true,
+    isDynamic: true,
+    defaultEventTitle: 'Escuela Dominical',
+  },
+  {
+    id: 'official-frame-centenario-oracion7pm',
+    name: 'Centenario (Oración 7pm)',
+    pngDataUrl: '/frames/marco-centenario-V2_oracion7pm.png',
+    createdAt: 'Oficial',
+    isDefault: false,
+    isOfficial: true,
+    isDynamic: false,
+  },
+  {
+    id: 'official-frame-escuela-dominical',
+    name: 'Centenario (Esc. Dominical)',
+    pngDataUrl: '/frames/marco-escuela-dominical.png',
+    createdAt: 'Oficial',
+    isDefault: false,
+    isOfficial: true,
+    isDynamic: false,
+  },
+];
 
 /**
- * Obtiene la lista de marcos PNG guardados por el usuario
+ * Obtiene la lista de marcos PNG oficiales y guardados por el usuario
  */
 export function getSavedPngFrames(): SavedPngFrame[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY_FRAMES);
-    return raw ? JSON.parse(raw) : [];
+    let userFrames: SavedPngFrame[] = [];
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          userFrames = parsed.filter((f: SavedPngFrame) => !f.id.startsWith('official-frame-'));
+        }
+      } catch (err) {
+        console.warn('Error parseando marcos guardados:', err);
+      }
+    }
+    return [...BUILTIN_FRAMES, ...userFrames];
   } catch (err) {
     console.error('Error cargando marcos PNG guardados:', err);
-    return [];
+    return BUILTIN_FRAMES;
   }
 }
 
@@ -41,33 +86,40 @@ export function savePngFrame(name: string, pngDataUrl: string, isDefault: boolea
     pngDataUrl,
     createdAt: new Date().toLocaleDateString('es-ES'),
     isDefault,
+    isOfficial: false,
+    isDynamic: false,
   };
 
   // Si se establece como default, desmarcar los anteriores
-  let updated = current.map((f) => (isDefault ? { ...f, isDefault: false } : f));
-  updated.unshift(newFrame);
+  let userFrames = current
+    .filter((f) => !f.id.startsWith('official-frame-'))
+    .map((f) => (isDefault ? { ...f, isDefault: false } : f));
+  userFrames.unshift(newFrame);
 
   try {
-    localStorage.setItem(STORAGE_KEY_FRAMES, JSON.stringify(updated));
+    localStorage.setItem(STORAGE_KEY_FRAMES, JSON.stringify(userFrames));
   } catch (err) {
     console.warn('Advertencia al guardar en localStorage (archivo grande):', err);
   }
 
-  return updated;
+  return [...BUILTIN_FRAMES, ...userFrames];
 }
 
 /**
- * Elimina un marco PNG de la biblioteca
+ * Elimina un marco PNG de la biblioteca (resguardando los marcos oficiales)
  */
 export function deleteSavedPngFrame(id: string): SavedPngFrame[] {
+  if (id.startsWith('official-frame-')) {
+    return getSavedPngFrames();
+  }
   const current = getSavedPngFrames();
-  const updated = current.filter((f) => f.id !== id);
+  const updatedUserFrames = current.filter((f) => f.id !== id && !f.id.startsWith('official-frame-'));
   try {
-    localStorage.setItem(STORAGE_KEY_FRAMES, JSON.stringify(updated));
+    localStorage.setItem(STORAGE_KEY_FRAMES, JSON.stringify(updatedUserFrames));
   } catch (err) {
     console.error('Error eliminando marco PNG:', err);
   }
-  return updated;
+  return [...BUILTIN_FRAMES, ...updatedUserFrames];
 }
 
 /**
