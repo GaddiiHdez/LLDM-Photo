@@ -31,7 +31,8 @@ export type PresetType =
   | 'warm-worship'
   | 'vibrant-praise'
   | 'elegant-bw'
-  | 'custom';
+  | 'custom'
+  | (string & {});
 
 export interface ImageAdjustments {
   brightness: number; // -100 to 100

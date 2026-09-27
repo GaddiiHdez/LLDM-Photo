@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
-  Sliders,
+  SlidersHorizontal,
   Sparkles,
   Image as ImageIcon,
   Frame,
@@ -22,7 +22,17 @@ import {
   Contrast,
   Calendar,
   CheckCheck,
+  Droplets,
+  Thermometer,
+  Moon,
+  Plus,
 } from 'lucide-react';
+import {
+  getCustomPresets,
+  saveCustomPreset,
+  deleteCustomPreset,
+  type CustomPreset,
+} from '../utils/presetStorage';
 import type {
   PhotoItem,
   ImageAdjustments,
@@ -57,11 +67,14 @@ interface SidebarControlsProps {
   frame: FrameSettings;
   onUpdateAdjustments: (adjustments: ImageAdjustments) => void;
   onUpdateCrop: (crop: CropSettings) => void;
-  onApplyPreset: (preset: PresetType) => void;
+  onApplyPreset: (preset: PresetType, customAdjustments?: ImageAdjustments) => void;
   onUpdateWatermark: (watermark: Partial<WatermarkSettings>) => void;
   onUpdateFrame: (frame: Partial<FrameSettings>) => void;
   onApplySettingsToAll: () => void;
   onSaveAsDefaultAppSettings: () => void;
+  totalPhotos?: number;
+  onToggleFilmstrip?: () => void;
+  isFilmstripCollapsed?: boolean;
 }
 
 export const SidebarControls: React.FC<SidebarControlsProps> = ({
@@ -75,8 +88,18 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
   onUpdateFrame,
   onApplySettingsToAll,
   onSaveAsDefaultAppSettings,
+  totalPhotos,
+  onToggleFilmstrip,
+  isFilmstripCollapsed,
 }) => {
-  const [activeTab, setActiveTab] = useState<'presets' | 'crop' | 'adjust' | 'watermark' | 'frame'>('presets');
+  const [activeTab, setActiveTab] = useState<'develop' | 'crop' | 'watermark' | 'frame'>('develop');
+  const [developSubMode, setDevelopSubMode] = useState<'manual' | 'presets'>('manual');
+  const [activeLightParam, setActiveLightParam] = useState<keyof ImageAdjustments>('contrast');
+  const [customPresets, setCustomPresets] = useState<CustomPreset[]>([]);
+  const [showSavePresetModal, setShowSavePresetModal] = useState<boolean>(false);
+  const [newPresetName, setNewPresetName] = useState<string>('');
+  const [savePresetToast, setSavePresetToast] = useState<string | null>(null);
+
   const [savedFrames, setSavedFrames] = useState<SavedPngFrame[]>([]);
   const [savedLogos, setSavedLogos] = useState<SavedLogo[]>([]);
   const [savedDefaultToast, setSavedDefaultToast] = useState<boolean>(false);
@@ -87,7 +110,35 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
   useEffect(() => {
     setSavedFrames(getSavedPngFrames());
     setSavedLogos(getSavedLogos());
+    setCustomPresets(getCustomPresets());
   }, []);
+
+  const handleSaveCustomPreset = () => {
+    if (!newPresetName.trim()) return;
+    const updated = saveCustomPreset(newPresetName, photo.adjustments);
+    setCustomPresets(updated);
+    const createdId = updated[0]?.id || 'custom';
+    onApplyPreset(createdId, photo.adjustments);
+    setNewPresetName('');
+    setShowSavePresetModal(false);
+    setSavePresetToast('¡Preset guardado!');
+    setTimeout(() => setSavePresetToast(null), 2500);
+  };
+
+  const lightParams: {
+    key: keyof ImageAdjustments;
+    label: string;
+    icon: React.FC<{ size?: number; className?: string }>;
+    min: number;
+    max: number;
+    step: number;
+  }[] = [
+    { key: 'brightness', label: 'Exposición', icon: SunMedium, min: -100, max: 100, step: 1 },
+    { key: 'contrast', label: 'Contraste', icon: Contrast, min: -100, max: 100, step: 1 },
+    { key: 'saturation', label: 'Saturación', icon: Droplets, min: -100, max: 100, step: 1 },
+    { key: 'warmth', label: 'Calidez', icon: Thermometer, min: -100, max: 100, step: 1 },
+    { key: 'shadows', label: 'Sombras', icon: Moon, min: -100, max: 100, step: 1 },
+  ];
 
   const handleSliderChange = (key: keyof ImageAdjustments, value: number) => {
     onUpdateAdjustments({
@@ -239,15 +290,15 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
 
   return (
     <aside className="sidebar-controls card-glass">
-      {/* Control Tabs Header */}
+      {/* Control Tabs Header (Dock de Navegación) */}
       <div className="sidebar-tabs">
         <button
-          onClick={() => setActiveTab('presets')}
-          className={`sidebar-tab ${activeTab === 'presets' ? 'active' : ''}`}
-          title="Preajustes de optimización"
+          onClick={() => setActiveTab('develop')}
+          className={`sidebar-tab ${activeTab === 'develop' ? 'active' : ''}`}
+          title="Revelado: Presets y Ajustes Manuales de Luz"
         >
-          <Wand2 size={15} />
-          <span>Presets</span>
+          <Sparkles size={15} />
+          <span>Revelado</span>
         </button>
 
         <button
@@ -257,15 +308,6 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
         >
           <Crop size={15} />
           <span>Encuadre</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('adjust')}
-          className={`sidebar-tab ${activeTab === 'adjust' ? 'active' : ''}`}
-          title="Ajustes de iluminación y sensor RAW"
-        >
-          <Sliders size={15} />
-          <span>Luz & RAW</span>
         </button>
 
         <button
@@ -285,6 +327,17 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
           <Frame size={15} />
           <span>Marcos</span>
         </button>
+
+        {onToggleFilmstrip && (
+          <button
+            onClick={onToggleFilmstrip}
+            className={`sidebar-tab tab-session ${!isFilmstripCollapsed ? 'active' : ''}`}
+            title="Ver o gestionar tira de fotos de la sesión"
+          >
+            <Bookmark size={15} />
+            <span>Sesión {totalPhotos ? `(${totalPhotos})` : ''}</span>
+          </button>
+        )}
       </div>
 
       {/* Barra de Sincronización de Sesión Minimalista */}
@@ -299,52 +352,304 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
         </button>
 
         <button
+          onClick={() => setShowSavePresetModal((prev) => !prev)}
+          className="default-pill-btn"
+          title="Guardar estos ajustes como un nuevo preset personalizado"
+        >
+          <Plus size={13} />
+          <span>Guardar Preset</span>
+        </button>
+
+        <button
           onClick={handleSaveCurrentDefault}
           className={`default-pill-btn ${savedDefaultToast ? 'saved' : ''}`}
-          title="Guardar esta configuración como inicio predeterminado"
+          title="Guardar esta configuración como inicio predeterminado global"
+          style={{ display: 'none' }}
         >
           <Bookmark size={13} />
-          <span>{savedDefaultToast ? 'Guardado ✓' : 'Guardar Preset'}</span>
+          <span>Predeterminar</span>
         </button>
       </div>
 
       <div className="sidebar-content">
-        {/* TAB 1: PRESETS */}
-        {activeTab === 'presets' && (
-          <div className="control-section">
-            <h3 className="section-title">Preajustes de Revelado</h3>
-            <p className="section-desc">Optimiza la iluminación y el color con 1 solo clic</p>
-
-            <div className="preset-grid">
-              {presetsList.map((p) => {
-                const IconComponent = p.icon;
-                const isActive = photo.preset === p.id;
-                return (
+        {/* TAB UNIFICADO: REVELADO (PRESETS + AJUSTES MANUALES ESTILO SNAPSEED / LIGHTROOM) */}
+        {activeTab === 'develop' && (
+          <div className="control-section develop-section">
+            {/* Modal / Card para Guardar Preset Personalizado */}
+            {showSavePresetModal && (
+              <div className="save-preset-card">
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
+                  <strong style={{ fontSize: '0.78rem', color: 'var(--color-accent)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <Star size={13} fill="var(--color-accent)" />
+                    Guardar Preset de Revelado
+                  </strong>
+                  <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Guarda en tu navegador</span>
+                </div>
+                <div style={{ display: 'flex', gap: '0.4rem' }}>
+                  <input
+                    type="text"
+                    value={newPresetName}
+                    onChange={(e) => setNewPresetName(e.target.value)}
+                    placeholder="Ej. Retrato Cálido Culto..."
+                    className="form-input"
+                    style={{ flex: 1, padding: '0.42rem 0.65rem', fontSize: '0.78rem' }}
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleSaveCustomPreset();
+                    }}
+                  />
                   <button
-                    key={p.id}
-                    onClick={() => onApplyPreset(p.id)}
-                    className={`preset-card ${isActive ? 'active' : ''}`}
+                    type="button"
+                    onClick={handleSaveCustomPreset}
+                    className="btn-primary"
+                    style={{ padding: '0.42rem 0.75rem', fontSize: '0.75rem', fontWeight: 700 }}
                   >
-                    <div className={`preset-icon-wrapper ${isActive ? 'active' : ''}`}>
-                      <IconComponent size={18} />
-                    </div>
-                    <div className="preset-info">
-                      <strong className="preset-name">{p.label}</strong>
-                      <span className="preset-desc">{p.desc}</span>
-                    </div>
+                    Guardar
                   </button>
-                );
-              })}
+                  <button
+                    type="button"
+                    onClick={() => setShowSavePresetModal(false)}
+                    className="btn-secondary"
+                    style={{ padding: '0.42rem 0.55rem', fontSize: '0.75rem' }}
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {savePresetToast && (
+              <div className="preset-toast-badge">
+                <Star size={13} fill="#f59e0b" color="#f59e0b" />
+                <span>{savePresetToast}</span>
+              </div>
+            )}
+
+            {/* Selector de Sub-modo: Ajustes Manuales vs Presets */}
+            <div className="develop-mode-pills">
+              <button
+                type="button"
+                onClick={() => setDevelopSubMode('manual')}
+                className={`develop-mode-btn ${developSubMode === 'manual' ? 'active' : ''}`}
+              >
+                <SlidersHorizontal size={13} />
+                <span>Ajustes Manuales</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setDevelopSubMode('presets')}
+                className={`develop-mode-btn ${developSubMode === 'presets' ? 'active' : ''}`}
+              >
+                <Wand2 size={13} />
+                <span>Presets ({presetsList.length + customPresets.length})</span>
+              </button>
             </div>
 
-            <button
-              onClick={() => onApplyPreset('custom')}
-              className="btn-secondary btn-block"
-              style={{ marginTop: '1rem' }}
-            >
-              <RotateCcw size={14} />
-              <span>Restablecer Ajustes Originales</span>
-            </button>
+            {/* MODO 1: AJUSTES MANUALES (VISTA 1: SLIDER MAESTRO ACTIVO + CINTA DE PARÁMETROS) */}
+            {developSubMode === 'manual' && (
+              <div className="manual-develop-container">
+                {(() => {
+                  const activeParamConfig = lightParams.find((p) => p.key === activeLightParam) || lightParams[1];
+                  const ActiveIcon = activeParamConfig.icon;
+                  const activeValue = photo.adjustments[activeLightParam] ?? 0;
+
+                  return (
+                    <div className="master-slider-card">
+                      <div className="master-slider-header">
+                        <div className="slider-label-group">
+                          <ActiveIcon size={15} className="active-param-icon" />
+                          <span className="slider-param-name">{activeParamConfig.label.toUpperCase()}</span>
+                        </div>
+
+                        <div className="slider-value-bubble">
+                          <span>{activeValue > 0 ? `+${activeValue}` : activeValue}</span>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => handleSliderChange(activeLightParam, 0)}
+                          className="slider-reset-action"
+                          title="Restablecer este parámetro a 0"
+                        >
+                          <span>Reiniciar</span>
+                          <RotateCcw size={11} />
+                        </button>
+                      </div>
+
+                      <div className="master-slider-track-wrap">
+                        <input
+                          type="range"
+                          min={activeParamConfig.min}
+                          max={activeParamConfig.max}
+                          step={activeParamConfig.step}
+                          value={activeValue}
+                          onChange={(e) => handleSliderChange(activeLightParam, Number(e.target.value))}
+                          className="master-range-slider"
+                        />
+                        <div className="master-slider-ticks">
+                          <span className="tick-side">-100</span>
+                          <span className="tick-center">0</span>
+                          <span className="tick-side">+100</span>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* CINTA DE PARÁMETROS CON ICONOS (VISTA 1) */}
+                <div className="param-icons-carousel">
+                  {lightParams.map((p) => {
+                    const Icon = p.icon;
+                    const isSelected = activeLightParam === p.key;
+                    const val = photo.adjustments[p.key] ?? 0;
+                    const isModified = val !== 0;
+
+                    return (
+                      <button
+                        key={p.key}
+                        type="button"
+                        onClick={() => setActiveLightParam(p.key)}
+                        className={`param-icon-pill ${isSelected ? 'active' : ''}`}
+                      >
+                        <div className={`param-icon-circle ${isSelected ? 'active' : ''}`}>
+                          <Icon size={18} />
+                          {isModified && <span className="param-modified-dot" />}
+                        </div>
+                        <span className="param-icon-name">{p.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* ACCIONES RÁPIDAS EN DESARROLLO MANUAL */}
+                <div className="develop-quick-actions">
+                  <button
+                    type="button"
+                    onClick={() => onApplyPreset('auto-church')}
+                    className="btn-secondary develop-action-btn"
+                    title="Calcular y aplicar balance tonal óptimo automáticamente"
+                  >
+                    <Wand2 size={13} style={{ color: '#38bdf8' }} />
+                    <span>Auto-Tono</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowSavePresetModal(true)}
+                    className="btn-secondary develop-action-btn"
+                    title="Guardar ajuste actual como preset personalizado"
+                  >
+                    <Star size={13} style={{ color: '#f59e0b' }} />
+                    <span>Guardar Preset</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => onApplyPreset('custom')}
+                    className="btn-secondary develop-action-btn"
+                    title="Restablecer todos los sliders a neutro"
+                  >
+                    <RotateCcw size={13} />
+                    <span>Restablecer</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* MODO 2: PRESETS (PREAJUSTES DE FÁBRICA + PRESETS PROPIOS) */}
+            {developSubMode === 'presets' && (
+              <div className="presets-develop-container">
+                {/* PRESETS PROPIOS DEL USUARIO */}
+                {customPresets.length > 0 && (
+                  <div style={{ marginBottom: '1rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.45rem' }}>
+                      <span style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--color-accent)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        ★ Mis Presets Guardados ({customPresets.length})
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setShowSavePresetModal(true)}
+                        className="btn-secondary btn-sm"
+                        style={{ fontSize: '0.68rem', padding: '0.18rem 0.5rem' }}
+                      >
+                        <Plus size={11} />
+                        <span>Nuevo</span>
+                      </button>
+                    </div>
+
+                    <div className="preset-grid">
+                      {customPresets.map((cp) => {
+                        const isActive = photo.preset === cp.id;
+                        return (
+                          <div
+                            key={cp.id}
+                            onClick={() => onApplyPreset(cp.id, cp.adjustments)}
+                            className={`preset-card user-preset ${isActive ? 'active' : ''}`}
+                          >
+                            <div className={`preset-icon-wrapper user-preset ${isActive ? 'active' : ''}`}>
+                              <Star size={16} fill={isActive ? '#ffffff' : '#f59e0b'} color={isActive ? '#ffffff' : '#f59e0b'} />
+                            </div>
+                            <div className="preset-info">
+                              <strong className="preset-name">{cp.name}</strong>
+                              <span className="preset-desc" style={{ color: 'var(--text-muted)' }}>Mío · {cp.createdAt}</span>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const updated = deleteCustomPreset(cp.id);
+                                setCustomPresets(updated);
+                              }}
+                              className="delete-preset-btn"
+                              title="Eliminar preset personalizado"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* PRESETS DE FÁBRICA */}
+                <span style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '0.45rem' }}>
+                  Filtros de Revelado LLDM
+                </span>
+
+                <div className="preset-grid">
+                  {presetsList.map((p) => {
+                    const IconComponent = p.icon;
+                    const isActive = photo.preset === p.id;
+                    return (
+                      <button
+                        key={p.id}
+                        onClick={() => onApplyPreset(p.id)}
+                        className={`preset-card ${isActive ? 'active' : ''}`}
+                      >
+                        <div className={`preset-icon-wrapper ${isActive ? 'active' : ''}`}>
+                          <IconComponent size={18} />
+                        </div>
+                        <div className="preset-info">
+                          <strong className="preset-name">{p.label}</strong>
+                          <span className="preset-desc">{p.desc}</span>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <button
+                  onClick={() => onApplyPreset('custom')}
+                  className="btn-secondary btn-block"
+                  style={{ marginTop: '0.85rem' }}
+                >
+                  <RotateCcw size={14} />
+                  <span>Restablecer Ajustes Originales</span>
+                </button>
+              </div>
+            )}
           </div>
         )}
 
@@ -487,108 +792,6 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
                   onChange={(e) => handleCropChange('zoom', Number(e.target.value))}
                 />
               </div>
-            </div>
-          </div>
-        )}
-
-        {/* TAB 3: AJUSTES MANUALES DE LUZ */}
-        {activeTab === 'adjust' && (
-          <div className="control-section">
-            <h3 className="section-title">Ajustes de Revelado & Luz</h3>
-            <p className="section-desc">Control fino del sensor, rango dinámico y temperatura de color</p>
-
-            {/* Botón único de auto-tono en el panel de Luz */}
-            <div style={{ display: 'flex', gap: '0.45rem', marginBottom: '1.25rem' }}>
-              <button
-                type="button"
-                onClick={() => onApplyPreset('auto-church')}
-                className="btn-secondary"
-                style={{ flex: 1, fontSize: '0.78rem', justifyContent: 'center', background: 'rgba(56, 189, 248, 0.1)', borderColor: 'rgba(56, 189, 248, 0.3)' }}
-                title="Calcular y aplicar balance tonal óptimo automáticamente"
-              >
-                <Wand2 size={13} style={{ color: '#38bdf8' }} />
-                <span>Auto-Tono Inteligente</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => onApplyPreset('custom')}
-                className="btn-secondary"
-                title="Restablecer todos los sliders a neutro"
-                style={{ padding: '0.45rem 0.65rem' }}
-              >
-                <RotateCcw size={13} />
-              </button>
-            </div>
-
-            <div className="slider-group">
-              <div className="slider-header">
-                <label>Brillo / Exposición</label>
-                <span>{photo.adjustments.brightness}</span>
-              </div>
-              <input
-                type="range"
-                min="-100"
-                max="100"
-                value={photo.adjustments.brightness}
-                onChange={(e) => handleSliderChange('brightness', Number(e.target.value))}
-              />
-            </div>
-
-            <div className="slider-group">
-              <div className="slider-header">
-                <label>Contraste</label>
-                <span>{photo.adjustments.contrast}</span>
-              </div>
-              <input
-                type="range"
-                min="-100"
-                max="100"
-                value={photo.adjustments.contrast}
-                onChange={(e) => handleSliderChange('contrast', Number(e.target.value))}
-              />
-            </div>
-
-            <div className="slider-group">
-              <div className="slider-header">
-                <label>Saturación / Color</label>
-                <span>{photo.adjustments.saturation}</span>
-              </div>
-              <input
-                type="range"
-                min="-100"
-                max="100"
-                value={photo.adjustments.saturation}
-                onChange={(e) => handleSliderChange('saturation', Number(e.target.value))}
-              />
-            </div>
-
-            <div className="slider-group">
-              <div className="slider-header">
-                <label>Calidez de Luces (Tono)</label>
-                <span>{photo.adjustments.warmth}</span>
-              </div>
-              <input
-                type="range"
-                min="-100"
-                max="100"
-                value={photo.adjustments.warmth}
-                onChange={(e) => handleSliderChange('warmth', Number(e.target.value))}
-              />
-            </div>
-
-            <div className="slider-group">
-              <div className="slider-header">
-                <label>Recuperación de Sombras</label>
-                <span>{photo.adjustments.shadows}</span>
-              </div>
-              <input
-                type="range"
-                min="-100"
-                max="100"
-                value={photo.adjustments.shadows}
-                onChange={(e) => handleSliderChange('shadows', Number(e.target.value))}
-              />
             </div>
           </div>
         )}

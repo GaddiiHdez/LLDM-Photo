@@ -98,8 +98,10 @@ export const App: React.FC = () => {
     setTheme(mode);
   };
 
-  // Filmstrip Collapsed State
-  const [isFilmstripCollapsed, setIsFilmstripCollapsed] = useState<boolean>(false);
+  // Filmstrip Collapsed State (inicia colapsado en móvil para maximizar el lienzo y controles)
+  const [isFilmstripCollapsed, setIsFilmstripCollapsed] = useState<boolean>(() => {
+    return typeof window !== 'undefined' ? window.innerWidth <= 768 : false;
+  });
 
   // State
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
@@ -229,9 +231,9 @@ export const App: React.FC = () => {
     );
   };
 
-  // Apply preset to active photo
-  const handleApplyPreset = (preset: PresetType) => {
-    const adjustments = PRESET_ADJUSTMENTS[preset];
+  // Apply preset to active photo (soporta presets oficiales y personalizados de usuario)
+  const handleApplyPreset = (preset: PresetType, customAdjustments?: ImageAdjustments) => {
+    const adjustments = customAdjustments || (PRESET_ADJUSTMENTS as any)[preset] || PRESET_ADJUSTMENTS['custom'];
     setPhotos((prev) =>
       prev.map((p) => (p.id === activePhotoId ? { ...p, adjustments, preset } : p))
     );
@@ -402,6 +404,9 @@ export const App: React.FC = () => {
             onUpdateFrame={(f) => setFrame((prev) => ({ ...prev, ...f }))}
             onApplySettingsToAll={handleApplySettingsToAll}
             onSaveAsDefaultAppSettings={handleSaveAsDefaultAppSettings}
+            totalPhotos={photos.length}
+            onToggleFilmstrip={() => setIsFilmstripCollapsed((prev) => !prev)}
+            isFilmstripCollapsed={isFilmstripCollapsed}
           />
         </div>
       )}

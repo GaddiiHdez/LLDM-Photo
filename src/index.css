@@ -1520,27 +1520,366 @@ input[type="range"] {
   }
 }
 
+
+/* ========================================================
+   SISTEMA DE CONTROLADORES DE REVELADO (VISTA 1: SNAPSEED / LIGHTROOM)
+   ======================================================== */
+
+.develop-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.develop-mode-pills {
+  display: flex;
+  background: var(--bg-subcard);
+  padding: 3px;
+  border-radius: 9999px;
+  gap: 4px;
+  border: 1px solid var(--border-color);
+  margin-bottom: 0.85rem;
+}
+
+.develop-mode-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.42rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.76rem;
+  font-weight: 700;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.develop-mode-btn.active {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border-active);
+}
+
+/* Master Active Slider Card (Vista 1) */
+.master-slider-card {
+  background: var(--bg-subcard);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 0.85rem 1rem;
+  margin-bottom: 0.85rem;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+
+.master-slider-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.65rem;
+}
+
+.slider-label-group {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.active-param-icon {
+  color: #f59e0b;
+}
+
+.slider-param-name {
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: var(--text-primary);
+}
+
+.slider-value-bubble {
+  background: rgba(245, 158, 11, 0.18);
+  border: 1px solid rgba(245, 158, 11, 0.45);
+  color: #fbbf24;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 800;
+  padding: 0.18rem 0.65rem;
+  border-radius: 9999px;
+  box-shadow: 0 0 14px rgba(245, 158, 11, 0.25);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.75rem;
+}
+
+.slider-reset-action {
+  background: transparent;
+  border: 1px solid var(--border-color);
+  color: var(--text-muted);
+  font-size: 0.68rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.22rem 0.55rem;
+  border-radius: 0.35rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.slider-reset-action:hover {
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  border-color: var(--border-active);
+}
+
+/* Master Slider Track */
+.master-slider-track-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.master-range-slider {
+  width: 100%;
+  height: 6px;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, #3b82f6 0%, rgba(255, 255, 255, 0.2) 50%, #f59e0b 100%);
+  outline: none;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.master-range-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #ffffff;
+  border: 2px solid #f59e0b;
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.6), 0 2px 5px rgba(0,0,0,0.5);
+  cursor: grab;
+  transition: transform 0.1s ease;
+}
+
+.master-range-slider::-webkit-slider-thumb:active {
+  transform: scale(1.2);
+  cursor: grabbing;
+}
+
+.master-slider-ticks {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.62rem;
+  font-family: var(--font-mono);
+  color: var(--text-muted);
+  padding: 0 2px;
+}
+
+.tick-center {
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+
+/* Parameter Icons Carousel (Vista 1) */
+.param-icons-carousel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.45rem;
+  margin-bottom: 0.85rem;
+  padding: 0.35rem 0.15rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.param-icons-carousel::-webkit-scrollbar {
+  display: none;
+}
+
+.param-icon-pill {
+  flex: 1;
+  min-width: 3.5rem;
+  background: transparent;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  cursor: pointer;
+  padding: 0.2rem;
+  transition: all 0.2s ease;
+}
+
+.param-icon-circle {
+  width: 2.85rem;
+  height: 2.85rem;
+  border-radius: 50%;
+  background: var(--bg-subcard);
+  border: 1px solid var(--border-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  position: relative;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.param-icon-pill:hover .param-icon-circle {
+  color: var(--text-primary);
+  border-color: var(--border-active);
+  transform: translateY(-2px);
+}
+
+.param-icon-circle.active,
+.param-icon-pill.active .param-icon-circle {
+  background: rgba(245, 158, 11, 0.22);
+  border: 2px solid #f59e0b;
+  color: #fbbf24;
+  box-shadow: 0 0 16px rgba(245, 158, 11, 0.45);
+  transform: scale(1.05);
+}
+
+.param-modified-dot {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #f59e0b;
+  box-shadow: 0 0 6px #f59e0b;
+}
+
+.param-icon-name {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  white-space: nowrap;
+  transition: color 0.2s ease;
+}
+
+.param-icon-pill.active .param-icon-name {
+  color: #fbbf24;
+  font-weight: 700;
+}
+
+/* Acciones Rápidas en Revelado */
+.develop-quick-actions {
+  display: flex;
+  gap: 0.45rem;
+}
+
+.develop-action-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  padding: 0.45rem 0.5rem;
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+/* Guardar Preset Modal / Card */
+.save-preset-card {
+  background: var(--bg-card);
+  border: 1px solid var(--color-accent);
+  box-shadow: 0 0 20px rgba(245, 158, 11, 0.25);
+  border-radius: var(--radius-md);
+  padding: 0.75rem 0.85rem;
+  margin-bottom: 0.75rem;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.preset-toast-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  color: #fbbf24;
+  font-size: 0.74rem;
+  font-weight: 700;
+  padding: 0.3rem 0.75rem;
+  border-radius: 9999px;
+  margin-bottom: 0.65rem;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.preset-card.user-preset {
+  border-color: rgba(245, 158, 11, 0.35);
+  position: relative;
+}
+
+.preset-card.user-preset.active {
+  border-color: #f59e0b;
+  box-shadow: 0 0 14px rgba(245, 158, 11, 0.3);
+}
+
+.preset-icon-wrapper.user-preset {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+.delete-preset-btn {
+  background: transparent;
+  border: none;
+  color: var(--color-danger);
+  padding: 0.3rem;
+  cursor: pointer;
+  border-radius: 0.25rem;
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+}
+
+.delete-preset-btn:hover {
+  opacity: 1;
+  background: rgba(239, 68, 68, 0.15);
+}
+
+@keyframes slideUpDrawer {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
 /* Móviles Grandes & Tablets Verticales (<= 768px) */
 @media (max-width: 768px) {
-  body {
-    overflow-y: auto;
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    position: fixed;
+    width: 100%;
   }
 
   .app-container {
-    height: auto;
-    min-height: 100vh;
-    overflow-y: auto;
+    height: 100dvh;
+    max-height: 100dvh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
   }
 
   /* Header Compacto Ultralimpio */
   .app-header {
-    height: 3.5rem;
-    padding: 0 0.75rem;
+    height: 3.25rem;
+    padding: 0 0.65rem;
+    flex-shrink: 0;
   }
 
   .brand-logo {
-    width: 2.25rem;
-    height: 2.25rem;
+    width: 2.15rem;
+    height: 2.15rem;
   }
 
   .brand-subtitle {
@@ -1553,7 +1892,7 @@ input[type="range"] {
 
   .brand-text-mobile {
     display: inline-flex;
-    font-size: 1.05rem;
+    font-size: 1rem;
     font-weight: 800;
   }
 
@@ -1567,16 +1906,16 @@ input[type="range"] {
   }
 
   .theme-switch-btn {
-    padding: 0.32rem 0.5rem;
+    padding: 0.3rem 0.45rem;
   }
 
   .header-actions {
-    gap: 0.35rem;
+    gap: 0.3rem;
   }
 
   .header-btn {
-    padding: 0.42rem 0.65rem;
-    font-size: 0.74rem;
+    padding: 0.38rem 0.55rem;
+    font-size: 0.72rem;
   }
 
   .btn-label-desktop {
@@ -1587,53 +1926,51 @@ input[type="range"] {
     display: inline;
   }
 
-  /* Layout Principal Vertical: Lienzo -> Tira de Fotos -> Controles */
+  /* Layout Principal Fijo (Lienzo Fijo 54% + Bottom Control Dock 46%) */
   .studio-body {
+    flex: 1;
+    min-height: 0;
+    display: flex;
     flex-direction: column;
-    height: auto;
-    overflow: visible;
+    overflow: hidden;
+    height: calc(100dvh - 3.25rem);
+    position: relative;
   }
 
   .studio-main-column {
-    width: 100%;
+    flex: 1 1 54%;
+    min-height: 0;
     display: flex;
     flex-direction: column;
-    flex: none;
-    order: 1;
-  }
-
-  .sidebar-controls {
+    overflow: hidden;
     width: 100%;
-    min-height: auto;
-    border-left: none;
-    border-top: 1px solid var(--border-color);
-    order: 2;
+    order: 1;
   }
 
   /* Preview Stage en Móvil */
   .preview-stage {
-    height: 48vh;
-    min-height: 280px;
-    flex: none;
+    flex: 1;
+    min-height: 0;
+    height: 100%;
     border-bottom: 1px solid var(--border-color);
   }
 
   .preview-toolbar {
-    height: 2.85rem;
-    margin: 0.5rem 0.5rem 0 0.5rem;
-    padding: 0 0.65rem;
-    gap: 0.35rem;
+    height: 2.5rem;
+    margin: 0.35rem 0.45rem 0 0.45rem;
+    padding: 0 0.55rem;
+    gap: 0.3rem;
   }
 
   .photo-info {
-    gap: 0.4rem;
+    gap: 0.35rem;
     min-width: 0;
     flex: 1;
   }
 
   .photo-name {
-    max-width: 125px;
-    font-size: 0.78rem;
+    max-width: 110px;
+    font-size: 0.75rem;
   }
 
   .engine-status-tag {
@@ -1641,23 +1978,23 @@ input[type="range"] {
   }
 
   .preview-tools {
-    gap: 0.28rem;
+    gap: 0.25rem;
     flex-shrink: 0;
   }
 
   .preview-tools button {
-    padding: 0.35rem 0.5rem;
-    font-size: 0.72rem;
+    padding: 0.3rem 0.45rem;
+    font-size: 0.7rem;
   }
 
   .canvas-wrapper {
-    padding: 0.75rem;
+    padding: 0.4rem;
   }
 
   .floating-canvas-hint {
-    font-size: 0.68rem;
-    padding: 0.3rem 0.75rem;
-    bottom: 0.6rem;
+    font-size: 0.65rem;
+    padding: 0.25rem 0.65rem;
+    bottom: 0.5rem;
   }
 
   .hint-desktop {
@@ -1668,31 +2005,28 @@ input[type="range"] {
     display: inline;
   }
 
-  /* Tira de Miniaturas Restaurada (Directamente debajo del lienzo) */
-  .thumbnail-bar {
-    height: auto;
-    min-height: 7.5rem;
-    padding: 0.55rem 0.75rem;
-    border-top: none;
-    border-bottom: 1px solid var(--border-color);
+  /* Tira de Miniaturas Flotante / Bottom Sheet en Móvil */
+  .thumbnail-bar.collapsed {
+    display: none !important;
   }
 
-  .thumbnail-bar.collapsed {
-    height: 2.75rem;
-    min-height: 0;
-    padding: 0.35rem 0.75rem;
+  .thumbnail-bar:not(.collapsed) {
+    position: absolute;
+    bottom: 3.5rem;
+    left: 0;
+    right: 0;
+    z-index: 60;
+    background: var(--bg-card);
+    backdrop-filter: blur(20px);
+    box-shadow: 0 -12px 35px rgba(0, 0, 0, 0.65);
+    border-top: 1px solid var(--color-accent);
+    padding: 0.75rem 0.85rem;
+    animation: slideUpDrawer 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
   .thumbnail-bar-header {
     margin-bottom: 0.45rem;
     gap: 0.45rem;
-  }
-
-  .batch-status-group {
-    display: flex;
-    align-items: center;
-    gap: 0.45rem;
-    white-space: nowrap;
   }
 
   .batch-counter {
@@ -1729,26 +2063,69 @@ input[type="range"] {
   }
 
   .thumbnail-card {
-    width: 4rem;
-    height: 4rem;
+    width: 3.85rem;
+    height: 3.85rem;
     flex-shrink: 0;
   }
 
-  /* Sidebar Controls en Móvil */
-  .sidebar-tabs {
-    overflow-x: auto;
-    padding: 0.3rem;
-    scrollbar-width: none;
+  /* Bottom Control Dock en Móvil */
+  .sidebar-controls {
+    flex: 0 0 auto;
+    height: 46%;
+    max-height: 46%;
+    min-height: 240px;
+    width: 100%;
+    border-left: none;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    order: 2;
+    overflow: hidden;
+    background: var(--bg-card);
+    z-index: 10;
   }
 
-  .sidebar-tabs::-webkit-scrollbar {
-    display: none;
+  .session-sync-bar {
+    order: 1;
+    padding: 0.3rem 0.65rem;
+    margin-bottom: 0;
+    border-bottom: 1px solid var(--border-color);
+    flex-shrink: 0;
+  }
+
+  .sidebar-content {
+    order: 2;
+    flex: 1;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 0.55rem 0.75rem 0.35rem 0.75rem;
+  }
+
+  /* Dock Inferior Fijo */
+  .sidebar-tabs {
+    order: 3;
+    flex-shrink: 0;
+    display: flex;
+    padding: 0.35rem 0.45rem;
+    background: var(--bg-surface);
+    border-top: 1px solid var(--border-color);
+    gap: 0.25rem;
+    justify-content: space-around;
+    overflow-x: visible;
   }
 
   .sidebar-tab {
-    padding: 0.5rem 0.6rem;
-    font-size: 0.68rem;
-    white-space: nowrap;
+    flex: 1;
+    padding: 0.4rem 0.2rem;
+    font-size: 0.66rem;
+    flex-direction: column;
+    gap: 0.2rem;
+    justify-content: center;
+    border-radius: 0.4rem;
+  }
+
+  .sidebar-tab.tab-session {
+    color: var(--color-brand-light);
   }
 
   /* Cuadrícula Compacta de 2 Columnas para Presets y Enfoques en Móvil */
@@ -1761,7 +2138,7 @@ input[type="range"] {
   .preset-card {
     padding: 0.55rem 0.65rem;
     gap: 0.45rem;
-    min-height: 3.5rem;
+    min-height: 3.25rem;
   }
 
   .preset-icon-wrapper {
@@ -1771,11 +2148,11 @@ input[type="range"] {
   }
 
   .preset-desc {
-    display: none; /* Oculta descripciones largas en móvil ahorrando 65% de espacio vertical */
+    display: none;
   }
 
   .preset-name {
-    font-size: 0.75rem;
+    font-size: 0.74rem;
     line-height: 1.2;
   }
 
@@ -1818,55 +2195,68 @@ input[type="range"] {
 
 /* Teléfonos Pequeños (<= 480px) */
 @media (max-width: 480px) {
-  .preview-stage {
-    height: 44vh;
-    min-height: 250px;
-  }
-
   .brand-logo {
-    width: 2.1rem;
-    height: 2.1rem;
+    width: 2rem;
+    height: 2rem;
   }
 
   .brand-text-mobile {
-    font-size: 0.95rem;
+    font-size: 0.92rem;
   }
 
   .photo-name {
-    max-width: 95px;
-    font-size: 0.74rem;
+    max-width: 90px;
+    font-size: 0.72rem;
   }
 
   .badge-raw {
-    font-size: 0.58rem;
-    padding: 0.12rem 0.35rem;
+    font-size: 0.55rem;
+    padding: 0.1rem 0.3rem;
   }
 
   .preview-tools {
-    gap: 0.25rem;
+    gap: 0.2rem;
   }
 
   .preview-tools button {
-    padding: 0.32rem 0.45rem;
-    font-size: 0.68rem;
+    padding: 0.28rem 0.4rem;
+    font-size: 0.66rem;
+  }
+
+  .param-icon-circle {
+    width: 2.6rem;
+    height: 2.6rem;
+  }
+
+  .param-icon-name {
+    font-size: 0.64rem;
+  }
+
+  .slider-param-name {
+    font-size: 0.72rem;
+  }
+
+  .slider-value-bubble {
+    font-size: 0.78rem;
+    padding: 0.15rem 0.5rem;
+    min-width: 2.5rem;
   }
 
   .thumbnail-card {
-    width: 3.65rem;
-    height: 3.65rem;
+    width: 3.5rem;
+    height: 3.5rem;
   }
 
   .canvas-nav-btn {
-    width: 2.25rem;
-    height: 2.25rem;
+    width: 2.15rem;
+    height: 2.15rem;
   }
 
   .canvas-nav-btn.prev {
-    left: 0.4rem;
+    left: 0.35rem;
   }
 
   .canvas-nav-btn.next {
-    right: 0.4rem;
+    right: 0.35rem;
   }
 }
-
