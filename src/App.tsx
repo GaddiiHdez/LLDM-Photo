@@ -131,26 +131,27 @@ export const App: React.FC = () => {
   );
 
   // Frame State (Si hay un marco PNG predeterminado guardado, se activa por defecto)
+  // Frame State (Por defecto la foto inicia limpia sin marco 'none')
   const [frame, setFrame] = useState<FrameSettings>(
     savedDefaults?.frame || {
-      style: defaultPngFrame ? 'custom-png' : 'church-event',
+      style: 'none',
       pngDataUrl: defaultPngFrame ? defaultPngFrame.pngDataUrl : null,
       pngFit: 'stretch',
-      borderTop: 20,
-      borderBottom: 60,
-      borderLeft: 20,
-      borderRight: 20,
-      borderColor: '#0f172a',
-      borderColor2: '#1e3a8a',
-      useGradient: true,
+      borderTop: 24,
+      borderBottom: 24,
+      borderLeft: 24,
+      borderRight: 24,
+      borderColor: '#0a0f1d',
+      borderColor2: '#0a0f1d',
+      useGradient: false,
       borderRadius: 0,
-      innerStrokeColor: '#f59e0b',
-      innerStrokeWidth: 2,
+      innerStrokeColor: '#d4af37',
+      innerStrokeWidth: 1,
       eventTitle: 'Servicio de Alabanzas',
-      eventSubtitle: 'Fotografía de Iglesia Local',
+      eventSubtitle: 'Fotografía Oficial',
       eventDate: 'Agosto 2026 • LLDM App',
       textColor: '#ffffff',
-      fontFamily: 'sans-serif',
+      fontFamily: 'serif',
       textAlignment: 'center',
     }
   );

@@ -18,13 +18,15 @@ export type WatermarkPosition =
 
 export type FrameStyle =
   | 'none'
-  | 'custom-designer'
+  | 'fine-gallery'
+  | 'editorial'
+  | 'gold-accent'
   | 'custom-png'
+  | 'polaroid-card'
+  | 'custom-designer'
   | 'classic-white'
   | 'classic-dark'
-  | 'church-event'
-  | 'gold-accent'
-  | 'polaroid-card';
+  | 'church-event';
 
 export type PresetType =
   | 'auto-church'

@@ -195,6 +195,18 @@ export async function drawProcessedPhotoToCanvas(
     extraBottom = Math.round((frame.borderBottom || 40) * scale);
     extraLeft = Math.round((frame.borderLeft || 20) * scale);
     extraRight = Math.round((frame.borderRight || 20) * scale);
+  } else if (frame.style === 'fine-gallery') {
+    const margin = Math.round(width * 0.035);
+    extraTop = margin;
+    extraBottom = margin;
+    extraLeft = margin;
+    extraRight = margin;
+  } else if (frame.style === 'editorial') {
+    const margin = Math.round(width * 0.025);
+    extraTop = margin;
+    extraBottom = margin + Math.round(height * 0.09);
+    extraLeft = margin;
+    extraRight = margin;
   } else if (frame.style === 'classic-white' || frame.style === 'classic-dark' || frame.style === 'gold-accent') {
     extraTop = borderWidth;
     extraBottom = borderWidth;
@@ -202,7 +214,7 @@ export async function drawProcessedPhotoToCanvas(
     extraRight = borderWidth;
   } else if (frame.style === 'church-event') {
     extraTop = borderWidth;
-    extraBottom = borderWidth + Math.round(height * 0.12);
+    extraBottom = borderWidth + Math.round(height * 0.10);
     extraLeft = borderWidth;
     extraRight = borderWidth;
   } else if (frame.style === 'polaroid-card') {
@@ -240,18 +252,18 @@ export async function drawProcessedPhotoToCanvas(
     ctx.restore();
   } else if (frame.style !== 'none' && frame.style !== 'custom-png') {
     ctx.save();
-    if (frame.style === 'classic-white' || frame.style === 'polaroid-card') {
+    if (frame.style === 'fine-gallery') {
+      ctx.fillStyle = frame.borderColor || '#ffffff';
+    } else if (frame.style === 'editorial') {
+      ctx.fillStyle = frame.borderColor || '#0f172a';
+    } else if (frame.style === 'classic-white' || frame.style === 'polaroid-card') {
       ctx.fillStyle = '#ffffff';
     } else if (frame.style === 'classic-dark') {
       ctx.fillStyle = '#0f172a';
     } else if (frame.style === 'gold-accent') {
-      const grad = ctx.createLinearGradient(0, 0, targetCanvas.width, targetCanvas.height);
-      grad.addColorStop(0, '#d97706');
-      grad.addColorStop(0.5, '#fef08a');
-      grad.addColorStop(1, '#b45309');
-      ctx.fillStyle = grad;
+      ctx.fillStyle = '#0a0f1d';
     } else if (frame.style === 'church-event') {
-      ctx.fillStyle = '#1e293b';
+      ctx.fillStyle = '#0f172a';
     }
     ctx.fillRect(0, 0, targetCanvas.width, targetCanvas.height);
     ctx.restore();
@@ -285,8 +297,25 @@ export async function drawProcessedPhotoToCanvas(
   );
   ctx.restore();
 
-  // --- 4. FILETE INTERIOR DEL MARCO ---
-  if (frame.style === 'custom-designer' && frame.innerStrokeWidth > 0) {
+  // --- 4. FILETE INTERIOR DEL MARCO (FINE ART GALLERY & GOLD ACCENT) ---
+  if (frame.style === 'fine-gallery') {
+    ctx.save();
+    ctx.strokeStyle = frame.innerStrokeColor || '#d4af37';
+    ctx.lineWidth = Math.max(1, Math.round(width * 0.0015));
+    const inset = Math.round(width * 0.008);
+    ctx.strokeRect(extraLeft - inset, extraTop - inset, width + inset * 2, height + inset * 2);
+    ctx.restore();
+  } else if (frame.style === 'gold-accent') {
+    ctx.save();
+    const grad = ctx.createLinearGradient(0, 0, targetCanvas.width, targetCanvas.height);
+    grad.addColorStop(0, '#f59e0b');
+    grad.addColorStop(0.5, '#fef08a');
+    grad.addColorStop(1, '#b45309');
+    ctx.strokeStyle = grad;
+    ctx.lineWidth = Math.max(2, Math.round(width * 0.0035));
+    ctx.strokeRect(extraLeft, extraTop, width, height);
+    ctx.restore();
+  } else if (frame.style === 'custom-designer' && frame.innerStrokeWidth > 0) {
     ctx.save();
     ctx.strokeStyle = frame.innerStrokeColor || '#f59e0b';
     ctx.lineWidth = frame.innerStrokeWidth;
@@ -374,33 +403,34 @@ export async function drawProcessedPhotoToCanvas(
     }
   }
 
-  // --- 7. TEXTO DE BANNER DE EVENTO ---
-  if (frame.style === 'custom-designer' && (frame.eventTitle || frame.eventSubtitle || frame.eventDate)) {
+  // --- 7. TEXTO EDITORIAL O BANNER REFINADO ---
+  if ((frame.style === 'editorial' || frame.style === 'custom-designer') && (frame.eventTitle || frame.eventSubtitle || frame.eventDate)) {
     ctx.save();
     const bannerY = extraTop + height;
     const bannerHeight = targetCanvas.height - bannerY;
-    const padding = Math.round(targetCanvas.width * 0.03);
+    const padding = Math.round(targetCanvas.width * 0.04);
 
     let textX = targetCanvas.width / 2;
     if (frame.textAlignment === 'left') textX = padding;
     if (frame.textAlignment === 'right') textX = targetCanvas.width - padding;
 
     ctx.textAlign = frame.textAlignment || 'center';
-    ctx.fillStyle = frame.textColor || '#ffffff';
-    const font = frame.fontFamily || 'sans-serif';
+    const isLightBg = frame.borderColor === '#ffffff';
+    ctx.fillStyle = frame.textColor || (isLightBg ? '#0f172a' : '#ffffff');
+    const font = frame.fontFamily || (frame.style === 'editorial' ? 'Georgia, serif' : 'sans-serif');
 
     if (frame.eventTitle) {
-      const titleSize = Math.round(Math.max(16, bannerHeight * 0.3));
-      ctx.font = `bold ${titleSize}px ${font}`;
-      ctx.fillText(frame.eventTitle, textX, bannerY + bannerHeight * 0.35);
+      const titleSize = Math.round(Math.max(14, bannerHeight * 0.3));
+      ctx.font = `600 ${titleSize}px ${font}`;
+      ctx.fillText(frame.eventTitle, textX, bannerY + bannerHeight * 0.42);
     }
 
     if (frame.eventSubtitle || frame.eventDate) {
-      const sub = [frame.eventSubtitle, frame.eventDate].filter(Boolean).join(' • ');
-      const subSize = Math.round(Math.max(12, bannerHeight * 0.2));
-      ctx.font = `${subSize}px ${font}`;
-      ctx.fillStyle = frame.textColor ? `${frame.textColor}CC` : '#94a3b8';
-      ctx.fillText(sub, textX, bannerY + bannerHeight * 0.72);
+      const sub = [frame.eventSubtitle, frame.eventDate].filter(Boolean).join('  —  ');
+      const subSize = Math.round(Math.max(11, bannerHeight * 0.18));
+      ctx.font = `400 ${subSize}px ${font}`;
+      ctx.fillStyle = frame.textColor ? `${frame.textColor}AA` : (isLightBg ? '#64748b' : '#94a3b8');
+      ctx.fillText(sub, textX, bannerY + bannerHeight * 0.74);
     }
 
     ctx.restore();
@@ -409,25 +439,22 @@ export async function drawProcessedPhotoToCanvas(
     const bannerY = extraTop + height;
     const bannerHeight = targetCanvas.height - bannerY;
 
-    const bannerGrad = ctx.createLinearGradient(0, bannerY, targetCanvas.width, targetCanvas.height);
-    bannerGrad.addColorStop(0, '#0f172a');
-    bannerGrad.addColorStop(1, '#1e3a8a');
-    ctx.fillStyle = bannerGrad;
+    ctx.fillStyle = '#0f172a';
     ctx.fillRect(0, bannerY, targetCanvas.width, bannerHeight);
 
-    ctx.fillStyle = '#f59e0b';
-    ctx.fillRect(0, bannerY, targetCanvas.width, 3);
+    ctx.fillStyle = '#d4af37';
+    ctx.fillRect(0, bannerY, targetCanvas.width, 1);
 
     ctx.fillStyle = '#ffffff';
-    ctx.font = `bold ${Math.round(bannerHeight * 0.35)}px sans-serif`;
+    ctx.font = `600 ${Math.round(bannerHeight * 0.32)}px Georgia, serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(frame.eventTitle || 'Iglesia Local • Servicio Especial', targetCanvas.width / 2, bannerY + bannerHeight * 0.4);
+    ctx.fillText(frame.eventTitle || 'Iglesia Local • Servicio Especial', targetCanvas.width / 2, bannerY + bannerHeight * 0.42);
 
     if (frame.eventDate) {
       ctx.fillStyle = '#94a3b8';
-      ctx.font = `${Math.round(bannerHeight * 0.22)}px sans-serif`;
-      ctx.fillText(frame.eventDate, targetCanvas.width / 2, bannerY + bannerHeight * 0.72);
+      ctx.font = `400 ${Math.round(bannerHeight * 0.2)}px sans-serif`;
+      ctx.fillText(frame.eventDate, targetCanvas.width / 2, bannerY + bannerHeight * 0.74);
     }
     ctx.restore();
   }
