@@ -33,6 +33,78 @@ function createTintedLogoCanvas(logoImg: HTMLImageElement, color: string): HTMLC
 }
 
 /**
+ * Renderiza un preview RÁPIDO durante el drag (acelerado por GPU).
+ * Solo aplica recorte y filtros CSS básicos — sin tone-mapping CPU,
+ * sin marcos ni marca de agua. Permite 60fps durante el arrastre.
+ * Es síncrono (no async) para que no haya overhead de Promises.
+ */
+export function renderFastPreview(
+  img: HTMLImageElement,
+  adjustments: ImageAdjustments,
+  crop: CropSettings,
+  maxDimension: number = 480
+): HTMLCanvasElement {
+  const rawWidth = img.naturalWidth || img.width || 1920;
+  const rawHeight = img.naturalHeight || img.height || 1080;
+  const rawRatio = rawWidth / rawHeight;
+
+  // Calcular las dimensiones del canvas de preview (pequeño)
+  let previewW: number;
+  let previewH: number;
+  if (rawRatio >= 1) {
+    previewW = maxDimension;
+    previewH = Math.round(maxDimension / rawRatio);
+  } else {
+    previewH = maxDimension;
+    previewW = Math.round(maxDimension * rawRatio);
+  }
+
+  const canvas = document.createElement('canvas');
+  canvas.width = previewW;
+  canvas.height = previewH;
+
+  // Sin willReadFrequently — usamos GPU path
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return canvas;
+
+  // Calcular source rect con zoom y offsets (mismo algoritmo que renderProcessedPhoto)
+  const targetRatio = getTargetAspectRatio(crop.aspectRatio, rawWidth, rawHeight);
+  let baseSrcW: number;
+  let baseSrcH: number;
+  if (rawRatio > targetRatio) {
+    baseSrcH = rawHeight;
+    baseSrcW = rawHeight * targetRatio;
+  } else {
+    baseSrcW = rawWidth;
+    baseSrcH = rawWidth / targetRatio;
+  }
+
+  const zoomScale = Math.max(1.0, Math.min(3.0, crop.zoom || 1.0));
+  const srcW = baseSrcW / zoomScale;
+  const srcH = baseSrcH / zoomScale;
+
+  const maxOffX = Math.max(0, (rawWidth - srcW) / 2);
+  const maxOffY = Math.max(0, (rawHeight - srcH) / 2);
+  const shiftX = ((crop.offsetX || 0) / 50) * maxOffX;
+  const shiftY = ((crop.offsetY || 0) / 50) * maxOffY;
+
+  const srcX = Math.max(0, Math.min(rawWidth - srcW, (rawWidth - srcW) / 2 + shiftX));
+  const srcY = Math.max(0, Math.min(rawHeight - srcH, (rawHeight - srcH) / 2 + shiftY));
+
+  // Aplicar filtros CSS (acelerados por GPU — no tocan pixeldata)
+  const b = 100 + (adjustments.brightness || 0);
+  const c = 100 + (adjustments.contrast || 0);
+  const s = 100 + (adjustments.saturation || 0);
+  ctx.filter = `brightness(${b}%) contrast(${c}%) saturate(${s}%)`;
+
+  ctx.drawImage(img, srcX, srcY, srcW, srcH, 0, 0, previewW, previewH);
+
+  return canvas;
+}
+
+
+
+/**
  * Calcula la relación de aspecto objetivo (W / H) según el ratio elegido y las dimensiones de la foto
  */
 export function getTargetAspectRatio(ratio: AspectRatioType, rawWidth: number, rawHeight: number): number {
@@ -140,7 +212,7 @@ export async function renderProcessedPhoto(
   canvas.width = width + extraLeft + extraRight;
   canvas.height = height + extraTop + extraBottom;
 
-  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('No se pudo crear contexto 2D');
 
   // --- 2. DIBUJAR MARCO DIGITAL DE FONDO ---

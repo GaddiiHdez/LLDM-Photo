@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
   Download,
   ZoomIn,
@@ -10,7 +10,7 @@ import {
   Eye,
   EyeOff,
 } from 'lucide-react';
-import { renderProcessedPhoto } from '../utils/canvasEngine';
+import { renderProcessedPhoto, renderFastPreview, loadImage } from '../utils/canvasEngine';
 import type { PhotoItem, WatermarkSettings, FrameSettings, CropSettings, ImageAdjustments } from '../types/editor';
 
 interface PreviewStageProps {
@@ -46,15 +46,66 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
   const [zoomLevel, setZoomLevel] = useState(1);
   const [showOriginal, setShowOriginal] = useState(false);
   const [showHint, setShowHint] = useState(true);
-
-  // Dragging State (Mouse & Touch)
   const [isDragging, setIsDragging] = useState(false);
+
+  // ─── Refs que NO causan re-renders (esenciales para 60fps) ───────────────────
   const dragStartRef = useRef<{ x: number; y: number; initialOffsetX: number; initialOffsetY: number } | null>(null);
   const animFrameIdRef = useRef<number | null>(null);
   const currentTempCropRef = useRef<CropSettings | null>(null);
+  // Espejos ref para evitar stale closures en event callbacks
+  const isDraggingRef = useRef(false);
+  const showOriginalRef = useRef(showOriginal);
+  const photoAdjustmentsRef = useRef(photo.adjustments);
+  const zoomLevelRef = useRef(zoomLevel);
+  const isFilmstripCollapsedRef = useRef(isFilmstripCollapsed);
 
-  // Función principal para renderizar el Canvas HD unificado
-  const renderCanvasWithCrop = async (cropSettings: CropSettings, compareOriginal = false) => {
+  // ─── Caché del HTMLImageElement — carga UNA sola vez por foto ────────────────
+  const imgCacheRef = useRef<HTMLImageElement | null>(null);
+  const imgCacheUrlRef = useRef<string>('');
+
+  // Sincronizar refs con state/props (sin re-render)
+  useEffect(() => { showOriginalRef.current = showOriginal; }, [showOriginal]);
+  useEffect(() => { photoAdjustmentsRef.current = photo.adjustments; }, [photo.adjustments]);
+  useEffect(() => { zoomLevelRef.current = zoomLevel; }, [zoomLevel]);
+  useEffect(() => { isFilmstripCollapsedRef.current = isFilmstripCollapsed; }, [isFilmstripCollapsed]);
+
+  // Pre-cargar y cachear imagen al cambiar de foto (evita re-decodificación en cada frame)
+  useEffect(() => {
+    if (!photo?.originalUrl) return;
+    if (imgCacheUrlRef.current === photo.originalUrl && imgCacheRef.current) return;
+    imgCacheUrlRef.current = photo.originalUrl;
+    imgCacheRef.current = null;
+    loadImage(photo.originalUrl)
+      .then((img) => { imgCacheRef.current = img; })
+      .catch((err) => console.error('[PreviewStage] Error cargando imagen al caché:', err));
+  }, [photo?.originalUrl]);
+
+  // ─── FAST PREVIEW: GPU, 480px, solo ctx.filter — corre a ~60fps ─────────────
+  const applyFastDragPreview = useCallback((cropSettings: CropSettings) => {
+    const img = imgCacheRef.current;
+    if (!img || !canvasContainerRef.current) return;
+    const activeAdj = showOriginalRef.current ? NEUTRAL_ADJUSTMENTS : photoAdjustmentsRef.current;
+    const fastCanvas = renderFastPreview(img, activeAdj, cropSettings, 480);
+    const zl = zoomLevelRef.current;
+    const collapsed = isFilmstripCollapsedRef.current;
+    const maxH = collapsed ? 'calc(100vh - 170px)' : 'calc(100vh - 280px)';
+    fastCanvas.style.maxWidth = zl === 1 ? '100%' : 'none';
+    fastCanvas.style.maxHeight = zl === 1 ? maxH : 'none';
+    fastCanvas.style.width = zl === 1 ? 'auto' : `${fastCanvas.width * zl}px`;
+    fastCanvas.style.borderRadius = '0.5rem';
+    fastCanvas.style.boxShadow = '0 25px 60px -15px rgba(0, 0, 0, 0.9)';
+    const existing = canvasContainerRef.current.querySelector('canvas');
+    if (existing) {
+      canvasContainerRef.current.replaceChild(fastCanvas, existing);
+    } else {
+      canvasContainerRef.current.appendChild(fastCanvas);
+    }
+  }, []);
+
+
+
+  // ─── HD RENDER: alta calidad, tone-mapping, marcos, marca de agua ────────────
+  const renderCanvasWithCrop = useCallback(async (cropSettings: CropSettings, compareOriginal = false) => {
     if (!photo) return;
     try {
       const activeAdjustments = compareOriginal ? NEUTRAL_ADJUSTMENTS : photo.adjustments;
@@ -62,7 +113,7 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
       const activeFrame = compareOriginal ? { ...frame, style: 'none' as const } : frame;
 
       const canvas = await renderProcessedPhoto(
-        photo.originalUrl,
+        imgCacheRef.current ?? photo.originalUrl, // Usa el HTMLImageElement cacheado si está disponible
         activeAdjustments,
         activeWatermark,
         activeFrame,
@@ -83,13 +134,14 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
     } catch (err) {
       console.error('Error renderizando vista previa:', err);
     }
-  };
+  }, [photo, watermark, frame, zoomLevel, isFilmstripCollapsed]);
 
+  // ─── Trigger HD: solo se activa cuando NO se está arrastrando ────────────────
   useEffect(() => {
     let isCancelled = false;
 
     const render = async () => {
-      if (!photo || isDragging) return;
+      if (!photo || isDraggingRef.current) return;
       setIsRendering(true);
       try {
         await renderCanvasWithCrop(photo.crop, showOriginal);
@@ -103,7 +155,8 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
     return () => {
       isCancelled = true;
     };
-  }, [photo, photo.adjustments, photo.crop, watermark, frame, zoomLevel, showOriginal, isFilmstripCollapsed]);
+  }, [photo, photo.adjustments, photo.crop, watermark, frame, zoomLevel, showOriginal, isFilmstripCollapsed, renderCanvasWithCrop]);
+
 
   // Atajo de teclado (Presionar 'B' o 'Espacio' para comparar)
   useEffect(() => {
@@ -118,9 +171,10 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // INICIO DE ARRASTRE DIRECTO (Mouse)
+  // ─── INICIO DE ARRASTRE (Mouse) ───────────────────────────────────────────────
   const handleMouseDown = (e: React.MouseEvent) => {
     e.preventDefault();
+    isDraggingRef.current = true;
     setIsDragging(true);
     setShowHint(false);
     dragStartRef.current = {
@@ -131,9 +185,9 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
     };
   };
 
-  // MOVIMIENTO EN TIEMPO REAL (Mouse)
+  // ─── MOVIMIENTO (Mouse) — usa FAST PREVIEW (~60fps, GPU) ─────────────────────
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDragging || !dragStartRef.current) return;
+    if (!isDraggingRef.current || !dragStartRef.current) return;
     const dx = e.clientX - dragStartRef.current.x;
     const dy = e.clientY - dragStartRef.current.y;
 
@@ -151,26 +205,35 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
     if (animFrameIdRef.current) cancelAnimationFrame(animFrameIdRef.current);
     animFrameIdRef.current = requestAnimationFrame(() => {
       if (currentTempCropRef.current) {
-        renderCanvasWithCrop(currentTempCropRef.current, showOriginal);
+        applyFastDragPreview(currentTempCropRef.current); // ← GPU fast preview
       }
     });
   };
 
-  // SOLTAR MOUSE
+  // ─── SOLTAR (Mouse) — renderiza HD una sola vez al finalizar ─────────────────
   const handleMouseUp = () => {
-    if (!isDragging) return;
+    if (!isDraggingRef.current) return;
+    isDraggingRef.current = false;
     setIsDragging(false);
     dragStartRef.current = null;
 
+    if (animFrameIdRef.current) {
+      cancelAnimationFrame(animFrameIdRef.current);
+      animFrameIdRef.current = null;
+    }
+
     if (currentTempCropRef.current) {
-      onUpdateCrop(currentTempCropRef.current);
+      const finalCrop = currentTempCropRef.current;
       currentTempCropRef.current = null;
+      onUpdateCrop(finalCrop); // Actualiza estado → dispara renderizado HD en useEffect
     }
   };
 
-  // SOPORTE TÁCTIL (Touch en Móviles y Tablets)
+  // ─── TÁCTIL — misma arquitectura dual-canvas ──────────────────────────────────
   const handleTouchStart = (e: React.TouchEvent) => {
     if (e.touches.length !== 1) return;
+    e.preventDefault();
+    isDraggingRef.current = true;
     setIsDragging(true);
     setShowHint(false);
     dragStartRef.current = {
@@ -182,7 +245,8 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    if (!isDragging || !dragStartRef.current || e.touches.length !== 1) return;
+    if (!isDraggingRef.current || !dragStartRef.current || e.touches.length !== 1) return;
+    e.preventDefault();
     const dx = e.touches[0].clientX - dragStartRef.current.x;
     const dy = e.touches[0].clientY - dragStartRef.current.y;
 
@@ -200,7 +264,7 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
     if (animFrameIdRef.current) cancelAnimationFrame(animFrameIdRef.current);
     animFrameIdRef.current = requestAnimationFrame(() => {
       if (currentTempCropRef.current) {
-        renderCanvasWithCrop(currentTempCropRef.current, showOriginal);
+        applyFastDragPreview(currentTempCropRef.current); // ← GPU fast preview
       }
     });
   };
@@ -209,7 +273,7 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
     handleMouseUp();
   };
 
-  // Zoom con Rueda
+  // ─── ZOOM con rueda del ratón ──────────────────────────────────────────────────
   const handleWheel = (e: React.WheelEvent) => {
     const currentZoom = photo.crop?.zoom || 1.0;
     const zoomDelta = e.deltaY < 0 ? 0.05 : -0.05;
@@ -220,6 +284,7 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
       zoom: newZoom,
     });
   };
+
 
   return (
     <div className="preview-stage" ref={containerRef}>
