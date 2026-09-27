@@ -1,5 +1,5 @@
 import React from 'react';
-import { Trash2, Plus, Check, ChevronUp, ChevronDown } from 'lucide-react';
+import { Trash2, Plus, Check, ChevronUp, ChevronDown, Download } from 'lucide-react';
 import type { PhotoItem } from '../types/editor';
 
 interface ThumbnailBarProps {
@@ -11,6 +11,7 @@ interface ThumbnailBarProps {
   onDeletePhoto: (id: string, e: React.MouseEvent) => void;
   onAddMorePhotos: () => void;
   onClearAll: () => void;
+  onExportBatch?: () => void;
 }
 
 export const ThumbnailBar: React.FC<ThumbnailBarProps> = ({
@@ -22,22 +23,23 @@ export const ThumbnailBar: React.FC<ThumbnailBarProps> = ({
   onDeletePhoto,
   onAddMorePhotos,
   onClearAll,
+  onExportBatch,
 }) => {
   return (
     <div className={`thumbnail-bar card-glass ${isCollapsed ? 'collapsed' : ''}`}>
       <div className="thumbnail-bar-header">
-        <div className="batch-status-group" style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+        <div className="batch-status-group">
           <button
             onClick={onToggleCollapse}
             className="thumbnail-collapse-btn"
             title={isCollapsed ? 'Expandir tira de fotos' : 'Minimizar tira para ganar espacio de trabajo'}
           >
             {isCollapsed ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
-            <span>{isCollapsed ? 'Mostrar Tira' : 'Ocultar'}</span>
+            <span className="btn-label-desktop">{isCollapsed ? 'Mostrar Tira' : 'Ocultar'}</span>
           </button>
 
           <span className="batch-counter">
-            Sesión · {photos.length} {photos.length === 1 ? 'foto' : 'fotos'}
+            Sesión ({photos.length})
           </span>
           <span className="batch-ready-indicator">
             <span className="dot-pulse" />
@@ -46,9 +48,20 @@ export const ThumbnailBar: React.FC<ThumbnailBarProps> = ({
         </div>
 
         <div className="thumbnail-bar-actions">
+          {onExportBatch && photos.length > 0 && (
+            <button
+              onClick={onExportBatch}
+              className="btn-primary btn-sm batch-export-bar-btn"
+              title="Descargar lote completo en archivo ZIP"
+            >
+              <Download size={13} />
+              <span>Exportar ZIP ({photos.length})</span>
+            </button>
+          )}
+
           <button onClick={onAddMorePhotos} className="btn-secondary btn-sm" title="Añadir más fotos">
             <Plus size={14} />
-            <span>Añadir</span>
+            <span className="btn-label-desktop">Añadir</span>
           </button>
 
           <button
@@ -56,8 +69,8 @@ export const ThumbnailBar: React.FC<ThumbnailBarProps> = ({
             className="btn-secondary btn-sm text-danger"
             title="Cerrar sesión actual y limpiar lote"
           >
-            <Trash2 size={14} />
-            <span>Limpiar</span>
+            <Trash2 size={13} />
+            <span className="btn-label-desktop">Limpiar</span>
           </button>
         </div>
       </div>

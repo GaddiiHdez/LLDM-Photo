@@ -29,8 +29,13 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
         <div className="brand-titles">
           <h1 className="brand-title">
-            LLDM <span className="brand-highlight">Photo Studio</span>
-            <span className="badge-pro">PRO</span>
+            <span className="brand-text-desktop">
+              LLDM <span className="brand-highlight">Photo Studio</span>
+              <span className="badge-pro">PRO</span>
+            </span>
+            <span className="brand-text-mobile">
+              LLDM <span className="brand-highlight">Studio</span>
+            </span>
           </h1>
           <p className="brand-subtitle">
             <Sliders size={12} style={{ color: 'var(--color-brand-light)' }} />
@@ -50,7 +55,7 @@ export const Header: React.FC<HeaderProps> = ({
             aria-pressed={theme === 'light'}
           >
             <Sun size={13} className="theme-icon-sun" />
-            <span>Blanco</span>
+            <span className="theme-btn-label">Blanco</span>
           </button>
           <button
             type="button"
@@ -60,7 +65,7 @@ export const Header: React.FC<HeaderProps> = ({
             aria-pressed={theme === 'dark'}
           >
             <Moon size={13} className="theme-icon-moon" />
-            <span>Grafito</span>
+            <span className="theme-btn-label">Grafito</span>
           </button>
         </div>
 
@@ -73,7 +78,6 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <Plus size={15} />
               <span className="btn-label-desktop">Añadir Fotos</span>
-              <span className="btn-label-mobile">Añadir</span>
             </button>
 
             <button
@@ -81,9 +85,9 @@ export const Header: React.FC<HeaderProps> = ({
               className="btn-primary header-btn"
               title="Exportar todas las fotos procesadas en archivo ZIP de alta resolución"
             >
-              <Download size={15} />
+              <Download size={14} />
               <span className="btn-label-desktop">Exportar ZIP ({totalPhotos})</span>
-              <span className="btn-label-mobile">Exportar ({totalPhotos})</span>
+              <span className="btn-label-mobile">ZIP ({totalPhotos})</span>
             </button>
           </>
         )}

@@ -250,6 +250,23 @@ export const App: React.FC = () => {
     );
   };
 
+  // Photo Navigation (< y >)
+  const currentPhotoIndex = photos.findIndex((p) => p.id === activePhotoId);
+  const hasPrevPhoto = currentPhotoIndex > 0;
+  const hasNextPhoto = currentPhotoIndex !== -1 && currentPhotoIndex < photos.length - 1;
+
+  const handlePrevPhoto = () => {
+    if (hasPrevPhoto) {
+      setActivePhotoId(photos[currentPhotoIndex - 1].id);
+    }
+  };
+
+  const handleNextPhoto = () => {
+    if (hasNextPhoto) {
+      setActivePhotoId(photos[currentPhotoIndex + 1].id);
+    }
+  };
+
   // Single Photo Export
   const handleSingleExport = async () => {
     if (!activePhoto) return;
@@ -335,15 +352,43 @@ export const App: React.FC = () => {
         />
       ) : (
         <div className="studio-body">
-          {/* Central Live Preview Stage */}
-          <PreviewStage
-            photo={activePhoto}
-            watermark={watermark}
-            frame={frame}
-            isFilmstripCollapsed={isFilmstripCollapsed}
-            onSingleExport={handleSingleExport}
-            onUpdateCrop={handleUpdateCrop}
-          />
+          {/* Main Visual Column: Preview Stage + Thumbnail Strip directly underneath */}
+          <div className="studio-main-column">
+            <PreviewStage
+              photo={activePhoto}
+              watermark={watermark}
+              frame={frame}
+              isFilmstripCollapsed={isFilmstripCollapsed}
+              onSingleExport={handleSingleExport}
+              onUpdateCrop={handleUpdateCrop}
+              onPrevPhoto={handlePrevPhoto}
+              onNextPhoto={handleNextPhoto}
+              hasPrevPhoto={hasPrevPhoto}
+              hasNextPhoto={hasNextPhoto}
+            />
+
+            <ThumbnailBar
+              photos={photos}
+              activePhotoId={activePhotoId}
+              isCollapsed={isFilmstripCollapsed}
+              onToggleCollapse={() => setIsFilmstripCollapsed((prev) => !prev)}
+              onSelectPhoto={setActivePhotoId}
+              onDeletePhoto={handleDeletePhoto}
+              onAddMorePhotos={() => {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.multiple = true;
+                input.accept = 'image/*,.cr2,.nef,.arw,.dng,.raf';
+                input.onchange = (e: any) => e.target.files && handleFilesSelected(e.target.files);
+                input.click();
+              }}
+              onClearAll={() => {
+                setPhotos([]);
+                setActivePhotoId('');
+              }}
+              onExportBatch={handleExportBatch}
+            />
+          </div>
 
           {/* Right Sidebar Controls */}
           <SidebarControls
@@ -359,30 +404,6 @@ export const App: React.FC = () => {
             onSaveAsDefaultAppSettings={handleSaveAsDefaultAppSettings}
           />
         </div>
-      )}
-
-      {/* Bottom Thumbnail Bar */}
-      {photos.length > 0 && (
-        <ThumbnailBar
-          photos={photos}
-          activePhotoId={activePhotoId}
-          isCollapsed={isFilmstripCollapsed}
-          onToggleCollapse={() => setIsFilmstripCollapsed((prev) => !prev)}
-          onSelectPhoto={setActivePhotoId}
-          onDeletePhoto={handleDeletePhoto}
-          onAddMorePhotos={() => {
-            const input = document.createElement('input');
-            input.type = 'file';
-            input.multiple = true;
-            input.accept = 'image/*,.cr2,.nef,.arw,.dng,.raf';
-            input.onchange = (e: any) => e.target.files && handleFilesSelected(e.target.files);
-            input.click();
-          }}
-          onClearAll={() => {
-            setPhotos([]);
-            setActivePhotoId('');
-          }}
-        />
       )}
 
       {/* Modal Progreso de Exportación ZIP */}

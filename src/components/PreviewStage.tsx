@@ -9,6 +9,8 @@ import {
   Move,
   Eye,
   EyeOff,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { renderProcessedPhoto, renderFastPreview, loadImage } from '../utils/canvasEngine';
 import type { PhotoItem, WatermarkSettings, FrameSettings, CropSettings, ImageAdjustments } from '../types/editor';
@@ -20,6 +22,10 @@ interface PreviewStageProps {
   isFilmstripCollapsed?: boolean;
   onSingleExport: () => void;
   onUpdateCrop: (crop: CropSettings) => void;
+  onPrevPhoto?: () => void;
+  onNextPhoto?: () => void;
+  hasPrevPhoto?: boolean;
+  hasNextPhoto?: boolean;
 }
 
 const NEUTRAL_ADJUSTMENTS: ImageAdjustments = {
@@ -39,6 +45,10 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
   isFilmstripCollapsed = false,
   onSingleExport,
   onUpdateCrop,
+  onPrevPhoto,
+  onNextPhoto,
+  hasPrevPhoto = false,
+  hasNextPhoto = false,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasContainerRef = useRef<HTMLDivElement>(null);
@@ -309,7 +319,7 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
             title="Comparar con la foto original sin ajustes ni marcos (Atajo: tecla B)"
           >
             {showOriginal ? <EyeOff size={14} /> : <Eye size={14} />}
-            <span>{showOriginal ? 'Viendo Original' : 'Comparar (B)'}</span>
+            <span className="btn-label-desktop">{showOriginal ? 'Viendo Original' : 'Comparar (B)'}</span>
           </button>
 
           {/* Selector de Zoom */}
@@ -329,7 +339,7 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
             title="Descargar esta foto procesada en máxima resolución"
           >
             <Download size={14} />
-            <span>Descargar</span>
+            <span className="btn-label-desktop">Descargar</span>
           </button>
         </div>
       </div>
@@ -360,6 +370,37 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
             <Eye size={13} />
             <span>ORIGINAL (SIN PROCESAR)</span>
           </div>
+        )}
+
+        {/* Botones Flotantes de Navegación Rápida entre Fotos (< y >) */}
+        {hasPrevPhoto && onPrevPhoto && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onPrevPhoto();
+            }}
+            className="canvas-nav-btn prev"
+            title="Foto anterior"
+            aria-label="Foto anterior"
+          >
+            <ChevronLeft size={22} />
+          </button>
+        )}
+
+        {hasNextPhoto && onNextPhoto && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onNextPhoto();
+            }}
+            className="canvas-nav-btn next"
+            title="Siguiente foto"
+            aria-label="Siguiente foto"
+          >
+            <ChevronRight size={22} />
+          </button>
         )}
 
         <div ref={canvasContainerRef} className="canvas-container" />
