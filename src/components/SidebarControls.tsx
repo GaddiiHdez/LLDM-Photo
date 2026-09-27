@@ -665,7 +665,7 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
 
                 {/* PRESETS DE FÁBRICA */}
                 <span style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '0.45rem' }}>
-                  Filtros de Revelado LLDM
+                  Filtros de Revelado BereaSnap
                 </span>
 
                 <div className="preset-grid">
@@ -1007,14 +1007,14 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
                       type="text"
                       value={watermark.text || ''}
                       onChange={(e) => onUpdateWatermark({ text: e.target.value })}
-                      placeholder="Ej. LLDM App • Fotografía Oficial"
+                      placeholder="Ej. BereaSnap • Fotografía Oficial"
                       className="form-input"
                       style={{ marginBottom: '0.5rem', fontSize: '0.78rem' }}
                     />
 
                     {/* Presets Rápidos de Texto con 1 toque */}
                     <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap', marginBottom: '0.65rem' }}>
-                      {['LLDM Fotografía Oficial', 'Comisión de Prensa • LLDM', 'La Luz del Mundo'].map((pt) => (
+                      {['BereaSnap Oficial', 'Berea Prensa & Crónica', 'Berea Fotografía'].map((pt) => (
                         <button
                           key={pt}
                           type="button"
@@ -1214,7 +1214,7 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
                         type="text"
                         value={frame.eventSubtitle || ''}
                         onChange={(e) => onUpdateFrame({ eventSubtitle: e.target.value })}
-                        placeholder="Ej. Fotografía Oficial • LLDM"
+                        placeholder="Ej. Fotografía Oficial • BereaSnap"
                         className="form-input"
                         style={{ fontSize: '0.78rem' }}
                       />

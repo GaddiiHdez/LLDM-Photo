@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 140" width="600" height="140">
+  <defs>
+    <linearGradient id="wmGold" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#ffffff" />
+      <stop offset="65%" stop-color="#ffffff" />
+      <stop offset="100%" stop-color="#fbbf24" />
+    </linearGradient>
+    <filter id="wmShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="2" dy="3" stdDeviation="4" flood-color="#000000" flood-opacity="0.8" />
+    </filter>
+  </defs>
+
+  <g filter="url(#wmShadow)">
+    <!-- Ícono Monograma B Lente -->
+    <circle cx="70" cy="70" r="46" fill="rgba(10, 16, 32, 0.4)" stroke="#fbbf24" stroke-width="3" />
+    <circle cx="70" cy="70" r="52" fill="none" stroke="#38bdf8" stroke-width="1.5" stroke-dasharray="6 4" opacity="0.7" />
+    
+    <!-- B estilizada -->
+    <path d="M 56 46 L 56 94" stroke="#fbbf24" stroke-width="6" stroke-linecap="round" />
+    <path d="M 56 48 C 76 48, 88 56, 88 70 C 88 80, 78 84, 56 84" fill="none" stroke="#fbbf24" stroke-width="5" stroke-linecap="round" />
+    <path d="M 56 72 C 80 72, 94 76, 94 88 C 94 100, 78 104, 56 104" fill="none" stroke="#fbbf24" stroke-width="5" stroke-linecap="round" transform="translate(0, -10)" />
+    
+    <!-- Destello -->
+    <polygon points="92,42 94,48 100,50 94,52 92,58 90,52 84,50 90,48" fill="#ffffff" />
+
+    <!-- Texto BEREASNAP -->
+    <text x="135" y="78" font-family="'Outfit', 'Inter', -apple-system, sans-serif" font-weight="800" font-size="44" fill="url(#wmGold)" letter-spacing="4">
+      BEREA<tspan fill="#f59e0b">SNAP</tspan>
+    </text>
+
+    <!-- Subtítulo Fotografía Oficial -->
+    <text x="138" y="104" font-family="'Outfit', 'Inter', -apple-system, sans-serif" font-weight="600" font-size="14" fill="rgba(255, 255, 255, 0.75)" letter-spacing="5">
+      FOTOGRAFÍA & CRÓNICA
+    </text>
+  </g>
+</svg>

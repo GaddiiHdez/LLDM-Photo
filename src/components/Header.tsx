@@ -22,24 +22,24 @@ export const Header: React.FC<HeaderProps> = ({
       <div className="header-brand">
         <div className="brand-logo">
           <img
-            src="/logo-lldm-studio.jpg"
-            alt="LLDM Photo Studio"
+            src="/logo-bereasnap.svg"
+            alt="BereaSnap"
             className="brand-logo-img"
           />
         </div>
         <div className="brand-titles">
           <h1 className="brand-title">
             <span className="brand-text-desktop">
-              LLDM <span className="brand-highlight">Photo Studio</span>
+              Berea<span className="brand-highlight">Snap</span>
               <span className="badge-pro">PRO</span>
             </span>
             <span className="brand-text-mobile">
-              LLDM <span className="brand-highlight">Studio</span>
+              Berea<span className="brand-highlight">Snap</span>
             </span>
           </h1>
           <p className="brand-subtitle">
             <Sliders size={12} style={{ color: 'var(--color-brand-light)' }} />
-            <span>Motor RAW 14-Bit & Edición en Lote</span>
+            <span>Revelado Rápido, Marcos & Edición</span>
           </p>
         </div>
       </div>

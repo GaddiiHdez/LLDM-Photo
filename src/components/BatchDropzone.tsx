@@ -49,8 +49,8 @@ export const BatchDropzone: React.FC<BatchDropzoneProps> = ({
 
       <div className="dropzone-brand-emblem">
         <img
-          src="/logo-lldm-studio.jpg"
-          alt="LLDM Photo Studio"
+          src="/logo-bereasnap.svg"
+          alt="BereaSnap"
           className="dropzone-brand-logo"
         />
       </div>

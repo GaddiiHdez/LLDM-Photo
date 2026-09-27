@@ -7,21 +7,21 @@ export interface SavedLogo {
   isOfficial?: boolean;
 }
 
-const STORAGE_KEY_LOGOS = 'lldm_saved_logos_catalog';
+const STORAGE_KEY_LOGOS = 'bereasnap_saved_logos_catalog';
 
 export const BUILTIN_LOGOS: SavedLogo[] = [
   {
-    id: 'official-logo-gold',
-    name: 'LLDM Monograma Oro Sólido (Oficial)',
-    imageDataUrl: '/logo-lldm-studio.jpg',
+    id: 'bereasnap-logo-gold',
+    name: 'BereaSnap Emblema Oficial',
+    imageDataUrl: '/logo-bereasnap.svg',
     createdAt: 'Oficial',
     isDefault: false,
     isOfficial: true,
   },
   {
-    id: 'official-logo-lineal',
-    name: 'LLDM Firma Lineal Translúcida',
-    imageDataUrl: '/logo-lldm-studio-lineal.jpg',
+    id: 'bereasnap-logo-lineal',
+    name: 'BereaSnap Firma Horizontal',
+    imageDataUrl: '/logo-bereasnap-watermark.svg',
     createdAt: 'Oficial',
     isDefault: true,
     isOfficial: true,
@@ -30,7 +30,7 @@ export const BUILTIN_LOGOS: SavedLogo[] = [
 
 /**
  * Obtiene la galería/catálogo de logos guardados por el usuario,
- * asegurando la presencia de los logos oficiales de LLDM Photo Studio.
+ * asegurando la presencia de los logos oficiales de BereaSnap.
  */
 export function getSavedLogos(): SavedLogo[] {
   try {
@@ -41,9 +41,9 @@ export function getSavedLogos(): SavedLogo[] {
     }
     const parsed: SavedLogo[] = JSON.parse(raw);
 
-    // Garantizar que los logos oficiales estén siempre presentes en el catálogo
-    const hasGold = parsed.some((l) => l.imageDataUrl.includes('logo-lldm-studio.jpg'));
-    const hasLineal = parsed.some((l) => l.imageDataUrl.includes('logo-lldm-studio-lineal.jpg'));
+    // Garantizar que los logos oficiales de BereaSnap estén siempre presentes en el catálogo
+    const hasGold = parsed.some((l) => l.imageDataUrl.includes('logo-bereasnap.svg'));
+    const hasLineal = parsed.some((l) => l.imageDataUrl.includes('logo-bereasnap-watermark.svg'));
 
     let updated = [...parsed];
     if (!hasGold) {
