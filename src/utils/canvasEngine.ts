@@ -132,16 +132,22 @@ export function getTargetAspectRatio(ratio: AspectRatioType, rawWidth: number, r
 }
 
 /**
- * Renderiza la imagen procesada con Recorte Adaptativo estricto sin deformación, Tone-mapping, Marcos y Marca de Agua
+ * Dibuja la composición completa directamente sobre un canvas existente.
+ * Soporta modo 'skipCpuFilters' para arrastre en tiempo real a 60fps (sin el pesado bucle getImageData de CPU).
+ * Permite usar imágenes de marco y logo pre-cacheadas para eliminar el overhead de Promises durante el drag.
  */
-export async function renderProcessedPhoto(
+export async function drawProcessedPhotoToCanvas(
+  targetCanvas: HTMLCanvasElement,
   imgSource: HTMLImageElement | string,
   adjustments: ImageAdjustments,
   watermark: WatermarkSettings,
   frame: FrameSettings,
   crop: CropSettings,
-  maxDimension: number = 0
-): Promise<HTMLCanvasElement> {
+  maxDimension: number = 0,
+  skipCpuFilters: boolean = false,
+  cachedPngFrame?: HTMLImageElement | null,
+  cachedLogo?: HTMLImageElement | null
+): Promise<void> {
   const img = typeof imgSource === 'string' ? await loadImage(imgSource) : imgSource;
 
   const rawWidth = img.naturalWidth || img.width || 6000;
@@ -155,16 +161,14 @@ export async function renderProcessedPhoto(
   let baseSrcH: number;
 
   if (rawRatio > targetRatio) {
-    // La imagen es más ancha que el objetivo: se recorta el ancho sobrante
     baseSrcH = rawHeight;
     baseSrcW = rawHeight * targetRatio;
   } else {
-    // La imagen es más alta que el objetivo: se recorta la altura sobrante
     baseSrcW = rawWidth;
     baseSrcH = rawWidth / targetRatio;
   }
 
-  // Dimensiones finales del canvas de salida de la foto
+  // Dimensiones finales del canvas
   let width: number;
   let height: number;
   const maxTargetDim = maxDimension > 0 ? maxDimension : 4000;
@@ -177,7 +181,7 @@ export async function renderProcessedPhoto(
     width = Math.round(height * targetRatio);
   }
 
-  // --- CÁLCULO DE MARGENES PARA MARCOS DIGITALES ---
+  // --- CÁLCULO DE MÁRGENES PARA MARCOS DIGITALES ---
   let extraTop = 0;
   let extraBottom = 0;
   let extraLeft = 0;
@@ -208,25 +212,31 @@ export async function renderProcessedPhoto(
     extraRight = borderWidth * 1.5;
   }
 
-  const canvas = document.createElement('canvas');
-  canvas.width = width + extraLeft + extraRight;
-  canvas.height = height + extraTop + extraBottom;
+  const targetW = width + extraLeft + extraRight;
+  const targetH = height + extraTop + extraBottom;
 
-  const ctx = canvas.getContext('2d');
-  if (!ctx) throw new Error('No se pudo crear contexto 2D');
+  if (targetCanvas.width !== targetW || targetCanvas.height !== targetH) {
+    targetCanvas.width = targetW;
+    targetCanvas.height = targetH;
+  }
+
+  const ctx = targetCanvas.getContext('2d');
+  if (!ctx) throw new Error('No se pudo obtener el contexto 2D');
+
+  ctx.clearRect(0, 0, targetCanvas.width, targetCanvas.height);
 
   // --- 2. DIBUJAR MARCO DIGITAL DE FONDO ---
   if (frame.style === 'custom-designer') {
     ctx.save();
     if (frame.useGradient && frame.borderColor2) {
-      const grad = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+      const grad = ctx.createLinearGradient(0, 0, targetCanvas.width, targetCanvas.height);
       grad.addColorStop(0, frame.borderColor || '#0f172a');
       grad.addColorStop(1, frame.borderColor2 || '#1e3a8a');
       ctx.fillStyle = grad;
     } else {
       ctx.fillStyle = frame.borderColor || '#0f172a';
     }
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillRect(0, 0, targetCanvas.width, targetCanvas.height);
     ctx.restore();
   } else if (frame.style !== 'none' && frame.style !== 'custom-png') {
     ctx.save();
@@ -235,7 +245,7 @@ export async function renderProcessedPhoto(
     } else if (frame.style === 'classic-dark') {
       ctx.fillStyle = '#0f172a';
     } else if (frame.style === 'gold-accent') {
-      const grad = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+      const grad = ctx.createLinearGradient(0, 0, targetCanvas.width, targetCanvas.height);
       grad.addColorStop(0, '#d97706');
       grad.addColorStop(0.5, '#fef08a');
       grad.addColorStop(1, '#b45309');
@@ -243,11 +253,11 @@ export async function renderProcessedPhoto(
     } else if (frame.style === 'church-event') {
       ctx.fillStyle = '#1e293b';
     }
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillRect(0, 0, targetCanvas.width, targetCanvas.height);
     ctx.restore();
   }
 
-  // --- 3. DIBUJAR IMAGEN BASE CON RE-ENCUADRE / CROP Y FILTROS ---
+  // --- 3. DIBUJAR FOTO BASE CON CROP Y FILTROS GPU ---
   ctx.save();
   const b = 100 + adjustments.brightness;
   const c = 100 + adjustments.contrast;
@@ -255,7 +265,6 @@ export async function renderProcessedPhoto(
 
   ctx.filter = `brightness(${b}%) contrast(${c}%) saturate(${s}%)`;
 
-  // Calcular la ventana de origen (Source Rect) considerando zoom y offsets sobre baseSrcW / baseSrcH
   const zoomScale = Math.max(1.0, Math.min(3.0, crop.zoom || 1.0));
   const srcW = baseSrcW / zoomScale;
   const srcH = baseSrcH / zoomScale;
@@ -285,8 +294,8 @@ export async function renderProcessedPhoto(
     ctx.restore();
   }
 
-  // --- 5. TONE-MAPPING DINÁMICO (Sombras, Altas Luces y Calidez) ---
-  if (adjustments.shadows !== 0 || adjustments.highlights !== 0 || adjustments.warmth !== 0) {
+  // --- 5. TONE-MAPPING DINÁMICO CPU (Se omite durante el arrastre rápido para 60fps) ---
+  if (!skipCpuFilters && (adjustments.shadows !== 0 || adjustments.highlights !== 0 || adjustments.warmth !== 0)) {
     try {
       const imgData = ctx.getImageData(extraLeft, extraTop, width, height);
       const data = imgData.data;
@@ -332,34 +341,34 @@ export async function renderProcessedPhoto(
     }
   }
 
-  // --- 6. OVERLAY PNG TRANSPARENTE SUBIDO (SIN DEFORMACIÓN) ---
-  if (frame.style === 'custom-png' && frame.pngDataUrl) {
+  // --- 6. OVERLAY PNG TRANSPARENTE (Marco PNG institucional) ---
+  if (frame.style === 'custom-png' && (cachedPngFrame || frame.pngDataUrl)) {
     try {
-      const pngFrame = await loadImage(frame.pngDataUrl);
-      ctx.save();
-      const frameRatio = pngFrame.width / pngFrame.height;
-      const canvasRatio = canvas.width / canvas.height;
+      const pngFrame = cachedPngFrame || (frame.pngDataUrl ? await loadImage(frame.pngDataUrl) : null);
+      if (pngFrame) {
+        ctx.save();
+        const frameRatio = pngFrame.width / pngFrame.height;
+        const canvasRatio = targetCanvas.width / targetCanvas.height;
 
-      // Si las relaciones de aspecto son muy similares (menos de 15% de diferencia), ajustar a todo el canvas
-      if (Math.abs(frameRatio - canvasRatio) < 0.15) {
-        ctx.drawImage(pngFrame, 0, 0, canvas.width, canvas.height);
-      } else {
-        // Si no coinciden (ej. marco horizontal en lienzo vertical), dibujar en modo 'contain' para NO deformar textos/logos
-        let fw = canvas.width;
-        let fh = canvas.height;
-        let fx = 0;
-        let fy = 0;
-
-        if (frameRatio > canvasRatio) {
-          fh = canvas.width / frameRatio;
-          fy = (canvas.height - fh) / 2;
+        if (Math.abs(frameRatio - canvasRatio) < 0.15) {
+          ctx.drawImage(pngFrame, 0, 0, targetCanvas.width, targetCanvas.height);
         } else {
-          fw = canvas.height * frameRatio;
-          fx = (canvas.width - fw) / 2;
+          let fw = targetCanvas.width;
+          let fh = targetCanvas.height;
+          let fx = 0;
+          let fy = 0;
+
+          if (frameRatio > canvasRatio) {
+            fh = targetCanvas.width / frameRatio;
+            fy = (targetCanvas.height - fh) / 2;
+          } else {
+            fw = targetCanvas.height * frameRatio;
+            fx = (targetCanvas.width - fw) / 2;
+          }
+          ctx.drawImage(pngFrame, fx, fy, fw, fh);
         }
-        ctx.drawImage(pngFrame, fx, fy, fw, fh);
+        ctx.restore();
       }
-      ctx.restore();
     } catch (err) {
       console.error('Error dibujando marco PNG transparente:', err);
     }
@@ -369,12 +378,12 @@ export async function renderProcessedPhoto(
   if (frame.style === 'custom-designer' && (frame.eventTitle || frame.eventSubtitle || frame.eventDate)) {
     ctx.save();
     const bannerY = extraTop + height;
-    const bannerHeight = canvas.height - bannerY;
-    const padding = Math.round(canvas.width * 0.03);
+    const bannerHeight = targetCanvas.height - bannerY;
+    const padding = Math.round(targetCanvas.width * 0.03);
 
-    let textX = canvas.width / 2;
+    let textX = targetCanvas.width / 2;
     if (frame.textAlignment === 'left') textX = padding;
-    if (frame.textAlignment === 'right') textX = canvas.width - padding;
+    if (frame.textAlignment === 'right') textX = targetCanvas.width - padding;
 
     ctx.textAlign = frame.textAlignment || 'center';
     ctx.fillStyle = frame.textColor || '#ffffff';
@@ -398,27 +407,27 @@ export async function renderProcessedPhoto(
   } else if (frame.style === 'church-event') {
     ctx.save();
     const bannerY = extraTop + height;
-    const bannerHeight = canvas.height - bannerY;
+    const bannerHeight = targetCanvas.height - bannerY;
 
-    const bannerGrad = ctx.createLinearGradient(0, bannerY, canvas.width, canvas.height);
+    const bannerGrad = ctx.createLinearGradient(0, bannerY, targetCanvas.width, targetCanvas.height);
     bannerGrad.addColorStop(0, '#0f172a');
     bannerGrad.addColorStop(1, '#1e3a8a');
     ctx.fillStyle = bannerGrad;
-    ctx.fillRect(0, bannerY, canvas.width, bannerHeight);
+    ctx.fillRect(0, bannerY, targetCanvas.width, bannerHeight);
 
     ctx.fillStyle = '#f59e0b';
-    ctx.fillRect(0, bannerY, canvas.width, 3);
+    ctx.fillRect(0, bannerY, targetCanvas.width, 3);
 
     ctx.fillStyle = '#ffffff';
     ctx.font = `bold ${Math.round(bannerHeight * 0.35)}px sans-serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(frame.eventTitle || 'Iglesia Local • Servicio Especial', canvas.width / 2, bannerY + bannerHeight * 0.4);
+    ctx.fillText(frame.eventTitle || 'Iglesia Local • Servicio Especial', targetCanvas.width / 2, bannerY + bannerHeight * 0.4);
 
     if (frame.eventDate) {
       ctx.fillStyle = '#94a3b8';
       ctx.font = `${Math.round(bannerHeight * 0.22)}px sans-serif`;
-      ctx.fillText(frame.eventDate, canvas.width / 2, bannerY + bannerHeight * 0.72);
+      ctx.fillText(frame.eventDate, targetCanvas.width / 2, bannerY + bannerHeight * 0.72);
     }
     ctx.restore();
   }
@@ -473,43 +482,45 @@ export async function renderProcessedPhoto(
 
       ctx.fillStyle = watermark.color || '#ffffff';
       ctx.fillText(watermark.text, x, y);
-    } else if (watermark.type === 'image' && watermark.imageDataUrl) {
+    } else if (watermark.type === 'image' && (cachedLogo || watermark.imageDataUrl)) {
       try {
-        const rawLogo = await loadImage(watermark.imageDataUrl);
-        const logoElement = watermark.logoTintEnabled
-          ? createTintedLogoCanvas(rawLogo, watermark.logoTintColor || '#ffffff')
-          : rawLogo;
+        const rawLogo = cachedLogo || (watermark.imageDataUrl ? await loadImage(watermark.imageDataUrl) : null);
+        if (rawLogo) {
+          const logoElement = watermark.logoTintEnabled
+            ? createTintedLogoCanvas(rawLogo, watermark.logoTintColor || '#ffffff')
+            : rawLogo;
 
-        const logoAspect = logoElement.width / logoElement.height;
-        const logoWidth = Math.round(width * 0.25 * scaleFactor);
-        const logoHeight = Math.round(logoWidth / logoAspect);
+          const logoAspect = logoElement.width / logoElement.height;
+          const logoWidth = Math.round(width * 0.25 * scaleFactor);
+          const logoHeight = Math.round(logoWidth / logoAspect);
 
-        const margin = Math.round(width * 0.03);
-        let x = extraLeft + margin;
-        let y = extraTop + margin;
+          const margin = Math.round(width * 0.03);
+          let x = extraLeft + margin;
+          let y = extraTop + margin;
 
-        if (watermark.position === 'bottom-right') {
-          x = extraLeft + width - logoWidth - margin;
-          y = extraTop + height - logoHeight - margin;
-        } else if (watermark.position === 'bottom-left') {
-          x = extraLeft + margin;
-          y = extraTop + height - logoHeight - margin;
-        } else if (watermark.position === 'top-right') {
-          x = extraLeft + width - logoWidth - margin;
-          y = extraTop + margin;
-        } else if (watermark.position === 'center') {
-          x = extraLeft + (width - logoWidth) / 2;
-          y = extraTop + (height - logoHeight) / 2;
+          if (watermark.position === 'bottom-right') {
+            x = extraLeft + width - logoWidth - margin;
+            y = extraTop + height - logoHeight - margin;
+          } else if (watermark.position === 'bottom-left') {
+            x = extraLeft + margin;
+            y = extraTop + height - logoHeight - margin;
+          } else if (watermark.position === 'top-right') {
+            x = extraLeft + width - logoWidth - margin;
+            y = extraTop + margin;
+          } else if (watermark.position === 'center') {
+            x = extraLeft + (width - logoWidth) / 2;
+            y = extraTop + (height - logoHeight) / 2;
+          }
+
+          if (watermark.dropShadow) {
+            ctx.shadowColor = watermark.shadowColor || 'rgba(0, 0, 0, 0.85)';
+            ctx.shadowBlur = watermark.shadowBlur || 10;
+            ctx.shadowOffsetX = 4;
+            ctx.shadowOffsetY = 4;
+          }
+
+          ctx.drawImage(logoElement, x, y, logoWidth, logoHeight);
         }
-
-        if (watermark.dropShadow) {
-          ctx.shadowColor = watermark.shadowColor || 'rgba(0, 0, 0, 0.85)';
-          ctx.shadowBlur = watermark.shadowBlur || 10;
-          ctx.shadowOffsetX = 4;
-          ctx.shadowOffsetY = 4;
-        }
-
-        ctx.drawImage(logoElement, x, y, logoWidth, logoHeight);
       } catch (err) {
         console.error('Error dibujando logo de marca de agua:', err);
       }
@@ -517,7 +528,30 @@ export async function renderProcessedPhoto(
 
     ctx.restore();
   }
+}
 
+/**
+ * Renderiza la imagen procesada completa creando un nuevo canvas (usado para exportaciones y compatibilidad)
+ */
+export async function renderProcessedPhoto(
+  imgSource: HTMLImageElement | string,
+  adjustments: ImageAdjustments,
+  watermark: WatermarkSettings,
+  frame: FrameSettings,
+  crop: CropSettings,
+  maxDimension: number = 0
+): Promise<HTMLCanvasElement> {
+  const canvas = document.createElement('canvas');
+  await drawProcessedPhotoToCanvas(
+    canvas,
+    imgSource,
+    adjustments,
+    watermark,
+    frame,
+    crop,
+    maxDimension,
+    false
+  );
   return canvas;
 }
 

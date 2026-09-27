@@ -12,7 +12,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
-import { renderProcessedPhoto, renderFastPreview, loadImage } from '../utils/canvasEngine';
+import { drawProcessedPhotoToCanvas, loadImage } from '../utils/canvasEngine';
 import type { PhotoItem, WatermarkSettings, FrameSettings, CropSettings, ImageAdjustments } from '../types/editor';
 
 interface PreviewStageProps {
@@ -53,6 +53,7 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasContainerRef = useRef<HTMLDivElement>(null);
   const canvasWrapperRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isRendering, setIsRendering] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(1);
   const [showOriginal, setShowOriginal] = useState(false);
@@ -72,9 +73,14 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
   const zoomLevelRef = useRef(zoomLevel);
   const isFilmstripCollapsedRef = useRef(isFilmstripCollapsed);
 
-  // ─── Caché del HTMLImageElement — carga UNA sola vez por foto ────────────────
+  // ─── Caché en memoria de assets (Foto, Marco PNG y Logo) ─────────────────────
+  // Carga UNA sola vez en memoria para que el drag a 60fps nunca espere red o I/O
   const imgCacheRef = useRef<HTMLImageElement | null>(null);
   const imgCacheUrlRef = useRef<string>('');
+  const frameCacheRef = useRef<HTMLImageElement | null>(null);
+  const frameCacheUrlRef = useRef<string>('');
+  const logoCacheRef = useRef<HTMLImageElement | null>(null);
+  const logoCacheUrlRef = useRef<string>('');
 
   // Sincronizar refs con state/props (sin re-render)
   useEffect(() => { showOriginalRef.current = showOriginal; }, [showOriginal]);
@@ -84,7 +90,7 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
   useEffect(() => { zoomLevelRef.current = zoomLevel; }, [zoomLevel]);
   useEffect(() => { isFilmstripCollapsedRef.current = isFilmstripCollapsed; }, [isFilmstripCollapsed]);
 
-  // Pre-cargar y cachear imagen al cambiar de foto (evita re-decodificación en cada frame)
+  // Pre-cargar y cachear imagen de la foto
   useEffect(() => {
     if (!photo?.originalUrl) return;
     if (imgCacheUrlRef.current === photo.originalUrl && imgCacheRef.current) return;
@@ -95,63 +101,69 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
       .catch((err) => console.error('[PreviewStage] Error cargando imagen al caché:', err));
   }, [photo?.originalUrl]);
 
-  // ─── FAST PREVIEW: GPU, 480px, solo ctx.filter — corre a ~60fps ─────────────
-  const applyFastDragPreview = useCallback((cropSettings: CropSettings) => {
-    const img = imgCacheRef.current;
-    if (!img || !canvasContainerRef.current) return;
-    const activeAdj = showOriginalRef.current ? NEUTRAL_ADJUSTMENTS : photoAdjustmentsRef.current;
-    const fastCanvas = renderFastPreview(img, activeAdj, cropSettings, 480);
-    const zl = zoomLevelRef.current;
-    const collapsed = isFilmstripCollapsedRef.current;
-    const maxH = collapsed ? 'calc(100vh - 170px)' : 'calc(100vh - 280px)';
-    fastCanvas.style.maxWidth = zl === 1 ? '100%' : 'none';
-    fastCanvas.style.maxHeight = zl === 1 ? maxH : 'none';
-    fastCanvas.style.width = zl === 1 ? 'auto' : `${fastCanvas.width * zl}px`;
-    fastCanvas.style.borderRadius = '0.5rem';
-    fastCanvas.style.boxShadow = '0 25px 60px -15px rgba(0, 0, 0, 0.9)';
-    const existing = canvasContainerRef.current.querySelector('canvas');
-    if (existing) {
-      canvasContainerRef.current.replaceChild(fastCanvas, existing);
-    } else {
-      canvasContainerRef.current.appendChild(fastCanvas);
-    }
-  }, []);
-
-
-
-  // ─── HD RENDER: alta calidad, tone-mapping, marcos, marca de agua ────────────
-  const renderCanvasWithCrop = useCallback(async (cropSettings: CropSettings, compareOriginal = false) => {
-    if (!photo) return;
-    try {
-      const activeAdjustments = compareOriginal ? NEUTRAL_ADJUSTMENTS : photo.adjustments;
-      const activeWatermark = compareOriginal ? { ...watermark, enabled: false } : watermark;
-      const activeFrame = compareOriginal ? { ...frame, style: 'none' as const } : frame;
-
-      const canvas = await renderProcessedPhoto(
-        imgCacheRef.current ?? photo.originalUrl, // Usa el HTMLImageElement cacheado si está disponible
-        activeAdjustments,
-        activeWatermark,
-        activeFrame,
-        cropSettings,
-        1400
-      );
-
-      if (canvasContainerRef.current) {
-        canvasContainerRef.current.innerHTML = '';
-        const maxHeightCalc = isFilmstripCollapsed ? 'calc(100vh - 170px)' : 'calc(100vh - 280px)';
-        canvas.style.maxWidth = zoomLevel === 1 ? '100%' : 'none';
-        canvas.style.maxHeight = zoomLevel === 1 ? maxHeightCalc : 'none';
-        canvas.style.width = zoomLevel === 1 ? 'auto' : `${canvas.width * zoomLevel}px`;
-        canvas.style.borderRadius = '0.5rem';
-        canvas.style.boxShadow = '0 25px 60px -15px rgba(0, 0, 0, 0.9)';
-        canvasContainerRef.current.appendChild(canvas);
+  // Pre-cargar y cachear marco PNG institucional
+  useEffect(() => {
+    if (frame.style === 'custom-png' && frame.pngDataUrl) {
+      if (frameCacheUrlRef.current !== frame.pngDataUrl) {
+        frameCacheUrlRef.current = frame.pngDataUrl;
+        loadImage(frame.pngDataUrl)
+          .then((img) => { frameCacheRef.current = img; })
+          .catch((err) => console.error('[PreviewStage] Error cacheando marco PNG:', err));
       }
-    } catch (err) {
-      console.error('Error renderizando vista previa:', err);
+    } else {
+      frameCacheRef.current = null;
+      frameCacheUrlRef.current = '';
     }
-  }, [photo, watermark, frame, zoomLevel, isFilmstripCollapsed]);
+  }, [frame.style, frame.pngDataUrl]);
 
-  // ─── Trigger HD: solo se activa cuando NO se está arrastrando ────────────────
+  // Pre-cargar y cachear logo / marca de agua
+  useEffect(() => {
+    if (watermark.enabled && watermark.type === 'image' && watermark.imageDataUrl) {
+      if (logoCacheUrlRef.current !== watermark.imageDataUrl) {
+        logoCacheUrlRef.current = watermark.imageDataUrl;
+        loadImage(watermark.imageDataUrl)
+          .then((img) => { logoCacheRef.current = img; })
+          .catch((err) => console.error('[PreviewStage] Error cacheando logo:', err));
+      }
+    } else {
+      logoCacheRef.current = null;
+      logoCacheUrlRef.current = '';
+    }
+  }, [watermark.enabled, watermark.type, watermark.imageDataUrl]);
+
+  // ─── DIBUJO DIRECTO SOBRE EL CANVAS EXISTENTE (Sin destrucción de DOM) ───────
+  const drawToCanvas = useCallback(async (cropSettings: CropSettings, skipCpuFilters = false, compareOriginal = false) => {
+    const canvas = canvasRef.current;
+    if (!canvas || !photo) return;
+    const img = imgCacheRef.current || photo.originalUrl;
+    const activeAdjustments = compareOriginal ? NEUTRAL_ADJUSTMENTS : photo.adjustments;
+    const activeWatermark = compareOriginal ? { ...watermark, enabled: false } : watermark;
+    const activeFrame = compareOriginal ? { ...frame, style: 'none' as const } : frame;
+
+    // Sincronizar estilos de tamaño del canvas
+    const zl = zoomLevelRef.current;
+    const maxHeightCalc = isFilmstripCollapsedRef.current ? 'calc(100vh - 170px)' : 'calc(100vh - 280px)';
+    canvas.style.maxWidth = zl === 1 ? '100%' : 'none';
+    canvas.style.maxHeight = zl === 1 ? maxHeightCalc : 'none';
+    canvas.style.width = zl === 1 ? 'auto' : `${(canvas.width || 800) * zl}px`;
+    canvas.style.borderRadius = '0.5rem';
+    canvas.style.boxShadow = '0 25px 60px -15px rgba(0, 0, 0, 0.9)';
+
+    await drawProcessedPhotoToCanvas(
+      canvas,
+      img,
+      activeAdjustments,
+      activeWatermark,
+      activeFrame,
+      cropSettings,
+      800, // 800px resolución de visor: nítida y corre a < 1ms en GPU
+      skipCpuFilters,
+      frameCacheRef.current,
+      logoCacheRef.current
+    );
+  }, [photo, watermark, frame]);
+
+  // ─── Trigger HD inicial / al cambiar props: renderiza con filtros completos ──
   useEffect(() => {
     let isCancelled = false;
 
@@ -159,7 +171,7 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
       if (!photo || isDraggingRef.current) return;
       setIsRendering(true);
       try {
-        await renderCanvasWithCrop(photo.crop, showOriginal);
+        await drawToCanvas(photo.crop, false, showOriginal);
       } finally {
         if (!isCancelled) setIsRendering(false);
       }
@@ -170,7 +182,7 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
     return () => {
       isCancelled = true;
     };
-  }, [photo, photo.adjustments, photo.crop, watermark, frame, zoomLevel, showOriginal, isFilmstripCollapsed, renderCanvasWithCrop]);
+  }, [photo, photo.adjustments, photo.crop, watermark, frame, zoomLevel, showOriginal, isFilmstripCollapsed, drawToCanvas]);
 
 
   // Atajo de teclado (Presionar 'B' o 'Espacio' para comparar)
@@ -220,12 +232,12 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
     if (animFrameIdRef.current) cancelAnimationFrame(animFrameIdRef.current);
     animFrameIdRef.current = requestAnimationFrame(() => {
       if (currentTempCropRef.current) {
-        applyFastDragPreview(currentTempCropRef.current); // ← GPU fast preview
+        drawToCanvas(currentTempCropRef.current, true, showOriginalRef.current);
       }
     });
   };
 
-  // ─── SOLTAR (Mouse) — renderiza HD una sola vez al finalizar ─────────────────
+  // ─── SOLTAR (Mouse) — consolida HD completo al soltar ────────────────────────
   const handleMouseUp = () => {
     if (!isDraggingRef.current) return;
     isDraggingRef.current = false;
@@ -240,7 +252,8 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
     if (currentTempCropRef.current) {
       const finalCrop = currentTempCropRef.current;
       currentTempCropRef.current = null;
-      onUpdateCrop(finalCrop); // Actualiza estado → dispara renderizado HD en useEffect
+      onUpdateCropRef.current(finalCrop);
+      drawToCanvas(finalCrop, false, showOriginalRef.current);
     }
   };
 
@@ -334,7 +347,7 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
         if (animFrameIdRef.current) cancelAnimationFrame(animFrameIdRef.current);
         animFrameIdRef.current = requestAnimationFrame(() => {
           if (currentTempCropRef.current) {
-            applyFastDragPreview(currentTempCropRef.current);
+            drawToCanvas(currentTempCropRef.current, true, showOriginalRef.current);
           }
         });
       } else if (e.touches.length >= 2) {
@@ -366,7 +379,7 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
         if (animFrameIdRef.current) cancelAnimationFrame(animFrameIdRef.current);
         animFrameIdRef.current = requestAnimationFrame(() => {
           if (currentTempCropRef.current) {
-            applyFastDragPreview(currentTempCropRef.current);
+            drawToCanvas(currentTempCropRef.current, true, showOriginalRef.current);
           }
         });
       }
@@ -402,6 +415,7 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
           const finalCrop = currentTempCropRef.current;
           currentTempCropRef.current = null;
           onUpdateCropRef.current(finalCrop);
+          drawToCanvas(finalCrop, false, showOriginalRef.current);
         }
       }
     };
@@ -418,7 +432,7 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
       el.removeEventListener('touchend', onTouchEnd);
       el.removeEventListener('touchcancel', onTouchEnd);
     };
-  }, [applyFastDragPreview]);
+  }, [drawToCanvas]);
 
   // ─── ZOOM con rueda del ratón ──────────────────────────────────────────────────
   const handleWheel = (e: React.WheelEvent) => {
@@ -538,7 +552,19 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
           </button>
         )}
 
-        <div ref={canvasContainerRef} className="canvas-container" />
+        <div ref={canvasContainerRef} className="canvas-container">
+          <canvas
+            ref={canvasRef}
+            className="studio-preview-canvas"
+            style={{
+              maxWidth: zoomLevel === 1 ? '100%' : 'none',
+              maxHeight: isFilmstripCollapsed ? 'calc(100vh - 170px)' : 'calc(100vh - 280px)',
+              width: zoomLevel === 1 ? 'auto' : `${(canvasRef.current?.width || 800) * zoomLevel}px`,
+              borderRadius: '0.5rem',
+              boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.9)',
+            }}
+          />
+        </div>
 
         {/* Hint Flotante Elegante de Arrastre */}
         {showHint && !isDragging && (
