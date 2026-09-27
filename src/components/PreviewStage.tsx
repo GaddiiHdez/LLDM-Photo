@@ -52,6 +52,7 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasContainerRef = useRef<HTMLDivElement>(null);
+  const canvasWrapperRef = useRef<HTMLDivElement>(null);
   const [isRendering, setIsRendering] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(1);
   const [showOriginal, setShowOriginal] = useState(false);
@@ -66,6 +67,8 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
   const isDraggingRef = useRef(false);
   const showOriginalRef = useRef(showOriginal);
   const photoAdjustmentsRef = useRef(photo.adjustments);
+  const photoCropRef = useRef(photo.crop);
+  const onUpdateCropRef = useRef(onUpdateCrop);
   const zoomLevelRef = useRef(zoomLevel);
   const isFilmstripCollapsedRef = useRef(isFilmstripCollapsed);
 
@@ -76,6 +79,8 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
   // Sincronizar refs con state/props (sin re-render)
   useEffect(() => { showOriginalRef.current = showOriginal; }, [showOriginal]);
   useEffect(() => { photoAdjustmentsRef.current = photo.adjustments; }, [photo.adjustments]);
+  useEffect(() => { photoCropRef.current = photo.crop; }, [photo.crop]);
+  useEffect(() => { onUpdateCropRef.current = onUpdateCrop; }, [onUpdateCrop]);
   useEffect(() => { zoomLevelRef.current = zoomLevel; }, [zoomLevel]);
   useEffect(() => { isFilmstripCollapsedRef.current = isFilmstripCollapsed; }, [isFilmstripCollapsed]);
 
@@ -239,49 +244,181 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
     }
   };
 
-  // ─── TÁCTIL — misma arquitectura dual-canvas ──────────────────────────────────
-  const handleTouchStart = (e: React.TouchEvent) => {
-    if (e.touches.length !== 1) return;
-    e.preventDefault();
-    isDraggingRef.current = true;
-    setIsDragging(true);
-    setShowHint(false);
-    dragStartRef.current = {
-      x: e.touches[0].clientX,
-      y: e.touches[0].clientY,
-      initialOffsetX: photo.crop?.offsetX || 0,
-      initialOffsetY: photo.crop?.offsetY || 0,
+  // ─── GESTOS TÁCTILES MÓVILES NATIVOS (Pan 1 Dedo & Pinch-to-Zoom 2 Dedos) ──────
+  // Usamos addEventListener con { passive: false } en canvasWrapperRef para
+  // evitar que el navegador móvil intercepte o cancele el scroll de la página.
+  useEffect(() => {
+    const el = canvasWrapperRef.current;
+    if (!el) return;
+
+    interface TouchState {
+      mode: 'none' | 'pan' | 'pinch';
+      // 1 dedo (Pan)
+      startX: number;
+      startY: number;
+      initialOffsetX: number;
+      initialOffsetY: number;
+      // 2 dedos (Pinch)
+      initialDist: number;
+      initialZoom: number;
+      midStartX: number;
+      midStartY: number;
+    }
+
+    const touchState: TouchState = {
+      mode: 'none',
+      startX: 0,
+      startY: 0,
+      initialOffsetX: 0,
+      initialOffsetY: 0,
+      initialDist: 0,
+      initialZoom: 1,
+      midStartX: 0,
+      midStartY: 0,
     };
-  };
 
-  const handleTouchMove = (e: React.TouchEvent) => {
-    if (!isDraggingRef.current || !dragStartRef.current || e.touches.length !== 1) return;
-    e.preventDefault();
-    const dx = e.touches[0].clientX - dragStartRef.current.x;
-    const dy = e.touches[0].clientY - dragStartRef.current.y;
-
-    const sensitivity = 0.3;
-    const newOffsetX = Math.max(-50, Math.min(50, dragStartRef.current.initialOffsetX - dx * sensitivity));
-    const newOffsetY = Math.max(-50, Math.min(50, dragStartRef.current.initialOffsetY - dy * sensitivity));
-
-    const tempCrop: CropSettings = {
-      ...photo.crop,
-      offsetX: Math.round(newOffsetX),
-      offsetY: Math.round(newOffsetY),
-    };
-    currentTempCropRef.current = tempCrop;
-
-    if (animFrameIdRef.current) cancelAnimationFrame(animFrameIdRef.current);
-    animFrameIdRef.current = requestAnimationFrame(() => {
-      if (currentTempCropRef.current) {
-        applyFastDragPreview(currentTempCropRef.current); // ← GPU fast preview
+    const onTouchStart = (e: TouchEvent) => {
+      // Ignorar si el toque fue en un botón de interfaz (navegación < >, descargar, etc.)
+      if ((e.target as HTMLElement)?.closest('.canvas-nav-btn, button, .preview-toolbar')) {
+        return;
       }
-    });
-  };
 
-  const handleTouchEnd = () => {
-    handleMouseUp();
-  };
+      if (e.cancelable) e.preventDefault();
+      isDraggingRef.current = true;
+      setIsDragging(true);
+      setShowHint(false);
+
+      const baseCrop = currentTempCropRef.current || photoCropRef.current;
+
+      if (e.touches.length === 1) {
+        touchState.mode = 'pan';
+        touchState.startX = e.touches[0].clientX;
+        touchState.startY = e.touches[0].clientY;
+        touchState.initialOffsetX = baseCrop?.offsetX || 0;
+        touchState.initialOffsetY = baseCrop?.offsetY || 0;
+      } else if (e.touches.length >= 2) {
+        const t1 = e.touches[0];
+        const t2 = e.touches[1];
+        const dist = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
+        touchState.mode = 'pinch';
+        touchState.initialDist = Math.max(10, dist);
+        touchState.initialZoom = baseCrop?.zoom || 1.0;
+        touchState.midStartX = (t1.clientX + t2.clientX) / 2;
+        touchState.midStartY = (t1.clientY + t2.clientY) / 2;
+        touchState.initialOffsetX = baseCrop?.offsetX || 0;
+        touchState.initialOffsetY = baseCrop?.offsetY || 0;
+      }
+    };
+
+    const onTouchMove = (e: TouchEvent) => {
+      if (!isDraggingRef.current) return;
+      if (e.cancelable) e.preventDefault();
+
+      const baseCrop = photoCropRef.current;
+
+      if (e.touches.length === 1 && touchState.mode === 'pan') {
+        const dx = e.touches[0].clientX - touchState.startX;
+        const dy = e.touches[0].clientY - touchState.startY;
+
+        const sensitivity = 0.35;
+        const newOffsetX = Math.max(-50, Math.min(50, touchState.initialOffsetX - dx * sensitivity));
+        const newOffsetY = Math.max(-50, Math.min(50, touchState.initialOffsetY - dy * sensitivity));
+
+        const tempCrop: CropSettings = {
+          ...(currentTempCropRef.current || baseCrop),
+          offsetX: Math.round(newOffsetX),
+          offsetY: Math.round(newOffsetY),
+        };
+        currentTempCropRef.current = tempCrop;
+
+        if (animFrameIdRef.current) cancelAnimationFrame(animFrameIdRef.current);
+        animFrameIdRef.current = requestAnimationFrame(() => {
+          if (currentTempCropRef.current) {
+            applyFastDragPreview(currentTempCropRef.current);
+          }
+        });
+      } else if (e.touches.length >= 2) {
+        const t1 = e.touches[0];
+        const t2 = e.touches[1];
+        const dist = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
+        const scale = dist / touchState.initialDist;
+
+        // Zoom suave acotado entre 1.0x y 3.0x
+        const newZoom = Math.max(1.0, Math.min(3.0, Number((touchState.initialZoom * scale).toFixed(2))));
+
+        // Pan simultáneo con 2 dedos
+        const curMidX = (t1.clientX + t2.clientX) / 2;
+        const curMidY = (t1.clientY + t2.clientY) / 2;
+        const dx = curMidX - touchState.midStartX;
+        const dy = curMidY - touchState.midStartY;
+        const sensitivity = 0.35;
+        const newOffsetX = Math.max(-50, Math.min(50, touchState.initialOffsetX - dx * sensitivity));
+        const newOffsetY = Math.max(-50, Math.min(50, touchState.initialOffsetY - dy * sensitivity));
+
+        const tempCrop: CropSettings = {
+          ...(currentTempCropRef.current || baseCrop),
+          zoom: newZoom,
+          offsetX: Math.round(newOffsetX),
+          offsetY: Math.round(newOffsetY),
+        };
+        currentTempCropRef.current = tempCrop;
+
+        if (animFrameIdRef.current) cancelAnimationFrame(animFrameIdRef.current);
+        animFrameIdRef.current = requestAnimationFrame(() => {
+          if (currentTempCropRef.current) {
+            applyFastDragPreview(currentTempCropRef.current);
+          }
+        });
+      }
+    };
+
+    const onTouchEnd = (e: TouchEvent) => {
+      if (!isDraggingRef.current) return;
+
+      // Si aún queda 1 dedo en pantalla al soltar el pinch, transicionar suavemente a pan
+      if (e.touches.length === 1) {
+        const remaining = e.touches[0];
+        const baseCrop = currentTempCropRef.current || photoCropRef.current;
+        touchState.mode = 'pan';
+        touchState.startX = remaining.clientX;
+        touchState.startY = remaining.clientY;
+        touchState.initialOffsetX = baseCrop?.offsetX || 0;
+        touchState.initialOffsetY = baseCrop?.offsetY || 0;
+        return;
+      }
+
+      // Si se levantaron todos los dedos, consolidar HD
+      if (e.touches.length === 0) {
+        isDraggingRef.current = false;
+        setIsDragging(false);
+        touchState.mode = 'none';
+
+        if (animFrameIdRef.current) {
+          cancelAnimationFrame(animFrameIdRef.current);
+          animFrameIdRef.current = null;
+        }
+
+        if (currentTempCropRef.current) {
+          const finalCrop = currentTempCropRef.current;
+          currentTempCropRef.current = null;
+          onUpdateCropRef.current(finalCrop);
+        }
+      }
+    };
+
+    // Registrar eventos nativos con passive: false (esencial para que Chrome/Safari no los cancelen)
+    el.addEventListener('touchstart', onTouchStart, { passive: false });
+    el.addEventListener('touchmove', onTouchMove, { passive: false });
+    el.addEventListener('touchend', onTouchEnd);
+    el.addEventListener('touchcancel', onTouchEnd);
+
+    return () => {
+      el.removeEventListener('touchstart', onTouchStart);
+      el.removeEventListener('touchmove', onTouchMove);
+      el.removeEventListener('touchend', onTouchEnd);
+      el.removeEventListener('touchcancel', onTouchEnd);
+    };
+  }, [applyFastDragPreview]);
 
   // ─── ZOOM con rueda del ratón ──────────────────────────────────────────────────
   const handleWheel = (e: React.WheelEvent) => {
@@ -347,13 +484,11 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
       {/* Main Canvas Display Stage */}
       <div
         className="canvas-wrapper"
+        ref={canvasWrapperRef}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
         onWheel={handleWheel}
         style={{ cursor: isDragging ? 'grabbing' : 'grab', touchAction: 'none' }}
       >
@@ -409,7 +544,8 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
         {showHint && !isDragging && (
           <div className="floating-canvas-hint" onClick={() => setShowHint(false)}>
             <Move size={13} style={{ color: 'var(--color-brand-light)' }} />
-            <span>Arrastra la imagen para re-encuadrar · Rueda para zoom</span>
+            <span className="hint-desktop">Arrastra la imagen para re-encuadrar · Rueda para zoom</span>
+            <span className="hint-mobile">Arrastra para mover · Pellizca para zoom</span>
           </div>
         )}
       </div>

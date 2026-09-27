@@ -582,6 +582,11 @@ html[data-theme="dark"] .theme-switch-btn.active {
   position: relative;
   /* Hint al navegador de que este contenedor cambia frecuentemente → GPU compositing layer */
   will-change: contents;
+  touch-action: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+  overscroll-behavior: contain;
 }
 
 .canvas-container {
@@ -594,6 +599,10 @@ html[data-theme="dark"] .theme-switch-btn.active {
   transform: translateZ(0);
   will-change: transform;
   contain: layout;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  pointer-events: auto;
 }
 
 .canvas-container canvas {
@@ -601,6 +610,11 @@ html[data-theme="dark"] .theme-switch-btn.active {
   box-shadow: 0 25px 60px rgba(0, 0, 0, 0.85), 0 0 20px rgba(59, 130, 246, 0.15);
   /* Suavizado de imágenes durante el escalado del preview rápido */
   image-rendering: auto;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-user-drag: none;
+  pointer-events: auto;
 }
 
 /* Botones Flotantes de Navegación Lateral en Lienzo (< y >) */
@@ -1404,6 +1418,14 @@ input[type="range"] {
   border-color: var(--border-active);
 }
 
+.hint-desktop {
+  display: inline;
+}
+
+.hint-mobile {
+  display: none;
+}
+
 /* Presets Icon Badge */
 .preset-icon-wrapper {
   width: 2.2rem;
@@ -1636,6 +1658,14 @@ input[type="range"] {
     font-size: 0.68rem;
     padding: 0.3rem 0.75rem;
     bottom: 0.6rem;
+  }
+
+  .hint-desktop {
+    display: none;
+  }
+
+  .hint-mobile {
+    display: inline;
   }
 
   /* Tira de Miniaturas Restaurada (Directamente debajo del lienzo) */
