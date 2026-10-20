@@ -36,10 +36,10 @@ jobs:
           sed -i 's/\r$//' android/gradlew
           chmod +x android/gradlew
 
-      - name: Configurar Node.js 20
+      - name: Configurar Node.js (LTS)
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: 'npm'
 
       - name: Instalar Dependencias Web y Capacitor
@@ -51,7 +51,19 @@ jobs:
       - name: Sincronizar con Proyecto Android (Capacitor Sync)
         run: |
           mkdir -p android/app/src/main/assets/public
-          npm run cap:sync
+          set +e
+          OUTPUT=$(npm run cap:sync 2>&1)
+          EXIT_CODE=$?
+          echo "$OUTPUT"
+          if [ $EXIT_CODE -ne 0 ]; then
+            echo "::error title=Capacitor Sync Error::$(echo "$OUTPUT" | tr '\n' ' ')"
+            echo "### ❌ Error en Capacitor Sync" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            echo "$OUTPUT" >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            exit $EXIT_CODE
+          fi
+          set -e
 
       - name: Compilar APK Android (assembleDebug)
         run: |
