@@ -47,7 +47,7 @@ jobs:
         run: npm run build
 
       - name: Sincronizar con Proyecto Android (Capacitor Sync)
-        run: npx @capacitor/cli sync android
+        run: npm run cap:sync
 
       - name: Compilar APK Android (assembleDebug)
         run: |
