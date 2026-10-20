@@ -1,14 +1,12 @@
 import React, { useRef } from 'react';
-import { UploadCloud, Image as ImageIcon, Sparkles, Frame, PlayCircle, Sliders, ShieldCheck } from 'lucide-react';
+import { ImagePlus, Sparkles, Frame, Sliders, ShieldCheck, FolderOpen } from 'lucide-react';
 
 interface BatchDropzoneProps {
   onFilesSelected: (files: FileList | File[]) => void;
-  onLoadSamples: () => void;
 }
 
 export const BatchDropzone: React.FC<BatchDropzoneProps> = ({
   onFilesSelected,
-  onLoadSamples,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -33,10 +31,9 @@ export const BatchDropzone: React.FC<BatchDropzoneProps> = ({
 
   return (
     <div
-      className="dropzone-container card-glass"
+      className="home-launchpad"
       onDragOver={handleDragOver}
       onDrop={handleDrop}
-      onClick={() => fileInputRef.current?.click()}
     >
       <input
         ref={fileInputRef}
@@ -47,72 +44,71 @@ export const BatchDropzone: React.FC<BatchDropzoneProps> = ({
         style={{ display: 'none' }}
       />
 
-      <div className="dropzone-brand-emblem">
-        <img
-          src="/logo-bereasnap.svg"
-          alt="BereaSnap"
-          className="dropzone-brand-logo"
-        />
-      </div>
+      <div className="launchpad-card card-glass">
+        <div className="launchpad-hero">
+          <div className="launchpad-icon-ring">
+            <img
+              src="/logo-bereasnap-icon.jpg"
+              alt="BereaSnap"
+              className="launchpad-app-icon"
+            />
+          </div>
 
-      <div className="dropzone-badge-tag">
-        <ShieldCheck size={13} style={{ color: 'var(--color-brand-light)' }} />
-        <span>Procesamiento 100% Local y Privado en tu Navegador</span>
-      </div>
+          <div className="dropzone-badge-tag" style={{ marginBottom: '0.65rem' }}>
+            <ShieldCheck size={13} style={{ color: 'var(--color-brand-light)' }} />
+            <span>Estudio 100% Offline • Privacidad Total</span>
+          </div>
 
-      <h2 className="dropzone-title">Arrastra tu lote de fotos aquí</h2>
-      <p className="dropzone-subtitle">
-        Soporte nativo para cámaras <strong>Nikon</strong> (<code>.NEF</code>), <strong>Canon</strong> (<code>.CR2</code>), <strong>Sony</strong> (<code>.ARW</code>), <strong>Adobe</strong> (<code>.DNG</code>) y archivos <code>.JPG</code> / <code>.PNG</code>
-      </p>
-
-      {/* Atajos de Funciones Principales de la App */}
-      <div className="dropzone-features">
-        <div
-          className="feature-chip"
-          title="Optimización adaptativa del rango dinámico para iluminaciones complejas de iglesia y templos"
-        >
-          <Sliders size={14} style={{ color: 'var(--color-brand-light)' }} />
-          <span>Revelado RAW 14-Bit</span>
+          <h2 className="launchpad-title">
+            Berea<span className="brand-highlight">Snap</span>
+          </h2>
+          <p className="launchpad-subtitle">
+            Revelado digital en lote, firma institucional y marcos dinámicos listos en tu dispositivo.
+          </p>
         </div>
 
-        <div
-          className="feature-chip"
-          title="Superposición fija de logotipo o firma institucional en alta resolución"
-        >
-          <ImageIcon size={14} style={{ color: '#38bdf8' }} />
-          <span>Firma & Marca de Agua</span>
-        </div>
-
-        <div
-          className="feature-chip"
-          title="Marcos oficiales PNG y plantillas prediseñadas para eventos y servicios"
-        >
-          <Frame size={14} style={{ color: '#34d399' }} />
-          <span>Marcos Institucionales</span>
-        </div>
-
-        <div
-          className="feature-chip"
-          title="Ajuste automático inteligente de color, balance y nitidez con 1 solo clic"
-        >
-          <Sparkles size={14} style={{ color: '#fbbf24' }} />
-          <span>Presets Automáticos</span>
-        </div>
-      </div>
-
-      <div className="dropzone-actions" onClick={(e) => e.stopPropagation()}>
+        {/* Botón Principal Táctil Nativo */}
         <button
-          className="btn-primary"
+          type="button"
+          className="launchpad-primary-cta"
           onClick={() => fileInputRef.current?.click()}
         >
-          <UploadCloud size={18} />
-          <span>Seleccionar Fotografías</span>
+          <div className="cta-icon-circle">
+            <ImagePlus size={24} />
+          </div>
+          <div className="cta-text-col">
+            <span className="cta-main-label">Importar Fotografías</span>
+            <span className="cta-sub-label">Galería, Memoria SD o Archivos RAW (.NEF, .CR2, .JPG)</span>
+          </div>
+          <FolderOpen size={18} style={{ opacity: 0.75, marginLeft: 'auto' }} />
         </button>
 
-        <button className="btn-secondary" onClick={onLoadSamples}>
-          <PlayCircle size={18} style={{ color: 'var(--color-brand-light)' }} />
-          <span>Ver Demostración con Muestras</span>
-        </button>
+        {/* Píldoras de Capacidades Nativas */}
+        <div className="launchpad-capabilities">
+          <div className="capability-item">
+            <Sliders size={15} style={{ color: '#38bdf8' }} />
+            <div>
+              <strong>Revelado & Presets</strong>
+              <span>Luz, nitidez y color</span>
+            </div>
+          </div>
+
+          <div className="capability-item">
+            <Frame size={15} style={{ color: '#fbbf24' }} />
+            <div>
+              <strong>Marcos Dinámicos</strong>
+              <span>Centenario personalizable</span>
+            </div>
+          </div>
+
+          <div className="capability-item">
+            <Sparkles size={15} style={{ color: '#34d399' }} />
+            <div>
+              <strong>Lotes & WhatsApp</strong>
+              <span>Exportación directa o ZIP</span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -33,10 +33,43 @@ function createTintedLogoCanvas(logoImg: HTMLImageElement, color: string): HTMLC
 }
 
 /**
+ * Calcula la relación de aspecto objetivo (W / H) según el ratio elegido, dimensiones y rotación de 90°
+ */
+export function getTargetAspectRatio(
+  ratio: AspectRatioType,
+  rawWidth: number,
+  rawHeight: number,
+  rotation: number = 0
+): number {
+  const isRotated90 = Math.abs(rotation % 180) === 90;
+  const effW = isRotated90 ? rawHeight : rawWidth;
+  const effH = isRotated90 ? rawWidth : rawHeight;
+
+  if (ratio === 'original') {
+    return effW / effH;
+  }
+  switch (ratio) {
+    case '1:1':
+      return 1.0;
+    case '4:5':
+      return 4 / 5;
+    case '9:16':
+      return 9 / 16;
+    case '16:9':
+      return 16 / 9;
+    case '3:4':
+      return 3 / 4;
+    case '3:2':
+      return 3 / 2;
+    case '2:3':
+      return 2 / 3;
+    default:
+      return effW / effH;
+  }
+}
+
+/**
  * Renderiza un preview RÁPIDO durante el drag (acelerado por GPU).
- * Solo aplica recorte y filtros CSS básicos — sin tone-mapping CPU,
- * sin marcos ni marca de agua. Permite 60fps durante el arrastre.
- * Es síncrono (no async) para que no haya overhead de Promises.
  */
 export function renderFastPreview(
   img: HTMLImageElement,
@@ -46,29 +79,26 @@ export function renderFastPreview(
 ): HTMLCanvasElement {
   const rawWidth = img.naturalWidth || img.width || 1920;
   const rawHeight = img.naturalHeight || img.height || 1080;
-  const rawRatio = rawWidth / rawHeight;
+  const targetRatio = getTargetAspectRatio(crop.aspectRatio, rawWidth, rawHeight, crop.rotation || 0);
 
-  // Calcular las dimensiones del canvas de preview (pequeño)
   let previewW: number;
   let previewH: number;
-  if (rawRatio >= 1) {
+  if (targetRatio >= 1) {
     previewW = maxDimension;
-    previewH = Math.round(maxDimension / rawRatio);
+    previewH = Math.round(maxDimension / targetRatio);
   } else {
     previewH = maxDimension;
-    previewW = Math.round(maxDimension * rawRatio);
+    previewW = Math.round(maxDimension * targetRatio);
   }
 
   const canvas = document.createElement('canvas');
   canvas.width = previewW;
   canvas.height = previewH;
 
-  // Sin willReadFrequently — usamos GPU path
   const ctx = canvas.getContext('2d');
   if (!ctx) return canvas;
 
-  // Calcular source rect con zoom y offsets (mismo algoritmo que renderProcessedPhoto)
-  const targetRatio = getTargetAspectRatio(crop.aspectRatio, rawWidth, rawHeight);
+  const rawRatio = rawWidth / rawHeight;
   let baseSrcW: number;
   let baseSrcH: number;
   if (rawRatio > targetRatio) {
@@ -91,7 +121,6 @@ export function renderFastPreview(
   const srcX = Math.max(0, Math.min(rawWidth - srcW, (rawWidth - srcW) / 2 + shiftX));
   const srcY = Math.max(0, Math.min(rawHeight - srcH, (rawHeight - srcH) / 2 + shiftY));
 
-  // Aplicar filtros CSS (acelerados por GPU — no tocan pixeldata)
   const b = 100 + (adjustments.brightness || 0);
   const c = 100 + (adjustments.contrast || 0);
   const s = 100 + (adjustments.saturation || 0);
@@ -102,39 +131,9 @@ export function renderFastPreview(
   return canvas;
 }
 
-
-
-/**
- * Calcula la relación de aspecto objetivo (W / H) según el ratio elegido y las dimensiones de la foto
- */
-export function getTargetAspectRatio(ratio: AspectRatioType, rawWidth: number, rawHeight: number): number {
-  if (ratio === 'original') {
-    return rawWidth / rawHeight;
-  }
-  switch (ratio) {
-    case '1:1':
-      return 1.0;
-    case '4:5':
-      return 4 / 5;
-    case '9:16':
-      return 9 / 16;
-    case '16:9':
-      return 16 / 9;
-    case '3:4':
-      return 3 / 4;
-    case '3:2':
-      return 3 / 2;
-    case '2:3':
-      return 2 / 3;
-    default:
-      return rawWidth / rawHeight;
-  }
-}
-
 /**
  * Dibuja la composición completa directamente sobre un canvas existente.
- * Soporta modo 'skipCpuFilters' para arrastre en tiempo real a 60fps (sin el pesado bucle getImageData de CPU).
- * Permite usar imágenes de marco y logo pre-cacheadas para eliminar el overhead de Promises durante el drag.
+ * Soporta modo 'skipCpuFilters' para arrastre en tiempo real a 60fps.
  */
 export async function drawProcessedPhotoToCanvas(
   targetCanvas: HTMLCanvasElement,
@@ -152,42 +151,50 @@ export async function drawProcessedPhotoToCanvas(
 
   const rawWidth = img.naturalWidth || img.width || 6000;
   const rawHeight = img.naturalHeight || img.height || 4000;
+  const rotationDeg = crop.rotation || 0;
+  const straightenDeg = crop.straighten || 0;
+  const isRotated90 = Math.abs(rotationDeg % 180) === 90;
 
   // --- 1. CÁLCULO DE DIMENSIONES RE-ENCUADRADAS (CROPPED GEOMETRY SIN DEFORMACIÓN) ---
-  const targetRatio = getTargetAspectRatio(crop.aspectRatio, rawWidth, rawHeight);
+  const targetRatio = getTargetAspectRatio(crop.aspectRatio, rawWidth, rawHeight, rotationDeg);
+  // Si la foto está rotada 90° o 270°, el rectángulo de origen en la imagen no-rotada usa el ratio inverso
+  const srcTargetRatio = isRotated90 ? 1 / targetRatio : targetRatio;
   const rawRatio = rawWidth / rawHeight;
 
   let baseSrcW: number;
   let baseSrcH: number;
 
-  if (rawRatio > targetRatio) {
+  if (rawRatio > srcTargetRatio) {
     baseSrcH = rawHeight;
-    baseSrcW = rawHeight * targetRatio;
+    baseSrcW = rawHeight * srcTargetRatio;
   } else {
     baseSrcW = rawWidth;
-    baseSrcH = rawWidth / targetRatio;
+    baseSrcH = rawWidth / srcTargetRatio;
   }
 
-  // Dimensiones finales del canvas
+  // Dimensiones finales del área de la foto en el canvas
   let width: number;
   let height: number;
   const maxTargetDim = maxDimension > 0 ? maxDimension : 4000;
+  const effectiveMaxW = isRotated90 ? rawHeight : rawWidth;
+  const effectiveMaxH = isRotated90 ? rawWidth : rawHeight;
 
   if (targetRatio >= 1) {
-    width = Math.min(rawWidth, maxTargetDim);
+    width = Math.min(effectiveMaxW, maxTargetDim);
     height = Math.round(width / targetRatio);
   } else {
-    height = Math.min(rawHeight, maxTargetDim);
+    height = Math.min(effectiveMaxH, maxTargetDim);
     width = Math.round(height * targetRatio);
   }
 
-  // --- CÁLCULO DE MÁRGENES PARA MARCOS DIGITALES ---
+  // --- CÁLCULO DE MÁRGENES PARA MARCOS DIGITALES (ESCALABLES CON EL SLIDER DE GROSOR) ---
   let extraTop = 0;
   let extraBottom = 0;
   let extraLeft = 0;
   let extraRight = 0;
 
-  const borderWidth = Math.max(10, Math.round(width * 0.02));
+  const borderScale = (frame.borderTop || 24) / 24;
+  const baseBorderWidth = Math.max(6, Math.round(width * 0.022 * borderScale));
 
   if (frame.style === 'custom-designer') {
     const scale = width / 1200;
@@ -196,32 +203,33 @@ export async function drawProcessedPhotoToCanvas(
     extraLeft = Math.round((frame.borderLeft || 20) * scale);
     extraRight = Math.round((frame.borderRight || 20) * scale);
   } else if (frame.style === 'fine-gallery') {
-    const margin = Math.round(width * 0.035);
+    const margin = Math.max(6, Math.round(width * 0.035 * borderScale));
     extraTop = margin;
     extraBottom = margin;
     extraLeft = margin;
     extraRight = margin;
   } else if (frame.style === 'editorial') {
-    const margin = Math.round(width * 0.025);
+    const margin = Math.max(6, Math.round(width * 0.025 * borderScale));
     extraTop = margin;
     extraBottom = margin + Math.round(height * 0.09);
     extraLeft = margin;
     extraRight = margin;
   } else if (frame.style === 'classic-white' || frame.style === 'classic-dark' || frame.style === 'gold-accent') {
-    extraTop = borderWidth;
-    extraBottom = borderWidth;
-    extraLeft = borderWidth;
-    extraRight = borderWidth;
+    extraTop = baseBorderWidth;
+    extraBottom = baseBorderWidth;
+    extraLeft = baseBorderWidth;
+    extraRight = baseBorderWidth;
   } else if (frame.style === 'church-event') {
-    extraTop = borderWidth;
-    extraBottom = borderWidth + Math.round(height * 0.10);
-    extraLeft = borderWidth;
-    extraRight = borderWidth;
+    extraTop = baseBorderWidth;
+    extraBottom = baseBorderWidth + Math.round(height * 0.10);
+    extraLeft = baseBorderWidth;
+    extraRight = baseBorderWidth;
   } else if (frame.style === 'polaroid-card') {
-    extraTop = borderWidth * 1.5;
-    extraBottom = borderWidth * 4;
-    extraLeft = borderWidth * 1.5;
-    extraRight = borderWidth * 1.5;
+    const sideMargin = Math.max(8, Math.round(baseBorderWidth * 1.4));
+    extraTop = sideMargin;
+    extraBottom = Math.max(24, Math.round(baseBorderWidth * 3.8));
+    extraLeft = sideMargin;
+    extraRight = sideMargin;
   }
 
   const targetW = width + extraLeft + extraRight;
@@ -269,7 +277,7 @@ export async function drawProcessedPhotoToCanvas(
     ctx.restore();
   }
 
-  // --- 3. DIBUJAR FOTO BASE CON CROP Y FILTROS GPU ---
+  // --- 3. DIBUJAR FOTO BASE CON CROP, ROTACIÓN, NIVELACIÓN Y FILTROS GPU ---
   ctx.save();
   const b = 100 + adjustments.brightness;
   const c = 100 + adjustments.contrast;
@@ -277,7 +285,11 @@ export async function drawProcessedPhotoToCanvas(
 
   ctx.filter = `brightness(${b}%) contrast(${c}%) saturate(${s}%)`;
 
-  const zoomScale = Math.max(1.0, Math.min(3.0, crop.zoom || 1.0));
+  // Compensar escala automáticamente si hay ángulo de nivelación (straighten) para no dejar esquinas vacías
+  const straightenRad = (Math.abs(straightenDeg) * Math.PI) / 180;
+  const straightenAutoZoom = straightenDeg !== 0 ? 1 + Math.sin(straightenRad) * 1.35 : 1.0;
+
+  const zoomScale = Math.max(1.0, Math.min(3.5, (crop.zoom || 1.0) * straightenAutoZoom));
   const srcW = baseSrcW / zoomScale;
   const srcH = baseSrcH / zoomScale;
 
@@ -290,11 +302,41 @@ export async function drawProcessedPhotoToCanvas(
   const srcX = Math.max(0, Math.min(rawWidth - srcW, (rawWidth - srcW) / 2 + shiftX));
   const srcY = Math.max(0, Math.min(rawHeight - srcH, (rawHeight - srcH) / 2 + shiftY));
 
-  ctx.drawImage(
-    img,
-    srcX, srcY, srcW, srcH,
-    extraLeft, extraTop, width, height
-  );
+  const hasTransform = rotationDeg !== 0 || straightenDeg !== 0 || crop.flipH || crop.flipV;
+
+  if (!hasTransform) {
+    ctx.drawImage(
+      img,
+      srcX, srcY, srcW, srcH,
+      extraLeft, extraTop, width, height
+    );
+  } else {
+    // Recortar al área exacta de la foto dentro del marco
+    ctx.beginPath();
+    ctx.rect(extraLeft, extraTop, width, height);
+    ctx.clip();
+
+    const centerX = extraLeft + width / 2;
+    const centerY = extraTop + height / 2;
+    ctx.translate(centerX, centerY);
+
+    const totalAngleRad = ((rotationDeg + straightenDeg) * Math.PI) / 180;
+    if (totalAngleRad !== 0) {
+      ctx.rotate(totalAngleRad);
+    }
+    if (crop.flipH || crop.flipV) {
+      ctx.scale(crop.flipH ? -1 : 1, crop.flipV ? -1 : 1);
+    }
+
+    const drawW = isRotated90 ? height : width;
+    const drawH = isRotated90 ? width : height;
+
+    ctx.drawImage(
+      img,
+      srcX, srcY, srcW, srcH,
+      -drawW / 2, -drawH / 2, drawW, drawH
+    );
+  }
   ctx.restore();
 
   // --- 4. FILETE INTERIOR DEL MARCO (FINE ART GALLERY & GOLD ACCENT) ---
@@ -302,7 +344,7 @@ export async function drawProcessedPhotoToCanvas(
     ctx.save();
     ctx.strokeStyle = frame.innerStrokeColor || '#d4af37';
     ctx.lineWidth = Math.max(1, Math.round(width * 0.0015));
-    const inset = Math.round(width * 0.008);
+    const inset = Math.min(Math.round(extraLeft * 0.35), Math.round(width * 0.008));
     ctx.strokeRect(extraLeft - inset, extraTop - inset, width + inset * 2, height + inset * 2);
     ctx.restore();
   } else if (frame.style === 'gold-accent') {
@@ -323,8 +365,14 @@ export async function drawProcessedPhotoToCanvas(
     ctx.restore();
   }
 
-  // --- 5. TONE-MAPPING DINÁMICO CPU (Se omite durante el arrastre rápido para 60fps) ---
-  if (!skipCpuFilters && (adjustments.shadows !== 0 || adjustments.highlights !== 0 || adjustments.warmth !== 0)) {
+  // --- 5. TONE-MAPPING DINÁMICO Y NITIDEZ CPU (Se omite durante el arrastre rápido para 60fps) ---
+  const hasToneAdjustments =
+    adjustments.shadows !== 0 ||
+    adjustments.highlights !== 0 ||
+    adjustments.warmth !== 0 ||
+    adjustments.sharpness > 0;
+
+  if (!skipCpuFilters && hasToneAdjustments) {
     try {
       const imgData = ctx.getImageData(extraLeft, extraTop, width, height);
       const data = imgData.data;
@@ -333,35 +381,66 @@ export async function drawProcessedPhotoToCanvas(
       const highlightFactor = adjustments.highlights / 100;
       const warmthFactor = adjustments.warmth / 100;
 
-      for (let i = 0; i < data.length; i += 4) {
-        let r = data[i];
-        let g = data[i + 1];
-        let bPixel = data[i + 2];
+      if (shadowFactor !== 0 || highlightFactor !== 0 || warmthFactor !== 0) {
+        for (let i = 0; i < data.length; i += 4) {
+          let r = data[i];
+          let g = data[i + 1];
+          let bPixel = data[i + 2];
 
-        const lum = 0.299 * r + 0.587 * g + 0.114 * bPixel;
+          const lum = 0.299 * r + 0.587 * g + 0.114 * bPixel;
 
-        if (shadowFactor !== 0 && lum < 128) {
-          const boost = Math.pow((128 - lum) / 128, 1.5) * shadowFactor * 75;
-          r = Math.min(255, r + boost);
-          g = Math.min(255, g + boost);
-          bPixel = Math.min(255, bPixel + boost);
+          // Sombras (levantar o profundizar tonos oscuros)
+          if (shadowFactor !== 0 && lum < 140) {
+            const weight = Math.pow((140 - lum) / 140, 1.4);
+            const delta = weight * shadowFactor * 75;
+            r = Math.min(255, Math.max(0, r + delta));
+            g = Math.min(255, Math.max(0, g + delta));
+            bPixel = Math.min(255, Math.max(0, bPixel + delta));
+          }
+
+          // Altas Luces (recuperar blancos quemados si < 0, o dar brillo especular si > 0)
+          if (highlightFactor !== 0 && lum > 135) {
+            const weight = Math.pow((lum - 135) / 120, 1.25);
+            const delta = weight * highlightFactor * 55;
+            r = Math.min(255, Math.max(0, r + delta));
+            g = Math.min(255, Math.max(0, g + delta));
+            bPixel = Math.min(255, Math.max(0, bPixel + delta));
+          }
+
+          // Calidez (Temperatura de color Ámbar / Azul)
+          if (warmthFactor !== 0) {
+            r = Math.min(255, Math.max(0, r + warmthFactor * 26));
+            g = Math.min(255, Math.max(0, g + warmthFactor * 4));
+            bPixel = Math.min(255, Math.max(0, bPixel - warmthFactor * 26));
+          }
+
+          data[i] = r;
+          data[i + 1] = g;
+          data[i + 2] = bPixel;
         }
+      }
 
-        if (highlightFactor < 0 && lum > 160) {
-          const compress = Math.pow((lum - 160) / 95, 1.2) * Math.abs(highlightFactor) * 50;
-          r = Math.max(0, r - compress);
-          g = Math.max(0, g - compress);
-          bPixel = Math.max(0, bPixel - compress);
+      // Nitidez (Micro-contraste de luminancia mediante kernel Laplaciano 3x3 rápido)
+      if (adjustments.sharpness > 0) {
+        const amount = (adjustments.sharpness / 100) * 0.45;
+        const copy = new Uint8ClampedArray(data);
+        const rowStride = width * 4;
+
+        for (let y = 1; y < height - 1; y++) {
+          let idx = (y * width + 1) * 4;
+          for (let x = 1; x < width - 1; x++, idx += 4) {
+            for (let c = 0; c < 3; c++) {
+              const center = copy[idx + c];
+              const neighbors =
+                copy[idx - 4 + c] +
+                copy[idx + 4 + c] +
+                copy[idx - rowStride + c] +
+                copy[idx + rowStride + c];
+              const edge = center * 4 - neighbors;
+              data[idx + c] = Math.min(255, Math.max(0, center + edge * amount));
+            }
+          }
         }
-
-        if (warmthFactor !== 0) {
-          r = Math.min(255, Math.max(0, r + warmthFactor * 25));
-          bPixel = Math.min(255, Math.max(0, bPixel - warmthFactor * 25));
-        }
-
-        data[i] = r;
-        data[i + 1] = g;
-        data[i + 2] = bPixel;
       }
 
       ctx.putImageData(imgData, extraLeft, extraTop);
@@ -405,25 +484,9 @@ export async function drawProcessedPhotoToCanvas(
           (!frame.pngDataUrl?.includes('oracion7pm') && !frame.pngDataUrl?.includes('escuela-dominical') && frame.eventTitle)
         );
 
-        if (isDynamicTemplate && frame.eventTitle && frame.eventTitle.trim().length > 0) {
-          ctx.save();
-          const title = frame.eventTitle.trim().toUpperCase();
-
-          const isCentenarioBar = frame.dynamicTextPosition !== 'bottom-center' && 
-                                  (frame.dynamicTextPosition === 'centenario-left' || frame.pngDataUrl?.includes('centenario') || !frame.dynamicTextPosition);
-
-          if (isCentenarioBar) {
-            // Ubicación en barra inferior izquierda del marco Centenario
-            const textX = frameDrawX + frameDrawW * 0.121;
-            const textY = frameDrawY + frameDrawH * 0.9845;
-            const maxW = frameDrawW * 0.30;
-            const fontSize = Math.max(12, Math.round(frameDrawH * 0.0185));
-
-            ctx.font = `700 ${fontSize}px 'Cinzel', 'Cinzel Decorative', 'Times New Roman', 'Georgia', serif`;
-            ctx.textBaseline = 'middle';
-            ctx.textAlign = 'left';
-
-            // Relieve con sombra profunda
+        if (isDynamicTemplate && (frame.dynamicTextEnabled ?? true)) {
+          const textScale = (frame.dynamicTextScale || 100) / 100;
+          const applyDynamicTextStyle = (fontSize: number, textY: number) => {
             ctx.shadowColor = 'rgba(0, 0, 0, 0.85)';
             ctx.shadowBlur = Math.max(2, Math.round(fontSize * 0.15));
             ctx.shadowOffsetX = Math.max(1, Math.round(fontSize * 0.06));
@@ -434,7 +497,6 @@ export async function drawProcessedPhotoToCanvas(
             } else if (frame.dynamicTextColorStyle === 'silver') {
               ctx.fillStyle = '#cbd5e1';
             } else {
-              // Oro Centenario Oficial
               const goldGrad = ctx.createLinearGradient(0, textY - fontSize * 0.5, 0, textY + fontSize * 0.5);
               goldGrad.addColorStop(0, '#fef08a');
               goldGrad.addColorStop(0.25, '#dab768');
@@ -442,26 +504,60 @@ export async function drawProcessedPhotoToCanvas(
               goldGrad.addColorStop(1, '#9b711d');
               ctx.fillStyle = goldGrad;
             }
+          };
 
-            ctx.fillText(title, textX, textY, maxW);
-          } else {
-            // Posición centrada para otros marcos PNG generales
-            const textX = frameDrawX + frameDrawW * 0.5;
-            const textY = frameDrawY + frameDrawH * 0.975;
-            const fontSize = Math.max(14, Math.round(frameDrawH * 0.022));
+          const isCentenarioBar =
+            frame.dynamicTextPosition !== 'bottom-center' &&
+            (frame.dynamicTextPosition === 'centenario-left' ||
+              frame.pngDataUrl?.includes('centenario') ||
+              !frame.dynamicTextPosition);
 
-            ctx.font = `700 ${fontSize}px 'Cinzel', 'Outfit', sans-serif`;
-            ctx.textBaseline = 'middle';
-            ctx.textAlign = 'center';
-            ctx.shadowColor = 'rgba(0, 0, 0, 0.9)';
-            ctx.shadowBlur = 6;
-            ctx.shadowOffsetX = 2;
-            ctx.shadowOffsetY = 2;
-            ctx.fillStyle = '#ffffff';
-            ctx.fillText(title, textX, textY, frameDrawW * 0.85);
+          // Texto Principal (Izquierdo o Centrado)
+          if (frame.eventTitle && frame.eventTitle.trim().length > 0) {
+            ctx.save();
+            const title = frame.eventTitle.trim().toUpperCase();
+
+            if (isCentenarioBar) {
+              const textX = frameDrawX + frameDrawW * 0.121;
+              const textY = frameDrawY + frameDrawH * 0.9845;
+              const maxW = frameDrawW * 0.32;
+              const fontSize = Math.max(11, Math.round(frameDrawH * 0.0185 * textScale));
+
+              ctx.font = `700 ${fontSize}px 'Cinzel', 'Cinzel Decorative', 'Times New Roman', 'Georgia', serif`;
+              ctx.textBaseline = 'middle';
+              ctx.textAlign = 'left';
+              applyDynamicTextStyle(fontSize, textY);
+              ctx.fillText(title, textX, textY, maxW);
+            } else {
+              const textX = frameDrawX + frameDrawW * 0.5;
+              const textY = frameDrawY + frameDrawH * 0.975;
+              const fontSize = Math.max(13, Math.round(frameDrawH * 0.022 * textScale));
+
+              ctx.font = `700 ${fontSize}px 'Cinzel', 'Outfit', sans-serif`;
+              ctx.textBaseline = 'middle';
+              ctx.textAlign = 'center';
+              applyDynamicTextStyle(fontSize, textY);
+              ctx.fillText(title, textX, textY, frameDrawW * 0.85);
+            }
+            ctx.restore();
           }
 
-          ctx.restore();
+          // Texto Secundario Opcional en el Lado Derecho (Ej. Fecha o Localidad personalizada)
+          if (frame.dynamicTextRight && frame.dynamicTextRight.trim().length > 0) {
+            ctx.save();
+            const rightText = frame.dynamicTextRight.trim().toUpperCase();
+            const textX = frameDrawX + frameDrawW * 0.879;
+            const textY = frameDrawY + frameDrawH * 0.9845;
+            const maxW = frameDrawW * 0.30;
+            const fontSize = Math.max(11, Math.round(frameDrawH * 0.0175 * textScale));
+
+            ctx.font = `700 ${fontSize}px 'Cinzel', 'Cinzel Decorative', 'Times New Roman', 'Georgia', serif`;
+            ctx.textBaseline = 'middle';
+            ctx.textAlign = 'right';
+            applyDynamicTextStyle(fontSize, textY);
+            ctx.fillText(rightText, textX, textY, maxW);
+            ctx.restore();
+          }
         }
       }
     } catch (err) {
@@ -483,7 +579,7 @@ export async function drawProcessedPhotoToCanvas(
     ctx.textAlign = frame.textAlignment || 'center';
     const isLightBg = frame.borderColor === '#ffffff';
     ctx.fillStyle = frame.textColor || (isLightBg ? '#0f172a' : '#ffffff');
-    const font = frame.fontFamily || (frame.style === 'editorial' ? 'Georgia, serif' : 'sans-serif');
+    const font = frame.fontFamily || (frame.style === 'editorial' ? "'Cinzel', Georgia, serif" : 'sans-serif');
 
     if (frame.eventTitle) {
       const titleSize = Math.round(Math.max(14, bannerHeight * 0.3));
@@ -512,7 +608,7 @@ export async function drawProcessedPhotoToCanvas(
     ctx.fillRect(0, bannerY, targetCanvas.width, 1);
 
     ctx.fillStyle = '#ffffff';
-    ctx.font = `600 ${Math.round(bannerHeight * 0.32)}px Georgia, serif`;
+    ctx.font = `600 ${Math.round(bannerHeight * 0.32)}px 'Cinzel', Georgia, serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(frame.eventTitle || 'Iglesia Local • Servicio Especial', targetCanvas.width / 2, bannerY + bannerHeight * 0.42);
@@ -537,7 +633,7 @@ export async function drawProcessedPhotoToCanvas(
 
     if (watermark.type === 'text' && watermark.text.trim()) {
       const fontSize = Math.round(height * 0.045 * scaleFactor * 2.5);
-      ctx.font = `bold ${fontSize}px sans-serif`;
+      ctx.font = `bold ${fontSize}px 'Outfit', sans-serif`;
 
       const textMetrics = ctx.measureText(watermark.text);
       const textWidth = textMetrics.width;

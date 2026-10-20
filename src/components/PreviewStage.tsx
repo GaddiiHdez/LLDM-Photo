@@ -1,14 +1,10 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
-  Download,
   ZoomIn,
   ZoomOut,
   RefreshCw,
-  Image as ImageIcon,
-  Activity,
   Move,
   Eye,
-  EyeOff,
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
@@ -20,7 +16,10 @@ interface PreviewStageProps {
   watermark: WatermarkSettings;
   frame: FrameSettings;
   isFilmstripCollapsed?: boolean;
-  onSingleExport: () => void;
+  showOriginal?: boolean;
+  onToggleOriginal?: (val?: boolean) => void;
+  onSingleExport?: () => void;
+  onSingleShare?: () => void;
   onUpdateCrop: (crop: CropSettings) => void;
   onPrevPhoto?: () => void;
   onNextPhoto?: () => void;
@@ -43,7 +42,8 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
   watermark,
   frame,
   isFilmstripCollapsed = false,
-  onSingleExport,
+  showOriginal = false,
+  onToggleOriginal,
   onUpdateCrop,
   onPrevPhoto,
   onNextPhoto,
@@ -56,7 +56,6 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isRendering, setIsRendering] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(1);
-  const [showOriginal, setShowOriginal] = useState(false);
   const [showHint, setShowHint] = useState(true);
   const [isDragging, setIsDragging] = useState(false);
 
@@ -64,7 +63,6 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
   const dragStartRef = useRef<{ x: number; y: number; initialOffsetX: number; initialOffsetY: number } | null>(null);
   const animFrameIdRef = useRef<number | null>(null);
   const currentTempCropRef = useRef<CropSettings | null>(null);
-  // Espejos ref para evitar stale closures en event callbacks
   const isDraggingRef = useRef(false);
   const showOriginalRef = useRef(showOriginal);
   const photoAdjustmentsRef = useRef(photo.adjustments);
@@ -74,7 +72,6 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
   const isFilmstripCollapsedRef = useRef(isFilmstripCollapsed);
 
   // ─── Caché en memoria de assets (Foto, Marco PNG y Logo) ─────────────────────
-  // Carga UNA sola vez en memoria para que el drag a 60fps nunca espere red o I/O
   const imgCacheRef = useRef<HTMLImageElement | null>(null);
   const imgCacheUrlRef = useRef<string>('');
   const frameCacheRef = useRef<HTMLImageElement | null>(null);
@@ -82,7 +79,6 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
   const logoCacheRef = useRef<HTMLImageElement | null>(null);
   const logoCacheUrlRef = useRef<string>('');
 
-  // Sincronizar refs con state/props (sin re-render)
   useEffect(() => { showOriginalRef.current = showOriginal; }, [showOriginal]);
   useEffect(() => { photoAdjustmentsRef.current = photo.adjustments; }, [photo.adjustments]);
   useEffect(() => { photoCropRef.current = photo.crop; }, [photo.crop]);
@@ -131,7 +127,7 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
     }
   }, [watermark.enabled, watermark.type, watermark.imageDataUrl]);
 
-  // ─── DIBUJO DIRECTO SOBRE EL CANVAS EXISTENTE (Sin destrucción de DOM) ───────
+  // ─── DIBUJO DIRECTO SOBRE EL CANVAS EXISTENTE ───────
   const drawToCanvas = useCallback(async (cropSettings: CropSettings, skipCpuFilters = false, compareOriginal = false) => {
     const canvas = canvasRef.current;
     if (!canvas || !photo) return;
@@ -140,14 +136,13 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
     const activeWatermark = compareOriginal ? { ...watermark, enabled: false } : watermark;
     const activeFrame = compareOriginal ? { ...frame, style: 'none' as const } : frame;
 
-    // Sincronizar estilos de tamaño del canvas
     const zl = zoomLevelRef.current;
-    const maxHeightCalc = isFilmstripCollapsedRef.current ? 'calc(100vh - 170px)' : 'calc(100vh - 280px)';
+    const maxHeightCalc = isFilmstripCollapsedRef.current ? 'calc(100vh - 115px)' : 'calc(100vh - 220px)';
     canvas.style.maxWidth = zl === 1 ? '100%' : 'none';
     canvas.style.maxHeight = zl === 1 ? maxHeightCalc : 'none';
     canvas.style.width = zl === 1 ? 'auto' : `${(canvas.width || 800) * zl}px`;
-    canvas.style.borderRadius = '0.5rem';
-    canvas.style.boxShadow = '0 25px 60px -15px rgba(0, 0, 0, 0.9)';
+    canvas.style.borderRadius = '0.45rem';
+    canvas.style.boxShadow = '0 20px 50px -12px rgba(0, 0, 0, 0.85)';
 
     await drawProcessedPhotoToCanvas(
       canvas,
@@ -156,14 +151,14 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
       activeWatermark,
       activeFrame,
       cropSettings,
-      800, // 800px resolución de visor: nítida y corre a < 1ms en GPU
+      800,
       skipCpuFilters,
       frameCacheRef.current,
       logoCacheRef.current
     );
   }, [photo, watermark, frame]);
 
-  // ─── Trigger HD inicial / al cambiar props: renderiza con filtros completos ──
+  // ─── Trigger HD inicial / al cambiar props ──
   useEffect(() => {
     let isCancelled = false;
 
@@ -184,22 +179,22 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
     };
   }, [photo, photo.adjustments, photo.crop, watermark, frame, zoomLevel, showOriginal, isFilmstripCollapsed, drawToCanvas]);
 
-
-  // Atajo de teclado (Presionar 'B' o 'Espacio' para comparar)
+  // Atajo de teclado (Presionar 'B' para comparar)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
-      if (e.key.toLowerCase() === 'b') {
-        setShowOriginal((prev) => !prev);
+      if (e.key.toLowerCase() === 'b' && onToggleOriginal) {
+        onToggleOriginal();
       }
     };
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [onToggleOriginal]);
 
   // ─── INICIO DE ARRASTRE (Mouse) ───────────────────────────────────────────────
   const handleMouseDown = (e: React.MouseEvent) => {
+    if ((e.target as HTMLElement)?.closest('button, .floating-stage-pills')) return;
     e.preventDefault();
     isDraggingRef.current = true;
     setIsDragging(true);
@@ -212,7 +207,7 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
     };
   };
 
-  // ─── MOVIMIENTO (Mouse) — usa FAST PREVIEW (~60fps, GPU) ─────────────────────
+  // ─── MOVIMIENTO (Mouse) ─────────────────────
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!isDraggingRef.current || !dragStartRef.current) return;
     const dx = e.clientX - dragStartRef.current.x;
@@ -237,7 +232,7 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
     });
   };
 
-  // ─── SOLTAR (Mouse) — consolida HD completo al soltar ────────────────────────
+  // ─── SOLTAR (Mouse) ────────────────────────
   const handleMouseUp = () => {
     if (!isDraggingRef.current) return;
     isDraggingRef.current = false;
@@ -258,20 +253,16 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
   };
 
   // ─── GESTOS TÁCTILES MÓVILES NATIVOS (Pan 1 Dedo & Pinch-to-Zoom 2 Dedos) ──────
-  // Usamos addEventListener con { passive: false } en canvasWrapperRef para
-  // evitar que el navegador móvil intercepte o cancele el scroll de la página.
   useEffect(() => {
     const el = canvasWrapperRef.current;
     if (!el) return;
 
     interface TouchState {
       mode: 'none' | 'pan' | 'pinch';
-      // 1 dedo (Pan)
       startX: number;
       startY: number;
       initialOffsetX: number;
       initialOffsetY: number;
-      // 2 dedos (Pinch)
       initialDist: number;
       initialZoom: number;
       midStartX: number;
@@ -291,8 +282,7 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
     };
 
     const onTouchStart = (e: TouchEvent) => {
-      // Ignorar si el toque fue en un botón de interfaz (navegación < >, descargar, etc.)
-      if ((e.target as HTMLElement)?.closest('.canvas-nav-btn, button, .preview-toolbar')) {
+      if ((e.target as HTMLElement)?.closest('.canvas-nav-btn, button, .floating-stage-pills')) {
         return;
       }
 
@@ -356,10 +346,8 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
         const dist = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
         const scale = dist / touchState.initialDist;
 
-        // Zoom suave acotado entre 1.0x y 3.0x
         const newZoom = Math.max(1.0, Math.min(3.0, Number((touchState.initialZoom * scale).toFixed(2))));
 
-        // Pan simultáneo con 2 dedos
         const curMidX = (t1.clientX + t2.clientX) / 2;
         const curMidY = (t1.clientY + t2.clientY) / 2;
         const dx = curMidX - touchState.midStartX;
@@ -388,7 +376,6 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
     const onTouchEnd = (e: TouchEvent) => {
       if (!isDraggingRef.current) return;
 
-      // Si aún queda 1 dedo en pantalla al soltar el pinch, transicionar suavemente a pan
       if (e.touches.length === 1) {
         const remaining = e.touches[0];
         const baseCrop = currentTempCropRef.current || photoCropRef.current;
@@ -400,7 +387,6 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
         return;
       }
 
-      // Si se levantaron todos los dedos, consolidar HD
       if (e.touches.length === 0) {
         isDraggingRef.current = false;
         setIsDragging(false);
@@ -420,7 +406,6 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
       }
     };
 
-    // Registrar eventos nativos con passive: false (esencial para que Chrome/Safari no los cancelen)
     el.addEventListener('touchstart', onTouchStart, { passive: false });
     el.addEventListener('touchmove', onTouchMove, { passive: false });
     el.addEventListener('touchend', onTouchEnd);
@@ -438,7 +423,7 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
   const handleWheel = (e: React.WheelEvent) => {
     const currentZoom = photo.crop?.zoom || 1.0;
     const zoomDelta = e.deltaY < 0 ? 0.05 : -0.05;
-    const newZoom = Math.max(1.0, Math.min(2.0, Number((currentZoom + zoomDelta).toFixed(2))));
+    const newZoom = Math.max(1.0, Math.min(2.5, Number((currentZoom + zoomDelta).toFixed(2))));
 
     onUpdateCrop({
       ...photo.crop,
@@ -446,56 +431,9 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
     });
   };
 
-
   return (
     <div className="preview-stage" ref={containerRef}>
-      {/* Top Bar with File Details and Controls */}
-      <div className="preview-toolbar card-glass">
-        <div className="photo-info">
-          <ImageIcon size={16} style={{ color: 'var(--color-brand-light)' }} />
-          <span className="photo-name">{photo.name}</span>
-          {photo.isRaw && <span className="badge-raw">RAW 14-BIT</span>}
-          <span className="photo-dimensions">{photo.width} × {photo.height}</span>
-          <span className="engine-status-tag">
-            <Activity size={11} />
-            HDR Activo
-          </span>
-        </div>
-
-        <div className="preview-tools">
-          {/* Botón Comparar Antes / Después */}
-          <button
-            onClick={() => setShowOriginal((prev) => !prev)}
-            className={`btn-secondary btn-sm compare-btn ${showOriginal ? 'active' : ''}`}
-            title="Comparar con la foto original sin ajustes ni marcos (Atajo: tecla B)"
-          >
-            {showOriginal ? <EyeOff size={14} /> : <Eye size={14} />}
-            <span className="btn-label-desktop">{showOriginal ? 'Viendo Original' : 'Comparar (B)'}</span>
-          </button>
-
-          {/* Selector de Zoom */}
-          <button
-            onClick={() => setZoomLevel((z) => (z === 1 ? 1.5 : z === 1.5 ? 2 : 1))}
-            className="btn-secondary btn-sm zoom-btn"
-            title="Ajustar nivel de zoom"
-          >
-            {zoomLevel > 1 ? <ZoomOut size={14} /> : <ZoomIn size={14} />}
-            <span>{Math.round(zoomLevel * 100)}%</span>
-          </button>
-
-          {/* Exportar Foto Individual */}
-          <button
-            onClick={onSingleExport}
-            className="btn-primary btn-sm export-single-btn"
-            title="Descargar esta foto procesada en máxima resolución"
-          >
-            <Download size={14} />
-            <span className="btn-label-desktop">Descargar</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Main Canvas Display Stage */}
+      {/* Main Canvas Display Stage (100% Inmersivo sin doble barra superior) */}
       <div
         className="canvas-wrapper"
         ref={canvasWrapperRef}
@@ -506,10 +444,23 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
         onWheel={handleWheel}
         style={{ cursor: isDragging ? 'grabbing' : 'grab', touchAction: 'none' }}
       >
+        {/* Píldora Flotante Discreta de Lupa en esquina superior derecha */}
+        <div className="floating-stage-pills">
+          <button
+            type="button"
+            onClick={() => setZoomLevel((z) => (z === 1 ? 1.5 : z === 1.5 ? 2 : 1))}
+            className="stage-pill-btn"
+            title="Cambiar lupa de inspección"
+          >
+            {zoomLevel > 1 ? <ZoomOut size={12} /> : <ZoomIn size={12} />}
+            <span>{Math.round(zoomLevel * 100)}%</span>
+          </button>
+        </div>
+
         {isRendering && !isDragging && (
           <div className="rendering-overlay">
-            <RefreshCw size={22} className="spin-icon" style={{ color: 'var(--color-brand)' }} />
-            <span>Renderizando Rango Dinámico...</span>
+            <RefreshCw size={20} className="spin-icon" style={{ color: 'var(--color-brand)' }} />
+            <span>Procesando...</span>
           </div>
         )}
 
@@ -558,10 +509,10 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
             className="studio-preview-canvas"
             style={{
               maxWidth: zoomLevel === 1 ? '100%' : 'none',
-              maxHeight: isFilmstripCollapsed ? 'calc(100vh - 170px)' : 'calc(100vh - 280px)',
+              maxHeight: isFilmstripCollapsed ? 'calc(100vh - 115px)' : 'calc(100vh - 220px)',
               width: zoomLevel === 1 ? 'auto' : `${(canvasRef.current?.width || 800) * zoomLevel}px`,
-              borderRadius: '0.5rem',
-              boxShadow: '0 25px 60px -15px rgba(0, 0, 0, 0.9)',
+              borderRadius: '0.45rem',
+              boxShadow: '0 20px 50px -12px rgba(0, 0, 0, 0.85)',
             }}
           />
         </div>
@@ -569,9 +520,9 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
         {/* Hint Flotante Elegante de Arrastre */}
         {showHint && !isDragging && (
           <div className="floating-canvas-hint" onClick={() => setShowHint(false)}>
-            <Move size={13} style={{ color: 'var(--color-brand-light)' }} />
-            <span className="hint-desktop">Arrastra la imagen para re-encuadrar · Rueda para zoom</span>
-            <span className="hint-mobile">Arrastra para mover · Pellizca para zoom</span>
+            <Move size={12} style={{ color: 'var(--color-brand-light)' }} />
+            <span className="hint-desktop">Arrastra para re-encuadrar · Doble toque en controles para reiniciar</span>
+            <span className="hint-mobile">Arrastra o pellizca la foto · Doble toque para reiniciar sliders</span>
           </div>
         )}
       </div>

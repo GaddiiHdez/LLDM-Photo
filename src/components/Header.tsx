@@ -1,20 +1,42 @@
 import React from 'react';
-import { Download, Plus, Sliders, Sun, Moon } from 'lucide-react';
+import {
+  Download,
+  Plus,
+  Sun,
+  Moon,
+  Share2,
+  Eye,
+  EyeOff,
+  FolderArchive,
+} from 'lucide-react';
+import type { PhotoItem } from '../types/editor';
 
 interface HeaderProps {
   totalPhotos: number;
+  currentPhotoIndex?: number;
+  activePhoto?: PhotoItem;
   theme: 'light' | 'dark';
-  onSelectTheme: (theme: 'light' | 'dark') => void;
-  onToggleTheme?: () => void;
+  showOriginal?: boolean;
+  onToggleOriginal?: (val?: boolean) => void;
+  onSelectTheme?: (theme: 'light' | 'dark') => void;
+  onToggleTheme: () => void;
   onAddPhotosClick: () => void;
+  onSingleExport?: () => void;
+  onSingleShare?: () => void;
   onExportBatch: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   totalPhotos,
+  currentPhotoIndex = 0,
+  activePhoto,
   theme,
-  onSelectTheme,
+  showOriginal = false,
+  onToggleOriginal,
+  onToggleTheme,
   onAddPhotosClick,
+  onSingleExport,
+  onSingleShare,
   onExportBatch,
 }) => {
   return (
@@ -22,75 +44,113 @@ export const Header: React.FC<HeaderProps> = ({
       <div className="header-brand">
         <div className="brand-logo">
           <img
-            src="/logo-bereasnap.svg"
+            src="/logo-bereasnap-icon.jpg"
             alt="BereaSnap"
             className="brand-logo-img"
+            style={{ borderRadius: '0.45rem', objectFit: 'cover' }}
           />
         </div>
-        <div className="brand-titles">
-          <h1 className="brand-title">
-            <span className="brand-text-desktop">
+
+        {totalPhotos === 0 ? (
+          <div className="brand-titles">
+            <h1 className="brand-title">
               Berea<span className="brand-highlight">Snap</span>
               <span className="badge-pro">PRO</span>
+            </h1>
+          </div>
+        ) : (
+          <div className="studio-header-meta">
+            <span className="studio-counter-pill">
+              {currentPhotoIndex + 1}/{totalPhotos}
             </span>
-            <span className="brand-text-mobile">
-              Berea<span className="brand-highlight">Snap</span>
-            </span>
-          </h1>
-          <p className="brand-subtitle">
-            <Sliders size={12} style={{ color: 'var(--color-brand-light)' }} />
-            <span>Revelado Rápido, Marcos & Edición</span>
-          </p>
-        </div>
+            {activePhoto?.isRaw && <span className="badge-raw">RAW</span>}
+            {activePhoto && (
+              <span className="header-filename-desktop" title={activePhoto.name}>
+                {activePhoto.name}
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={onAddPhotosClick}
+              className="header-icon-btn add-more-btn"
+              title="Importar más fotos a la sesión"
+            >
+              <Plus size={15} />
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="header-actions">
-        {/* Selector de Tema Dual Segmentado: [ ☀️ Blanco | 🌙 Grafito ] */}
-        <div className="theme-switch-group" role="group" aria-label="Selector de Tema">
-          <button
-            type="button"
-            onClick={() => onSelectTheme('light')}
-            className={`theme-switch-btn ${theme === 'light' ? 'active' : ''}`}
-            title="Modo Blanco Premium (Estudio Editorial)"
-            aria-pressed={theme === 'light'}
-          >
-            <Sun size={13} className="theme-icon-sun" />
-            <span className="theme-btn-label">Blanco</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => onSelectTheme('dark')}
-            className={`theme-switch-btn ${theme === 'dark' ? 'active' : ''}`}
-            title="Modo Grafito Oscuro (Cuarto Oscuro)"
-            aria-pressed={theme === 'dark'}
-          >
-            <Moon size={13} className="theme-icon-moon" />
-            <span className="theme-btn-label">Grafito</span>
-          </button>
-        </div>
-
         {totalPhotos > 0 && (
           <>
-            <button
-              onClick={onAddPhotosClick}
-              className="btn-secondary header-btn"
-              title="Añadir más fotos a la sesión actual"
-            >
-              <Plus size={15} />
-              <span className="btn-label-desktop">Añadir Fotos</span>
-            </button>
+            {/* Botón Comparar Antes / Después (Toque o Mantener Presionado) */}
+            {onToggleOriginal && (
+              <button
+                type="button"
+                onClick={() => onToggleOriginal()}
+                className={`header-icon-btn ${showOriginal ? 'active-compare' : ''}`}
+                title="Comparar con Original (Atajo: tecla B)"
+              >
+                {showOriginal ? <EyeOff size={15} /> : <Eye size={15} />}
+                <span className="btn-label-desktop">Original</span>
+              </button>
+            )}
 
+            {/* Compartir Foto Actual (1 Toque en Android / Móvil) */}
+            {onSingleShare && (
+              <button
+                type="button"
+                onClick={onSingleShare}
+                className="header-icon-btn"
+                title="Compartir esta foto (WhatsApp, Telegram, Galería)"
+              >
+                <Share2 size={15} style={{ color: 'var(--color-brand-light)' }} />
+                <span className="btn-label-desktop">Compartir</span>
+              </button>
+            )}
+
+            {/* Guardar Foto Actual */}
+            {onSingleExport && (
+              <button
+                type="button"
+                onClick={onSingleExport}
+                className="header-icon-btn"
+                title="Guardar esta fotografía procesada"
+              >
+                <Download size={15} />
+                <span className="btn-label-desktop">Guardar</span>
+              </button>
+            )}
+
+            {/* Exportar Lote Completo */}
             <button
+              type="button"
               onClick={onExportBatch}
               className="btn-primary header-btn"
-              title="Exportar todas las fotos procesadas en archivo ZIP de alta resolución"
+              title="Exportar o compartir lote completo"
             >
-              <Download size={14} />
-              <span className="btn-label-desktop">Exportar ZIP ({totalPhotos})</span>
-              <span className="btn-label-mobile">ZIP ({totalPhotos})</span>
+              <FolderArchive size={14} />
+              <span className="btn-label-desktop">Lote ({totalPhotos})</span>
+              <span className="btn-label-mobile">Lote ({totalPhotos})</span>
             </button>
           </>
         )}
+
+        {/* Botón Compacto de Tema (Grafito Oscuro / Blanco Galería) */}
+        <button
+          type="button"
+          onClick={onToggleTheme}
+          className="header-icon-btn theme-single-btn"
+          title={theme === 'dark' ? 'Cambiar a Tema Blanco Galería' : 'Cambiar a Tema Grafito Oscuro'}
+          aria-label="Cambiar tema visual"
+        >
+          {theme === 'dark' ? (
+            <Sun size={15} className="theme-icon-sun" />
+          ) : (
+            <Moon size={15} className="theme-icon-moon" />
+          )}
+        </button>
       </div>
     </header>
   );

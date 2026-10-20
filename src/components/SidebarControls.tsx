@@ -29,6 +29,11 @@ import {
   Ban,
   Landmark,
   Newspaper,
+  Sun,
+  Focus,
+  RotateCw,
+  FlipHorizontal2,
+  Compass,
 } from 'lucide-react';
 import {
   getCustomPresets,
@@ -93,12 +98,14 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'develop' | 'crop' | 'watermark' | 'frame'>('develop');
   const [developSubMode, setDevelopSubMode] = useState<'manual' | 'presets'>('manual');
+  const [watermarkSubMode, setWatermarkSubMode] = useState<'source' | 'adjust'>('source');
+  const [frameSubMode, setFrameSubMode] = useState<'style' | 'text'>('style');
   const [activeLightParam, setActiveLightParam] = useState<keyof ImageAdjustments>('contrast');
   const [customPresets, setCustomPresets] = useState<CustomPreset[]>([]);
   const [showSavePresetModal, setShowSavePresetModal] = useState<boolean>(false);
   const [newPresetName, setNewPresetName] = useState<string>('');
   const [savePresetToast, setSavePresetToast] = useState<string | null>(null);
-  const [activeCropParam, setActiveCropParam] = useState<'zoom' | 'offsetX' | 'offsetY'>('zoom');
+  const [activeCropParam, setActiveCropParam] = useState<'zoom' | 'straighten' | 'offsetX' | 'offsetY'>('zoom');
   const [activeWmParam, setActiveWmParam] = useState<'opacity' | 'size'>('opacity');
 
   const [savedFrames, setSavedFrames] = useState<SavedPngFrame[]>([]);
@@ -109,9 +116,14 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
   const framePngInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    setSavedFrames(getSavedPngFrames());
-    setSavedLogos(getSavedLogos());
-    setCustomPresets(getCustomPresets());
+    const syncStorage = () => {
+      setSavedFrames(getSavedPngFrames());
+      setSavedLogos(getSavedLogos());
+      setCustomPresets(getCustomPresets());
+    };
+    syncStorage();
+    window.addEventListener('bereasnap-storage-updated', syncStorage);
+    return () => window.removeEventListener('bereasnap-storage-updated', syncStorage);
   }, []);
 
   const handleSaveCustomPreset = () => {
@@ -136,9 +148,11 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
   }[] = [
     { key: 'brightness', label: 'Exposición', icon: SunMedium, min: -100, max: 100, step: 1 },
     { key: 'contrast', label: 'Contraste', icon: Contrast, min: -100, max: 100, step: 1 },
+    { key: 'highlights', label: 'Altas Luces', icon: Sun, min: -100, max: 100, step: 1 },
+    { key: 'shadows', label: 'Sombras', icon: Moon, min: -100, max: 100, step: 1 },
     { key: 'saturation', label: 'Saturación', icon: Droplets, min: -100, max: 100, step: 1 },
     { key: 'warmth', label: 'Calidez', icon: Thermometer, min: -100, max: 100, step: 1 },
-    { key: 'shadows', label: 'Sombras', icon: Moon, min: -100, max: 100, step: 1 },
+    { key: 'sharpness', label: 'Nitidez', icon: Focus, min: 0, max: 100, step: 1 },
   ];
 
   const handleSliderChange = (key: keyof ImageAdjustments, value: number) => {
@@ -537,12 +551,14 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
                           step={activeParamConfig.step}
                           value={activeValue}
                           onChange={(e) => handleSliderChange(activeLightParam, Number(e.target.value))}
+                          onDoubleClick={() => handleSliderChange(activeLightParam, 0)}
                           className="master-range-slider"
+                          title="Doble toque para restablecer a 0"
                         />
                         <div className="master-slider-ticks">
-                          <span className="tick-side">-100</span>
-                          <span className="tick-center">0</span>
-                          <span className="tick-side">+100</span>
+                          <span className="tick-side">{activeParamConfig.min}</span>
+                          <span className="tick-center">{activeParamConfig.min === 0 ? '50' : '0'}</span>
+                          <span className="tick-side">+{activeParamConfig.max}</span>
                         </div>
                       </div>
                     </div>
@@ -562,7 +578,9 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
                         key={p.key}
                         type="button"
                         onClick={() => setActiveLightParam(p.key)}
+                        onDoubleClick={() => handleSliderChange(p.key, 0)}
                         className={`param-icon-pill ${isSelected ? 'active' : ''}`}
+                        title={`${p.label} (Doble toque para reiniciar)`}
                       >
                         <div className={`param-icon-circle ${isSelected ? 'active' : ''}`}>
                           <Icon size={18} />
@@ -713,10 +731,17 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
               <div className="master-slider-header">
                 <div className="slider-label-group">
                   {activeCropParam === 'zoom' && <ZoomIn size={15} className="active-param-icon" />}
+                  {activeCropParam === 'straighten' && <Compass size={15} className="active-param-icon" />}
                   {activeCropParam === 'offsetX' && <MoveHorizontal size={15} className="active-param-icon" />}
                   {activeCropParam === 'offsetY' && <MoveVertical size={15} className="active-param-icon" />}
                   <span className="slider-param-name">
-                    {activeCropParam === 'zoom' ? 'ZOOM / ESCALA' : activeCropParam === 'offsetX' ? 'DESPLAZAMIENTO X' : 'DESPLAZAMIENTO Y'}
+                    {activeCropParam === 'zoom'
+                      ? 'ZOOM / ESCALA'
+                      : activeCropParam === 'straighten'
+                        ? 'NIVELAR HORIZONTE'
+                        : activeCropParam === 'offsetX'
+                          ? 'DESPLAZAMIENTO X'
+                          : 'DESPLAZAMIENTO Y'}
                   </span>
                 </div>
 
@@ -724,7 +749,9 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
                   <span>
                     {activeCropParam === 'zoom'
                       ? `${Math.round((photo.crop?.zoom || 1) * 100)}%`
-                      : `${(photo.crop as any)?.[activeCropParam] || 0}%`}
+                      : activeCropParam === 'straighten'
+                        ? `${(photo.crop?.straighten || 0) > 0 ? '+' : ''}${photo.crop?.straighten || 0}°`
+                        : `${(photo.crop as any)?.[activeCropParam] || 0}%`}
                   </span>
                 </div>
 
@@ -732,6 +759,7 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
                   type="button"
                   onClick={() => {
                     if (activeCropParam === 'zoom') handleCropChange('zoom', 1.0);
+                    if (activeCropParam === 'straighten') handleCropChange('straighten', 0);
                     if (activeCropParam === 'offsetX') handleCropChange('offsetX', 0);
                     if (activeCropParam === 'offsetY') handleCropChange('offsetY', 0);
                   }}
@@ -746,23 +774,35 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
               <div className="master-slider-track-wrap">
                 <input
                   type="range"
-                  min={activeCropParam === 'zoom' ? 1.0 : -50}
-                  max={activeCropParam === 'zoom' ? 2.5 : 50}
-                  step={activeCropParam === 'zoom' ? 0.05 : 1}
-                  value={activeCropParam === 'zoom' ? (photo.crop?.zoom || 1) : ((photo.crop as any)?.[activeCropParam] || 0)}
+                  min={activeCropParam === 'zoom' ? 1.0 : activeCropParam === 'straighten' ? -15 : -50}
+                  max={activeCropParam === 'zoom' ? 2.5 : activeCropParam === 'straighten' ? 15 : 50}
+                  step={activeCropParam === 'zoom' ? 0.05 : activeCropParam === 'straighten' ? 0.5 : 1}
+                  value={
+                    activeCropParam === 'zoom'
+                      ? (photo.crop?.zoom || 1)
+                      : activeCropParam === 'straighten'
+                        ? (photo.crop?.straighten || 0)
+                        : ((photo.crop as any)?.[activeCropParam] || 0)
+                  }
                   onChange={(e) => handleCropChange(activeCropParam, Number(e.target.value))}
                   className="master-range-slider"
                 />
                 <div className="master-slider-ticks">
-                  <span className="tick-side">{activeCropParam === 'zoom' ? '100%' : '-50%'}</span>
-                  <span className="tick-center">{activeCropParam === 'zoom' ? '175%' : '0'}</span>
-                  <span className="tick-side">{activeCropParam === 'zoom' ? '250%' : '+50%'}</span>
+                  <span className="tick-side">
+                    {activeCropParam === 'zoom' ? '100%' : activeCropParam === 'straighten' ? '-15°' : '-50%'}
+                  </span>
+                  <span className="tick-center">
+                    {activeCropParam === 'zoom' ? '175%' : activeCropParam === 'straighten' ? '0°' : '0'}
+                  </span>
+                  <span className="tick-side">
+                    {activeCropParam === 'zoom' ? '250%' : activeCropParam === 'straighten' ? '+15°' : '+50%'}
+                  </span>
                 </div>
               </div>
             </div>
 
-            {/* BOTONES DE PARÁMETROS DE ENCUADRE + ACCIONES RÁPIDAS */}
-            <div className="develop-quick-actions" style={{ marginBottom: '0.85rem' }}>
+            {/* BOTONES DE PARÁMETROS DE ENCUADRE + ROTACIÓN Y ESPEJO */}
+            <div className="develop-quick-actions" style={{ marginBottom: '0.5rem' }}>
               <button
                 type="button"
                 onClick={() => setActiveCropParam('zoom')}
@@ -774,11 +814,20 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
 
               <button
                 type="button"
+                onClick={() => setActiveCropParam('straighten')}
+                className={`develop-action-btn btn-secondary ${activeCropParam === 'straighten' ? 'active' : ''}`}
+              >
+                <Compass size={13} />
+                <span>Nivelar</span>
+              </button>
+
+              <button
+                type="button"
                 onClick={() => setActiveCropParam('offsetX')}
                 className={`develop-action-btn btn-secondary ${activeCropParam === 'offsetX' ? 'active' : ''}`}
               >
                 <MoveHorizontal size={13} />
-                <span>Posición X</span>
+                <span>Pos X</span>
               </button>
 
               <button
@@ -787,21 +836,50 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
                 className={`develop-action-btn btn-secondary ${activeCropParam === 'offsetY' ? 'active' : ''}`}
               >
                 <MoveVertical size={13} />
-                <span>Posición Y</span>
+                <span>Pos Y</span>
+              </button>
+            </div>
+
+            <div className="develop-quick-actions" style={{ marginBottom: '0.85rem' }}>
+              <button
+                type="button"
+                onClick={() => handleCropChange('rotation', ((photo.crop?.rotation || 0) + 90) % 360)}
+                className="develop-action-btn btn-secondary"
+                title="Rotar fotografía 90° a la derecha"
+              >
+                <RotateCw size={13} />
+                <span>Girar 90° {photo.crop?.rotation ? `(${photo.crop.rotation}°)` : ''}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleCropChange('flipH', !photo.crop?.flipH)}
+                className={`develop-action-btn btn-secondary ${photo.crop?.flipH ? 'active' : ''}`}
+                title="Voltear horizontalmente (Espejo)"
+              >
+                <FlipHorizontal2 size={13} />
+                <span>Espejo</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => {
-                  handleCropChange('offsetX', 0);
-                  handleCropChange('offsetY', 0);
-                  handleCropChange('zoom', 1.0);
+                  onUpdateCrop({
+                    ...photo.crop,
+                    offsetX: 0,
+                    offsetY: 0,
+                    zoom: 1.0,
+                    rotation: 0,
+                    straighten: 0,
+                    flipH: false,
+                    flipV: false,
+                  });
                 }}
                 className="develop-action-btn btn-secondary"
-                title="Centrar encuadre de la foto"
+                title="Restablecer todo el encuadre y rotación"
               >
                 <Target size={13} />
-                <span>Centrar</span>
+                <span>Restablecer</span>
               </button>
             </div>
 
@@ -831,53 +909,165 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
           </div>
         )}
 
-        {/* TAB 3: FIRMA & LOGOS (MINIMALISTA, HORIZONTAL) */}
+        {/* TAB 3: FIRMA & LOGOS (SUB-MODOS ERGONÓMICOS SIN SCROLL INTERNO) */}
         {activeTab === 'watermark' && (
           <div className="control-section watermark-section">
-            {/* Encabezado con Interruptor */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-              <span style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                Firma & Logotipo Institucional
-              </span>
+            {/* Barra Superior: Sub-modo + Interruptor Activa/Desactivada */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', marginBottom: '0.65rem' }}>
+              <div className="develop-mode-pills" style={{ flex: 1, marginBottom: 0 }}>
+                <button
+                  type="button"
+                  onClick={() => setWatermarkSubMode('source')}
+                  className={`develop-mode-btn ${watermarkSubMode === 'source' ? 'active' : ''}`}
+                >
+                  <ImageIcon size={13} />
+                  <span>Logo / Texto</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setWatermarkSubMode('adjust')}
+                  className={`develop-mode-btn ${watermarkSubMode === 'adjust' ? 'active' : ''}`}
+                >
+                  <SlidersHorizontal size={13} />
+                  <span>Posición & Ajuste</span>
+                </button>
+              </div>
+
               <button
                 type="button"
                 onClick={() => onUpdateWatermark({ enabled: !watermark.enabled })}
                 className={`toggle-pill-btn ${watermark.enabled ? 'active' : ''}`}
+                style={{ flexShrink: 0 }}
               >
-                {watermark.enabled ? '✓ Activa' : 'Desactivada'}
+                {watermark.enabled ? '✓ Activa' : 'Off'}
               </button>
             </div>
 
-            {watermark.enabled && (
+            {watermark.enabled && watermarkSubMode === 'source' && (
               <>
-                {/* Selector de Modo: Logo PNG vs Texto */}
-                <div className="develop-mode-pills" style={{ marginBottom: '0.85rem' }}>
+                {/* Conmutador Logo PNG vs Texto Editorial */}
+                <div className="develop-quick-actions" style={{ marginBottom: '0.65rem' }}>
                   <button
                     type="button"
                     onClick={() => onUpdateWatermark({ type: 'image' })}
-                    className={`develop-mode-btn ${watermark.type === 'image' ? 'active' : ''}`}
+                    className={`develop-action-btn btn-secondary ${watermark.type === 'image' ? 'active' : ''}`}
                   >
                     <ImageIcon size={13} />
-                    <span>Logo PNG</span>
+                    <span>Catálogo de Logos PNG</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => onUpdateWatermark({ type: 'text' })}
-                    className={`develop-mode-btn ${watermark.type === 'text' ? 'active' : ''}`}
+                    className={`develop-action-btn btn-secondary ${watermark.type === 'text' ? 'active' : ''}`}
                   >
                     <Type size={13} />
-                    <span>Texto Editorial</span>
+                    <span>Firma de Texto</span>
                   </button>
                 </div>
 
+                {/* SELECTOR DE LOGOS PNG HORIZONTAL */}
+                {watermark.type === 'image' && (
+                  <div className="logo-carousel">
+                    <input
+                      ref={logoInputRef}
+                      type="file"
+                      accept="image/png,image/svg+xml"
+                      onChange={handleLogoUpload}
+                      style={{ display: 'none' }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => logoInputRef.current?.click()}
+                      className="logo-upload-pill"
+                      title="Subir nuevo logo PNG"
+                    >
+                      <Upload size={16} />
+                      <span>+ Subir</span>
+                    </button>
+
+                    {savedLogos.map((l) => {
+                      const isSelected = watermark.imageDataUrl === l.imageDataUrl;
+                      return (
+                        <div
+                          key={l.id}
+                          onClick={() => handleSelectSavedLogo(l)}
+                          className={`logo-pill-card ${isSelected ? 'active' : ''}`}
+                          title={l.name}
+                        >
+                          <img src={l.imageDataUrl} alt={l.name} className="logo-pill-img" />
+                          <span className="logo-pill-name">{l.isOfficial ? 'Oficial' : l.name.slice(0, 8)}</span>
+                          {isSelected && <span className="param-modified-dot" />}
+                          {!l.isOfficial && (
+                            <button
+                              type="button"
+                              onClick={(e) => handleDeleteSavedLogo(l.id, e)}
+                              className="delete-pill-badge"
+                              title="Eliminar logo"
+                            >
+                              ✕
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* MODO TEXTO EDITORIAL */}
+                {watermark.type === 'text' && (
+                  <div>
+                    <div style={{ display: 'flex', gap: '0.45rem', alignItems: 'center', marginBottom: '0.45rem' }}>
+                      <input
+                        type="text"
+                        value={watermark.text || ''}
+                        onChange={(e) => onUpdateWatermark({ text: e.target.value })}
+                        placeholder="Ej. BereaSnap • Fotografía Oficial"
+                        className="form-input"
+                        style={{ flex: 1, fontSize: '0.78rem' }}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => onUpdateWatermark({ color: '#ffffff' })}
+                        className={`color-pill-btn ${watermark.color === '#ffffff' ? 'active' : ''}`}
+                        style={{ background: '#ffffff' }}
+                        title="Blanco Puro"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => onUpdateWatermark({ color: '#d4af37' })}
+                        className={`color-pill-btn ${watermark.color === '#d4af37' ? 'active' : ''}`}
+                        style={{ background: '#d4af37' }}
+                        title="Oro Noble"
+                      />
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
+                      {['BereaSnap Oficial', 'Berea Prensa & Crónica', 'Berea Fotografía'].map((pt) => (
+                        <button
+                          key={pt}
+                          type="button"
+                          onClick={() => onUpdateWatermark({ text: pt })}
+                          className="quick-chip-btn"
+                        >
+                          {pt}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+
+            {watermark.enabled && watermarkSubMode === 'adjust' && (
+              <>
                 {/* SLIDER MAESTRO PARA FIRMA (OPACIDAD / TAMAÑO) */}
-                <div className="master-slider-card">
+                <div className="master-slider-card" style={{ marginBottom: '0.55rem' }}>
                   <div className="master-slider-header">
                     <div className="slider-label-group">
                       {activeWmParam === 'opacity' ? <Eye size={15} className="active-param-icon" /> : <Maximize2 size={15} className="active-param-icon" />}
                       <span className="slider-param-name">
-                        {activeWmParam === 'opacity' ? 'OPACIDAD / TRANSPARENCIA' : 'TAMAÑO DE FIRMA'}
+                        {activeWmParam === 'opacity' ? 'OPACIDAD' : 'TAMAÑO DE FIRMA'}
                       </span>
                     </div>
 
@@ -896,7 +1086,6 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
                         if (activeWmParam === 'size') onUpdateWatermark({ size: 24 });
                       }}
                       className="slider-reset-action"
-                      title="Restablecer"
                     >
                       <span>Reiniciar</span>
                       <RotateCcw size={11} />
@@ -916,16 +1105,10 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
                       }}
                       className="master-range-slider"
                     />
-                    <div className="master-slider-ticks">
-                      <span className="tick-side">{activeWmParam === 'opacity' ? '10%' : '10%'}</span>
-                      <span className="tick-center">{activeWmParam === 'opacity' ? '50%' : '35%'}</span>
-                      <span className="tick-side">{activeWmParam === 'opacity' ? '100%' : '60%'}</span>
-                    </div>
                   </div>
                 </div>
 
-                {/* BOTONES CONMUTADORES DEL SLIDER DE FIRMA */}
-                <div className="develop-quick-actions" style={{ marginBottom: '0.85rem' }}>
+                <div className="develop-quick-actions" style={{ marginBottom: '0.55rem' }}>
                   <button
                     type="button"
                     onClick={() => setActiveWmParam('opacity')}
@@ -944,122 +1127,6 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
                     <span>Tamaño</span>
                   </button>
                 </div>
-
-                {/* SELECTOR DE LOGOS PNG HORIZONTAL */}
-                {watermark.type === 'image' && (
-                  <div style={{ marginBottom: '0.85rem' }}>
-                    <span style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '0.45rem' }}>
-                      Catálogo de Logos Oficiales & Guardados
-                    </span>
-
-                    <div className="logo-carousel">
-                      <input
-                        ref={logoInputRef}
-                        type="file"
-                        accept="image/png,image/svg+xml"
-                        onChange={handleLogoUpload}
-                        style={{ display: 'none' }}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => logoInputRef.current?.click()}
-                        className="logo-upload-pill"
-                        title="Subir nuevo logo PNG"
-                      >
-                        <Upload size={16} />
-                        <span>+ Subir</span>
-                      </button>
-
-                      {savedLogos.map((l) => {
-                        const isSelected = watermark.imageDataUrl === l.imageDataUrl;
-                        return (
-                          <div
-                            key={l.id}
-                            onClick={() => handleSelectSavedLogo(l)}
-                            className={`logo-pill-card ${isSelected ? 'active' : ''}`}
-                            title={l.name}
-                          >
-                            <img src={l.imageDataUrl} alt={l.name} className="logo-pill-img" />
-                            <span className="logo-pill-name">{l.isOfficial ? 'Oficial' : l.name.slice(0, 8)}</span>
-                            {isSelected && <span className="param-modified-dot" />}
-                            {!l.isOfficial && (
-                              <button
-                                type="button"
-                                onClick={(e) => handleDeleteSavedLogo(l.id, e)}
-                                className="delete-pill-badge"
-                                title="Eliminar logo"
-                              >
-                                ✕
-                              </button>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {/* MODO TEXTO EDITORIAL */}
-                {watermark.type === 'text' && (
-                  <div style={{ marginBottom: '0.85rem' }}>
-                    <label style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', display: 'block', marginBottom: '0.35rem' }}>
-                      Texto de la Firma:
-                    </label>
-                    <input
-                      type="text"
-                      value={watermark.text || ''}
-                      onChange={(e) => onUpdateWatermark({ text: e.target.value })}
-                      placeholder="Ej. BereaSnap • Fotografía Oficial"
-                      className="form-input"
-                      style={{ marginBottom: '0.5rem', fontSize: '0.78rem' }}
-                    />
-
-                    {/* Presets Rápidos de Texto con 1 toque */}
-                    <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap', marginBottom: '0.65rem' }}>
-                      {['BereaSnap Oficial', 'Berea Prensa & Crónica', 'Berea Fotografía'].map((pt) => (
-                        <button
-                          key={pt}
-                          type="button"
-                          onClick={() => onUpdateWatermark({ text: pt })}
-                          className="quick-chip-btn"
-                        >
-                          {pt}
-                        </button>
-                      ))}
-                    </div>
-
-                    {/* Colores nobles */}
-                    <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
-                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Color:</span>
-                      <button
-                        type="button"
-                        onClick={() => onUpdateWatermark({ color: '#ffffff' })}
-                        className={`color-pill-btn ${watermark.color === '#ffffff' ? 'active' : ''}`}
-                        style={{ background: '#ffffff' }}
-                        title="Blanco Puro"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => onUpdateWatermark({ color: '#d4af37' })}
-                        className={`color-pill-btn ${watermark.color === '#d4af37' ? 'active' : ''}`}
-                        style={{ background: '#d4af37' }}
-                        title="Oro Noble"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => onUpdateWatermark({ color: '#94a3b8' })}
-                        className={`color-pill-btn ${watermark.color === '#94a3b8' ? 'active' : ''}`}
-                        style={{ background: '#94a3b8' }}
-                        title="Plata Translúcido"
-                      />
-                    </div>
-                  </div>
-                )}
-
-                {/* SELECTOR VISUAL DE POSICIÓN (5 CUADRANTES) */}
-                <span style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '0.45rem' }}>
-                  Posición en la Foto
-                </span>
 
                 <div className="position-pills-row">
                   {[
@@ -1087,161 +1154,64 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
           </div>
         )}
 
-        {/* TAB 4: MARCOS FOTOGRÁFICOS FINE-ART & EDITORIAL */}
+        {/* TAB 4: MARCOS FOTOGRÁFICOS (SUB-MODOS ERGONÓMICOS: ESTILO & TEXTO DINÁMICO) */}
         {activeTab === 'frame' && (
           <div className="control-section frame-section">
-            {/* CINTA HORIZONTAL DE ESTILOS DE MARCO */}
-            <span style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '0.45rem' }}>
-              Estilo de Marco Fotográfico
-            </span>
-
-            <div className="frame-styles-carousel">
-              {[
-                { id: 'none', label: 'Sin Marco', icon: Ban },
-                { id: 'fine-gallery', label: 'Galería Fine-Art', icon: Landmark },
-                { id: 'editorial', label: 'Editorial', icon: Newspaper },
-                { id: 'gold-accent', label: 'Filo Oro', icon: Sparkles },
-                { id: 'custom-png', label: 'PNG Oficial', icon: FrameIcon },
-                { id: 'polaroid-card', label: 'Polaroid', icon: Square },
-              ].map((st) => {
-                const isSelected = frame.style === st.id;
-                const Icon = st.icon;
-                return (
-                  <button
-                    key={st.id}
-                    type="button"
-                    onClick={() => onUpdateFrame({ style: st.id as any })}
-                    className={`frame-style-pill ${isSelected ? 'active' : ''}`}
-                  >
-                    <div className={`frame-style-box ${isSelected ? 'active' : ''}`}>
-                      <Icon size={18} />
-                    </div>
-                    <span className="frame-style-name">{st.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-
+            {/* Selector de Sub-modo en Marcos si hay un marco activo que soporta texto */}
             {frame.style !== 'none' && (
+              <div className="develop-mode-pills" style={{ marginBottom: '0.65rem' }}>
+                <button
+                  type="button"
+                  onClick={() => setFrameSubMode('style')}
+                  className={`develop-mode-btn ${frameSubMode === 'style' ? 'active' : ''}`}
+                >
+                  <FrameIcon size={13} />
+                  <span>Estilo & Plantilla</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setFrameSubMode('text')}
+                  className={`develop-mode-btn ${frameSubMode === 'text' ? 'active' : ''}`}
+                >
+                  <Type size={13} />
+                  <span>Texto del Evento</span>
+                </button>
+              </div>
+            )}
+
+            {(frame.style === 'none' || frameSubMode === 'style') && (
               <>
-                {/* SLIDER MAESTRO PARA MARGEN / GROSOR DEL MARCO */}
-                <div className="master-slider-card">
-                  <div className="master-slider-header">
-                    <div className="slider-label-group">
-                      <FrameIcon size={15} className="active-param-icon" />
-                      <span className="slider-param-name">GROSOR / MARGEN DEL MARCO</span>
-                    </div>
-
-                    <div className="slider-value-bubble">
-                      <span>{frame.borderTop || 24}px</span>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => onUpdateFrame({ borderTop: 24, borderBottom: 24, borderLeft: 24, borderRight: 24 })}
-                      className="slider-reset-action"
-                      title="Restablecer"
-                    >
-                      <span>Reiniciar</span>
-                      <RotateCcw size={11} />
-                    </button>
-                  </div>
-
-                  <div className="master-slider-track-wrap">
-                    <input
-                      type="range"
-                      min="8"
-                      max="70"
-                      step="2"
-                      value={frame.borderTop || 24}
-                      onChange={(e) => {
-                        const val = Number(e.target.value);
-                        onUpdateFrame({ borderTop: val, borderBottom: val, borderLeft: val, borderRight: val });
-                      }}
-                      className="master-range-slider"
-                    />
-                    <div className="master-slider-ticks">
-                      <span className="tick-side">8px</span>
-                      <span className="tick-center">36px</span>
-                      <span className="tick-side">70px</span>
-                    </div>
-                  </div>
+                <div className="frame-styles-carousel" style={{ marginBottom: '0.55rem' }}>
+                  {[
+                    { id: 'none', label: 'Sin Marco', icon: Ban },
+                    { id: 'custom-png', label: 'PNG Oficial', icon: FrameIcon },
+                    { id: 'fine-gallery', label: 'Galería', icon: Landmark },
+                    { id: 'editorial', label: 'Editorial', icon: Newspaper },
+                    { id: 'gold-accent', label: 'Filo Oro', icon: Sparkles },
+                    { id: 'polaroid-card', label: 'Polaroid', icon: Square },
+                  ].map((st) => {
+                    const isSelected = frame.style === st.id;
+                    const Icon = st.icon;
+                    return (
+                      <button
+                        key={st.id}
+                        type="button"
+                        onClick={() => onUpdateFrame({ style: st.id as any })}
+                        className={`frame-style-pill ${isSelected ? 'active' : ''}`}
+                      >
+                        <div className={`frame-style-box ${isSelected ? 'active' : ''}`}>
+                          <Icon size={18} />
+                        </div>
+                        <span className="frame-style-name">{st.label}</span>
+                      </button>
+                    );
+                  })}
                 </div>
-
-                {/* SELECTOR DE COLOR PARA GALERÍA Y EDITORIAL */}
-                {(frame.style === 'fine-gallery' || frame.style === 'editorial') && (
-                  <div style={{ marginBottom: '0.85rem' }}>
-                    <span style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '0.45rem' }}>
-                      Color del Passepartout / Fondo
-                    </span>
-                    <div style={{ display: 'flex', gap: '0.45rem' }}>
-                      <button
-                        type="button"
-                        onClick={() => onUpdateFrame({ borderColor: '#ffffff', textColor: '#0f172a' })}
-                        className={`color-choice-pill ${frame.borderColor === '#ffffff' ? 'active' : ''}`}
-                      >
-                        <span className="color-dot" style={{ background: '#ffffff', border: '1px solid #cbd5e1' }} />
-                        <span>Blanco Galería</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => onUpdateFrame({ borderColor: '#0a0f1d', textColor: '#ffffff' })}
-                        className={`color-choice-pill ${frame.borderColor === '#0a0f1d' ? 'active' : ''}`}
-                      >
-                        <span className="color-dot" style={{ background: '#0a0f1d', border: '1px solid #334155' }} />
-                        <span>Grafito Oscuro</span>
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* CAMPOS DE TEXTO PARA EDITORIAL */}
-                {frame.style === 'editorial' && (
-                  <div style={{ marginBottom: '0.85rem' }}>
-                    <div style={{ marginBottom: '0.4rem' }}>
-                      <label style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Título de la Obra / Servicio:</label>
-                      <input
-                        type="text"
-                        value={frame.eventTitle || ''}
-                        onChange={(e) => onUpdateFrame({ eventTitle: e.target.value })}
-                        placeholder="Ej. Servicio de Alabanzas"
-                        className="form-input"
-                        style={{ fontSize: '0.78rem' }}
-                      />
-                    </div>
-                    <div>
-                      <label style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Subtítulo / Fecha / Lugar:</label>
-                      <input
-                        type="text"
-                        value={frame.eventSubtitle || ''}
-                        onChange={(e) => onUpdateFrame({ eventSubtitle: e.target.value })}
-                        placeholder="Ej. Fotografía Oficial • BereaSnap"
-                        className="form-input"
-                        style={{ fontSize: '0.78rem' }}
-                      />
-                    </div>
-                  </div>
-                )}
 
                 {/* CARROUSEL DE MARCOS PNG SI ESTÁ EN CUSTOM-PNG */}
                 {frame.style === 'custom-png' && (
-                  <div style={{ marginBottom: '0.85rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.45rem' }}>
-                      <span style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                        Marcos PNG ({savedFrames.length})
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => framePngInputRef.current?.click()}
-                        className="btn-secondary btn-sm"
-                        style={{ fontSize: '0.68rem', padding: '0.18rem 0.5rem' }}
-                      >
-                        <Upload size={11} />
-                        <span>Subir PNG</span>
-                      </button>
-                    </div>
-
+                  <div>
                     <input
                       ref={framePngInputRef}
                       type="file"
@@ -1251,6 +1221,16 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
                     />
 
                     <div className="logo-carousel">
+                      <button
+                        type="button"
+                        onClick={() => framePngInputRef.current?.click()}
+                        className="logo-upload-pill"
+                        title="Subir nuevo marco PNG transparente"
+                      >
+                        <Upload size={15} />
+                        <span>+ PNG</span>
+                      </button>
+
                       {savedFrames.map((f) => {
                         const isSelected = frame.pngDataUrl === f.pngDataUrl;
                         return (
@@ -1277,99 +1257,160 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
                         );
                       })}
                     </div>
+                  </div>
+                )}
 
-                    {/* CONTROLES DE TEXTO DINÁMICO EN MARCO PNG */}
-                    {(() => {
-                      const selectedFrame = savedFrames.find((f) => f.pngDataUrl === frame.pngDataUrl);
-                      const isDynamic = Boolean(selectedFrame?.isDynamic || frame.pngDataUrl?.includes('notexto') || frame.dynamicTextEnabled);
+                {/* SLIDER DE GROSOR Y COLOR PARA MARCOS DIGITALES NO-PNG */}
+                {frame.style !== 'none' && frame.style !== 'custom-png' && (
+                  <div className="master-slider-card" style={{ marginBottom: '0.45rem', padding: '0.6rem 0.85rem' }}>
+                    <div className="master-slider-header" style={{ marginBottom: '0.4rem' }}>
+                      <div className="slider-label-group">
+                        <FrameIcon size={14} className="active-param-icon" />
+                        <span className="slider-param-name">GROSOR ({frame.borderTop || 24}px)</span>
+                      </div>
 
-                      return (
-                        <div style={{ marginTop: '0.85rem', padding: '0.75rem', background: 'var(--bg-subcard)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.45rem' }}>
-                            <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--color-accent)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                              <Sparkles size={13} style={{ color: '#f59e0b' }} />
-                              {isDynamic ? 'Texto Dinámico del Marco' : 'Añadir Texto al Marco'}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => onUpdateFrame({ dynamicTextEnabled: !(frame.dynamicTextEnabled ?? true) })}
-                              className={`toggle-pill-btn ${(frame.dynamicTextEnabled ?? true) ? 'active' : ''}`}
-                              style={{ fontSize: '0.62rem', padding: '0.15rem 0.5rem' }}
-                            >
-                              {(frame.dynamicTextEnabled ?? true) ? '✓ Texto Activo' : 'Ocultar Texto'}
-                            </button>
-                          </div>
-
-                          {(frame.dynamicTextEnabled ?? true) && (
-                            <>
-                              <div style={{ marginBottom: '0.45rem' }}>
-                                <input
-                                  type="text"
-                                  value={frame.eventTitle || ''}
-                                  onChange={(e) => onUpdateFrame({ eventTitle: e.target.value, dynamicTextEnabled: true })}
-                                  placeholder="Ej. Escuela Dominical, Oración 7pm..."
-                                  className="form-input"
-                                  style={{ fontSize: '0.78rem' }}
-                                />
-                              </div>
-
-                              {/* Presets Rápidos con 1 Toque */}
-                              <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap', marginBottom: '0.55rem' }}>
-                                {[
-                                  'Escuela Dominical',
-                                  'Oración de 7:00 PM',
-                                  'Servicio de Doctrina',
-                                  'Culto de Jóvenes',
-                                  'Consagración',
-                                  'Estudio Bíblico',
-                                  'Bautismos',
-                                  'Presentación de Niños',
-                                  'Servicio Especial',
-                                ].map((ev) => {
-                                  const isEvActive = (frame.eventTitle || '').trim().toLowerCase() === ev.toLowerCase();
-                                  return (
-                                    <button
-                                      key={ev}
-                                      type="button"
-                                      onClick={() => onUpdateFrame({ eventTitle: ev, dynamicTextEnabled: true })}
-                                      className={`quick-chip-btn ${isEvActive ? 'active' : ''}`}
-                                    >
-                                      {ev}
-                                    </button>
-                                  );
-                                })}
-                              </div>
-
-                              {/* Selector de Color del Texto */}
-                              <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
-                                <span style={{ fontSize: '0.66rem', color: 'var(--text-muted)' }}>Color:</span>
-                                <button
-                                  type="button"
-                                  onClick={() => onUpdateFrame({ dynamicTextColorStyle: 'gold' })}
-                                  className={`color-choice-pill ${(!frame.dynamicTextColorStyle || frame.dynamicTextColorStyle === 'gold') ? 'active' : ''}`}
-                                  style={{ padding: '0.22rem 0.5rem', fontSize: '0.66rem' }}
-                                >
-                                  <span className="color-dot" style={{ background: 'linear-gradient(135deg, #fef08a, #cea544)' }} />
-                                  <span>Oro Centenario</span>
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => onUpdateFrame({ dynamicTextColorStyle: 'white' })}
-                                  className={`color-choice-pill ${frame.dynamicTextColorStyle === 'white' ? 'active' : ''}`}
-                                  style={{ padding: '0.22rem 0.5rem', fontSize: '0.66rem' }}
-                                >
-                                  <span className="color-dot" style={{ background: '#ffffff', border: '1px solid #cbd5e1' }} />
-                                  <span>Blanco</span>
-                                </button>
-                              </div>
-                            </>
-                          )}
+                      {(frame.style === 'fine-gallery' || frame.style === 'editorial') && (
+                        <div style={{ display: 'flex', gap: '0.35rem' }}>
+                          <button
+                            type="button"
+                            onClick={() => onUpdateFrame({ borderColor: '#ffffff', textColor: '#0f172a' })}
+                            className={`color-pill-btn ${frame.borderColor === '#ffffff' ? 'active' : ''}`}
+                            style={{ background: '#ffffff', width: '1.25rem', height: '1.25rem' }}
+                            title="Blanco Galería"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => onUpdateFrame({ borderColor: '#0a0f1d', textColor: '#ffffff' })}
+                            className={`color-pill-btn ${frame.borderColor === '#0a0f1d' ? 'active' : ''}`}
+                            style={{ background: '#0a0f1d', width: '1.25rem', height: '1.25rem', border: '1px solid #475569' }}
+                            title="Grafito Oscuro"
+                          />
                         </div>
-                      );
-                    })()}
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={() => onUpdateFrame({ borderTop: 24, borderBottom: 24, borderLeft: 24, borderRight: 24 })}
+                        className="slider-reset-action"
+                      >
+                        <RotateCcw size={11} />
+                      </button>
+                    </div>
+
+                    <input
+                      type="range"
+                      min="8"
+                      max="70"
+                      step="2"
+                      value={frame.borderTop || 24}
+                      onChange={(e) => {
+                        const val = Number(e.target.value);
+                        onUpdateFrame({ borderTop: val, borderBottom: val, borderLeft: val, borderRight: val });
+                      }}
+                      className="master-range-slider"
+                    />
                   </div>
                 )}
               </>
+            )}
+
+            {/* SUB-MODO 2: TEXTO DEL MARCO (DINÁMICO CENTENARIO O EDITORIAL) */}
+            {frame.style !== 'none' && frameSubMode === 'text' && (
+              <div style={{ padding: '0.55rem 0.65rem', background: 'var(--bg-subcard)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.45rem' }}>
+                  <input
+                    type="text"
+                    value={frame.eventTitle || ''}
+                    onChange={(e) => onUpdateFrame({ eventTitle: e.target.value, dynamicTextEnabled: true })}
+                    placeholder="Título del evento (Ej. Escuela Dominical)..."
+                    className="form-input"
+                    style={{ flex: 1, fontSize: '0.78rem', padding: '0.35rem 0.6rem' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => onUpdateFrame({ dynamicTextEnabled: !(frame.dynamicTextEnabled ?? true) })}
+                    className={`toggle-pill-btn ${(frame.dynamicTextEnabled ?? true) ? 'active' : ''}`}
+                    style={{ fontSize: '0.64rem', padding: '0.28rem 0.55rem', flexShrink: 0 }}
+                  >
+                    {(frame.dynamicTextEnabled ?? true) ? '✓ Visible' : 'Oculto'}
+                  </button>
+                </div>
+
+                {/* Chips Rápidos Deslizables Horizontalmente */}
+                <div className="position-pills-row" style={{ marginBottom: '0.5rem' }}>
+                  {[
+                    'Escuela Dominical',
+                    'Oración de 7:00 PM',
+                    'Servicio de Doctrina',
+                    'Culto de Jóvenes',
+                    'Consagración',
+                    'Estudio Bíblico',
+                    'Bautismos',
+                    'Servicio Especial',
+                  ].map((ev) => {
+                    const isEvActive = (frame.eventTitle || '').trim().toLowerCase() === ev.toLowerCase();
+                    return (
+                      <button
+                        key={ev}
+                        type="button"
+                        onClick={() => onUpdateFrame({ eventTitle: ev, dynamicTextEnabled: true })}
+                        className={`quick-chip-btn ${isEvActive ? 'active' : ''}`}
+                        style={{ whiteSpace: 'nowrap', flexShrink: 0 }}
+                      >
+                        {ev}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Fila Compacta: Color + Tamaño + Texto Derecho */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={() => onUpdateFrame({ dynamicTextColorStyle: 'gold' })}
+                    className={`color-choice-pill ${(!frame.dynamicTextColorStyle || frame.dynamicTextColorStyle === 'gold') ? 'active' : ''}`}
+                    style={{ padding: '0.22rem 0.45rem', fontSize: '0.65rem', flex: '0 0 auto' }}
+                  >
+                    <span className="color-dot" style={{ background: 'linear-gradient(135deg, #fef08a, #cea544)' }} />
+                    <span>Oro</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onUpdateFrame({ dynamicTextColorStyle: 'white' })}
+                    className={`color-choice-pill ${frame.dynamicTextColorStyle === 'white' ? 'active' : ''}`}
+                    style={{ padding: '0.22rem 0.45rem', fontSize: '0.65rem', flex: '0 0 auto' }}
+                  >
+                    <span className="color-dot" style={{ background: '#ffffff', border: '1px solid #cbd5e1' }} />
+                    <span>Blanco</span>
+                  </button>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flex: 1, minWidth: '110px' }}>
+                    <span style={{ fontSize: '0.64rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                      {frame.dynamicTextScale || 100}%
+                    </span>
+                    <input
+                      type="range"
+                      min="75"
+                      max="135"
+                      step="5"
+                      value={frame.dynamicTextScale || 100}
+                      onChange={(e) => onUpdateFrame({ dynamicTextScale: Number(e.target.value) })}
+                      className="master-range-slider"
+                      style={{ flex: 1 }}
+                      title="Tamaño de letra del marco"
+                    />
+                  </div>
+
+                  <input
+                    type="text"
+                    value={frame.dynamicTextRight || ''}
+                    onChange={(e) => onUpdateFrame({ dynamicTextRight: e.target.value, dynamicTextEnabled: true })}
+                    placeholder="Texto der. opcional (Fecha/Lugar)"
+                    className="form-input"
+                    style={{ width: '100%', fontSize: '0.72rem', padding: '0.28rem 0.55rem', marginTop: '0.15rem' }}
+                  />
+                </div>
+              </div>
             )}
           </div>
         )}

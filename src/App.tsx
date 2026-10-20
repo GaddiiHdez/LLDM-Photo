@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { CheckCircle2, X } from 'lucide-react';
 import { Header } from './components/Header';
 import { BatchDropzone } from './components/BatchDropzone';
 import { ThumbnailBar } from './components/ThumbnailBar';
@@ -13,12 +14,12 @@ import type {
   ImageAdjustments,
   CropSettings,
   PresetType,
+  ExportOptions,
 } from './types/editor';
 
-import { getSamplePhotos } from './utils/samplePhotos';
 import { exportSinglePhoto, exportBatchAsZip } from './utils/batchExporter';
 import { getDrawableImageUrl } from './utils/rawDecoder';
-import { decodeTrueRawFile, computeAdaptiveChurchEnhancement } from './utils/rawProcessingEngine';
+import { analyzeImageHistogram, computeAdaptiveChurchEnhancement } from './utils/rawProcessingEngine';
 import { getDefaultAppSettings, saveDefaultAppSettings, getSavedPngFrames } from './utils/frameStorage';
 import { getSavedLogos } from './utils/logoStorage';
 
@@ -70,19 +71,23 @@ export const App: React.FC = () => {
   const savedLogos = getSavedLogos();
   const defaultLogo = savedLogos.find((l) => l.isDefault) || savedLogos.find((l) => l.id === 'official-logo-lineal') || savedLogos[0];
 
-  // Theme State: 'light' (Blanco Premium) o 'dark' (Grafito Oscuro)
+  // Theme State: 'dark' (Grafito Oscuro por defecto para Cuarto Oscuro Fotográfico) o 'light'
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     try {
       const savedTheme = localStorage.getItem('lldm_studio_theme') as 'light' | 'dark';
-      return savedTheme || 'light';
+      return savedTheme || 'dark';
     } catch {
-      return 'light';
+      return 'dark';
     }
   });
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
     document.body.setAttribute('data-theme', theme);
+    const metaScheme = document.querySelector('meta[name="color-scheme"]') as HTMLMetaElement | null;
+    if (metaScheme) {
+      metaScheme.content = theme;
+    }
     try {
       localStorage.setItem('lldm_studio_theme', theme);
     } catch (err) {
@@ -96,6 +101,32 @@ export const App: React.FC = () => {
 
   const handleSelectTheme = (mode: 'light' | 'dark') => {
     setTheme(mode);
+  };
+
+  // Compare Before/After State
+  const [showOriginal, setShowOriginal] = useState<boolean>(false);
+
+  // Global Toast Notification (Popover manual + fallback)
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const toastRef = useRef<HTMLDivElement>(null);
+  const toastTimerRef = useRef<number | null>(null);
+
+  const showToast = (msg: string) => {
+    setToastMsg(msg);
+    if (toastTimerRef.current) window.clearTimeout(toastTimerRef.current);
+    requestAnimationFrame(() => {
+      try {
+        (toastRef.current as any)?.showPopover?.();
+      } catch {
+        // Fallback CSS via .toast-open
+      }
+    });
+    toastTimerRef.current = window.setTimeout(() => {
+      try {
+        (toastRef.current as any)?.hidePopover?.();
+      } catch {}
+      setToastMsg(null);
+    }, 2800);
   };
 
   // Filmstrip Collapsed State (inicia colapsado en móvil para maximizar el lienzo y controles)
@@ -159,11 +190,16 @@ export const App: React.FC = () => {
     }
   );
 
-  // Export Progress State
+  // Export Modal & Progress State
+  const [isExportModalOpen, setIsExportModalOpen] = useState<boolean>(false);
   const [isExporting, setIsExporting] = useState<boolean>(false);
   const [exportProgress, setExportProgress] = useState({ current: 0, total: 0, currentName: '' });
+  const [exportOptions, setExportOptions] = useState<ExportOptions>({
+    qualityPreset: 'max',
+    filenamePrefix: 'BereaSnap',
+  });
 
-  // Handle uploaded files (Soporta archivos RAW .NEF, .CR2, .ARW y cálculo adaptativo de rango dinámico)
+  // Handle uploaded files (Soporta archivos RAW .NEF, .CR2, .ARW, dimensiones reales e histograma adaptativo)
   const handleFilesSelected = async (files: FileList | File[]) => {
     const fileArray = Array.from(files);
 
@@ -174,10 +210,14 @@ export const App: React.FC = () => {
         const id = `${Date.now()}-${i}-${file.name}`;
 
         let adaptiveAdjustments = { ...PRESET_ADJUSTMENTS['auto-church'] };
+        let realWidth = 4000;
+        let realHeight = 3000;
 
-        if (isRaw) {
-          const sensorData = await decodeTrueRawFile(file);
-          if (sensorData) {
+        const sensorData = await analyzeImageHistogram(url, isRaw);
+        if (sensorData) {
+          realWidth = sensorData.width;
+          realHeight = sensorData.height;
+          if (isRaw) {
             adaptiveAdjustments = computeAdaptiveChurchEnhancement(sensorData);
           }
         }
@@ -189,16 +229,20 @@ export const App: React.FC = () => {
           sizeFormatted: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
           originalUrl: url,
           thumbnailUrl: url,
-          width: 6000,
-          height: 4000,
+          width: realWidth,
+          height: realHeight,
           isRaw,
           adjustments: adaptiveAdjustments,
           crop: {
             aspectRatio: 'original',
-            orientation: 'landscape',
+            orientation: realWidth >= realHeight ? 'landscape' : 'portrait',
             offsetX: 0,
             offsetY: 0,
             zoom: 1.0,
+            rotation: 0,
+            straighten: 0,
+            flipH: false,
+            flipV: false,
           },
           preset: 'auto-church',
         };
@@ -209,13 +253,6 @@ export const App: React.FC = () => {
     if (!activePhotoId && newPhotos.length > 0) {
       setActivePhotoId(newPhotos[0].id);
     }
-  };
-
-  // Sample photos
-  const handleLoadSamples = () => {
-    const samples = getSamplePhotos();
-    setPhotos(samples);
-    setActivePhotoId(samples[0].id);
   };
 
   // Active photo selection
@@ -254,6 +291,7 @@ export const App: React.FC = () => {
         preset: activePhoto.preset,
       }))
     );
+    showToast(`✓ Ajustes sincronizados en las ${photos.length} fotos del lote`);
   };
 
   // Photo Navigation (< y >)
@@ -273,18 +311,34 @@ export const App: React.FC = () => {
     }
   };
 
-  // Single Photo Export
+  // Single Photo Export (Save)
   const handleSingleExport = async () => {
     if (!activePhoto) return;
     try {
-      await exportSinglePhoto(activePhoto, watermark, frame);
+      await exportSinglePhoto(activePhoto, watermark, frame, exportOptions, 'download');
     } catch (err) {
       console.error('Error exportando foto:', err);
     }
   };
 
-  // Batch Export ZIP
-  const handleExportBatch = async () => {
+  // Single Photo Native Share
+  const handleSingleShare = async () => {
+    if (!activePhoto) return;
+    try {
+      await exportSinglePhoto(activePhoto, watermark, frame, exportOptions, 'share');
+    } catch (err) {
+      console.error('Error compartiendo foto:', err);
+    }
+  };
+
+  // Open Batch Export Configuration Modal
+  const handleExportBatch = () => {
+    if (photos.length === 0) return;
+    setIsExportModalOpen(true);
+  };
+
+  // Execute Batch Export ZIP (Download or Share)
+  const handleStartBatchExport = async (mode: 'download' | 'share') => {
     if (photos.length === 0) return;
     setIsExporting(true);
     setExportProgress({ current: 0, total: photos.length, currentName: '' });
@@ -296,18 +350,25 @@ export const App: React.FC = () => {
         frame,
         (current, total, currentName) => {
           setExportProgress({ current, total, currentName });
-        }
+        },
+        exportOptions,
+        mode
       );
     } catch (err) {
       console.error('Error en exportación en lote:', err);
     } finally {
       setIsExporting(false);
+      setIsExportModalOpen(false);
     }
   };
 
-  // Delete individual photo
+  // Delete individual photo (Liberando memoria Blob URL para evitar fugas de RAM en móvil)
   const handleDeletePhoto = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
+    const target = photos.find((p) => p.id === id);
+    if (target?.originalUrl?.startsWith('blob:')) {
+      URL.revokeObjectURL(target.originalUrl);
+    }
     const filtered = photos.filter((p) => p.id !== id);
     setPhotos(filtered);
     if (activePhotoId === id && filtered.length > 0) {
@@ -333,10 +394,14 @@ export const App: React.FC = () => {
 
   return (
     <div className="app-container">
-      {/* Top Header Bar */}
+      {/* Unified Studio Top Bar */}
       <Header
         totalPhotos={photos.length}
+        currentPhotoIndex={currentPhotoIndex >= 0 ? currentPhotoIndex : 0}
+        activePhoto={activePhoto}
         theme={theme}
+        showOriginal={showOriginal}
+        onToggleOriginal={(val) => setShowOriginal((prev) => (typeof val === 'boolean' ? val : !prev))}
         onSelectTheme={handleSelectTheme}
         onToggleTheme={toggleTheme}
         onAddPhotosClick={() => {
@@ -347,15 +412,14 @@ export const App: React.FC = () => {
           input.onchange = (e: any) => e.target.files && handleFilesSelected(e.target.files);
           input.click();
         }}
+        onSingleExport={handleSingleExport}
+        onSingleShare={handleSingleShare}
         onExportBatch={handleExportBatch}
       />
 
       {/* Main Studio Area */}
       {photos.length === 0 ? (
-        <BatchDropzone
-          onFilesSelected={handleFilesSelected}
-          onLoadSamples={handleLoadSamples}
-        />
+        <BatchDropzone onFilesSelected={handleFilesSelected} />
       ) : (
         <div className="studio-body">
           {/* Main Visual Column: Preview Stage + Thumbnail Strip directly underneath */}
@@ -365,7 +429,10 @@ export const App: React.FC = () => {
               watermark={watermark}
               frame={frame}
               isFilmstripCollapsed={isFilmstripCollapsed}
+              showOriginal={showOriginal}
+              onToggleOriginal={(val) => setShowOriginal((prev) => (typeof val === 'boolean' ? val : !prev))}
               onSingleExport={handleSingleExport}
+              onSingleShare={handleSingleShare}
               onUpdateCrop={handleUpdateCrop}
               onPrevPhoto={handlePrevPhoto}
               onNextPhoto={handleNextPhoto}
@@ -389,6 +456,11 @@ export const App: React.FC = () => {
                 input.click();
               }}
               onClearAll={() => {
+                photos.forEach((p) => {
+                  if (p.originalUrl?.startsWith('blob:')) {
+                    URL.revokeObjectURL(p.originalUrl);
+                  }
+                });
                 setPhotos([]);
                 setActivePhotoId('');
               }}
@@ -415,13 +487,37 @@ export const App: React.FC = () => {
         </div>
       )}
 
-      {/* Modal Progreso de Exportación ZIP */}
+      {/* Modal Configuración y Progreso de Exportación ZIP */}
       <ExportModal
-        isOpen={isExporting}
+        isOpen={isExportModalOpen || isExporting}
+        isProcessing={isExporting}
         current={exportProgress.current}
-        total={exportProgress.total}
+        total={photos.length}
         currentName={exportProgress.currentName}
+        options={exportOptions}
+        onChangeOptions={setExportOptions}
+        onStartExport={handleStartBatchExport}
+        onClose={() => setIsExportModalOpen(false)}
       />
+
+      {/* Notificación Toast Flotante No-Intrusiva (Popover Top-Layer + Fallback) */}
+      <div
+        ref={toastRef}
+        {...({ popover: 'manual' } as any)}
+        className={`studio-toast-popover ${toastMsg ? 'toast-open' : ''}`}
+      >
+        <CheckCircle2 size={15} style={{ color: '#34d399', flexShrink: 0 }} />
+        <span>{toastMsg}</span>
+        <button
+          type="button"
+          {...({ popovertargetaction: 'hide' } as any)}
+          onClick={() => setToastMsg(null)}
+          className="toast-close-btn"
+          aria-label="Cerrar notificación"
+        >
+          <X size={13} />
+        </button>
+      </div>
     </div>
   );
 };

@@ -6,7 +6,11 @@ export interface CropSettings {
   orientation: OrientationType;
   offsetX: number; // Shift X % (-50 to 50)
   offsetY: number; // Shift Y % (-50 to 50)
-  zoom: number;    // Scale factor (1.0 to 2.0)
+  zoom: number;    // Scale factor (1.0 to 3.0)
+  rotation?: number;   // 0, 90, 180, 270 degrees
+  straighten?: number; // Fine horizon angle (-15 to +15 degrees)
+  flipH?: boolean;     // Horizontal mirror
+  flipV?: boolean;     // Vertical mirror
 }
 
 export type WatermarkPosition =
@@ -94,6 +98,13 @@ export interface FrameSettings {
   dynamicTextEnabled?: boolean;
   dynamicTextColorStyle?: 'gold' | 'white' | 'silver' | 'custom';
   dynamicTextPosition?: 'centenario-left' | 'bottom-center' | 'bottom-left' | 'bottom-right';
+  dynamicTextRight?: string;
+  dynamicTextScale?: number; // 70 to 140 (default 100)
+}
+
+export interface ExportOptions {
+  qualityPreset: 'max' | 'social'; // 'max' = 0 (nativa, 0.95), 'social' = 2048px (0.85)
+  filenamePrefix: string;
 }
 
 export interface PhotoItem {

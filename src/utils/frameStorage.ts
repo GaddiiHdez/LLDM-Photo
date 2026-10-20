@@ -1,4 +1,5 @@
 import type { FrameSettings, WatermarkSettings, CropSettings } from '../types/editor';
+import { idbGet, idbSet } from './idbStorage';
 
 export interface SavedPngFrame {
   id: string;
@@ -51,35 +52,72 @@ export const BUILTIN_FRAMES: SavedPngFrame[] = [
   },
 ];
 
+// Caché en memoria sincronizada con IndexedDB + migración desde localStorage
+let memoryUserFrames: SavedPngFrame[] | null = null;
+
+function readInitialUserFrames(): SavedPngFrame[] {
+  if (memoryUserFrames !== null) return memoryUserFrames;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_FRAMES);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        memoryUserFrames = parsed.filter((f: SavedPngFrame) => !f.id.startsWith('official-frame-'));
+        return memoryUserFrames;
+      }
+    }
+  } catch (err) {
+    console.warn('Error leyendo marcos iniciales desde localStorage:', err);
+  }
+  memoryUserFrames = [];
+  return memoryUserFrames;
+}
+
+function persistUserFrames(userFrames: SavedPngFrame[]): void {
+  memoryUserFrames = userFrames;
+  // Guardar sin límite de tamaño en IndexedDB
+  idbSet(STORAGE_KEY_FRAMES, userFrames).catch(() => {});
+  // Intentar respaldar en localStorage solo si cabe (< 4.5MB)
+  try {
+    const serialized = JSON.stringify(userFrames);
+    if (serialized.length < 4_200_000) {
+      localStorage.setItem(STORAGE_KEY_FRAMES, serialized);
+    }
+  } catch {
+    // Ignorar QuotaExceededError; IndexedDB tiene la copia maestra completa
+  }
+}
+
+// Hidratar asíncronamente desde IndexedDB al arrancar la app
+(async function hydrateFramesFromIDB() {
+  const idbFrames = await idbGet<SavedPngFrame[]>(STORAGE_KEY_FRAMES);
+  if (Array.isArray(idbFrames) && idbFrames.length > 0) {
+    const clean = idbFrames.filter((f) => !f.id.startsWith('official-frame-'));
+    memoryUserFrames = clean;
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('bereasnap-storage-updated'));
+    }
+  } else {
+    const initial = readInitialUserFrames();
+    if (initial.length > 0) {
+      await idbSet(STORAGE_KEY_FRAMES, initial);
+    }
+  }
+})();
+
 /**
  * Obtiene la lista de marcos PNG oficiales y guardados por el usuario
  */
 export function getSavedPngFrames(): SavedPngFrame[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY_FRAMES);
-    let userFrames: SavedPngFrame[] = [];
-    if (raw) {
-      try {
-        const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed)) {
-          userFrames = parsed.filter((f: SavedPngFrame) => !f.id.startsWith('official-frame-'));
-        }
-      } catch (err) {
-        console.warn('Error parseando marcos guardados:', err);
-      }
-    }
-    return [...BUILTIN_FRAMES, ...userFrames];
-  } catch (err) {
-    console.error('Error cargando marcos PNG guardados:', err);
-    return BUILTIN_FRAMES;
-  }
+  const userFrames = readInitialUserFrames();
+  return [...BUILTIN_FRAMES, ...userFrames];
 }
 
 /**
- * Guarda un nuevo marco PNG en la biblioteca local persistente
+ * Guarda un nuevo marco PNG en la biblioteca local persistente (IndexedDB ilimitado)
  */
 export function savePngFrame(name: string, pngDataUrl: string, isDefault: boolean = false): SavedPngFrame[] {
-  const current = getSavedPngFrames();
+  const current = readInitialUserFrames();
   const newFrame: SavedPngFrame = {
     id: `png-frame-${Date.now()}`,
     name,
@@ -90,17 +128,10 @@ export function savePngFrame(name: string, pngDataUrl: string, isDefault: boolea
     isDynamic: false,
   };
 
-  // Si se establece como default, desmarcar los anteriores
-  let userFrames = current
-    .filter((f) => !f.id.startsWith('official-frame-'))
-    .map((f) => (isDefault ? { ...f, isDefault: false } : f));
+  const userFrames = current.map((f) => (isDefault ? { ...f, isDefault: false } : f));
   userFrames.unshift(newFrame);
 
-  try {
-    localStorage.setItem(STORAGE_KEY_FRAMES, JSON.stringify(userFrames));
-  } catch (err) {
-    console.warn('Advertencia al guardar en localStorage (archivo grande):', err);
-  }
+  persistUserFrames(userFrames);
 
   return [...BUILTIN_FRAMES, ...userFrames];
 }
@@ -112,13 +143,9 @@ export function deleteSavedPngFrame(id: string): SavedPngFrame[] {
   if (id.startsWith('official-frame-')) {
     return getSavedPngFrames();
   }
-  const current = getSavedPngFrames();
+  const current = readInitialUserFrames();
   const updatedUserFrames = current.filter((f) => f.id !== id && !f.id.startsWith('official-frame-'));
-  try {
-    localStorage.setItem(STORAGE_KEY_FRAMES, JSON.stringify(updatedUserFrames));
-  } catch (err) {
-    console.error('Error eliminando marco PNG:', err);
-  }
+  persistUserFrames(updatedUserFrames);
   return [...BUILTIN_FRAMES, ...updatedUserFrames];
 }
 
@@ -126,14 +153,10 @@ export function deleteSavedPngFrame(id: string): SavedPngFrame[] {
  * Establece un marco PNG como predeterminado por defecto
  */
 export function setDefaultPngFrame(id: string): SavedPngFrame[] {
-  const current = getSavedPngFrames();
-  const updated = current.map((f) => ({ ...f, isDefault: f.id === id }));
-  try {
-    localStorage.setItem(STORAGE_KEY_FRAMES, JSON.stringify(updated));
-  } catch (err) {
-    console.error('Error actualizando marco default:', err);
-  }
-  return updated;
+  const current = readInitialUserFrames();
+  const updatedUser = current.map((f) => ({ ...f, isDefault: f.id === id }));
+  persistUserFrames(updatedUser);
+  return [...BUILTIN_FRAMES.map((f) => ({ ...f, isDefault: f.id === id })), ...updatedUser];
 }
 
 /**
@@ -145,6 +168,7 @@ export function saveDefaultAppSettings(settings: DefaultAppSettings): void {
   } catch (err) {
     console.error('Error guardando ajustes por defecto:', err);
   }
+  idbSet(STORAGE_KEY_DEFAULTS, settings).catch(() => {});
 }
 
 /**

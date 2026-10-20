@@ -1,0 +1,86 @@
+name: Construir BereaSnap APK Android
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-apk:
+    name: Compilar APK Android
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Descargar Código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Instalar Dependencias Web y Capacitor
+        run: npm install
+
+      - name: Compilar Aplicación Web (Vite + Tipografías Offline)
+        run: npm run build
+
+      - name: Sincronizar con Proyecto Android (Capacitor Sync)
+        run: npx cap sync android
+
+      - name: Configurar Java 21 (JDK Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Otorgar Permisos de Ejecución a Gradle
+        run: chmod +x android/gradlew
+
+      - name: Compilar APK Android (assembleDebug)
+        run: |
+          cd android
+          ./gradlew assembleDebug --stacktrace
+
+      - name: Renombrar Archivo APK
+        run: |
+          mkdir -p output-apk
+          cp android/app/build/outputs/apk/debug/app-debug.apk output-apk/BereaSnap-v1.0.apk
+
+      - name: Publicar Archivo APK como Artefacto Descargable
+        uses: actions/upload-artifact@v4
+        with:
+          name: BereaSnap-v1.0-APK
+          path: output-apk/BereaSnap-v1.0.apk
+          retention-days: 30
+
+      - name: Crear Release Automático con APK Adjunto
+        uses: softprops/action-gh-release@v2
+        if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main'
+        with:
+          tag_name: v1.0.0-${{ github.run_number }}
+          name: BereaSnap v1.0 (Build ${{ github.run_number }})
+          body: |
+            ## BereaSnap para Android (100% Offline)
+            
+            ¡Tu archivo instalable `.apk` para Android está listo!
+            
+            ### Novedades:
+            - **100% Offline**: Funciona sin internet y sin pagar hosting.
+            - **Revelado RAW 14-Bit**: Soporte nativo para cámaras Nikon, Canon, Sony y Adobe DNG.
+            - **Marcos Dinámicos**: Marco Centenario oficial con tipografía dorada imperial personalizable.
+            - **Firma & Logos**: Marca de agua institucional o textos editoriales.
+            - **Exportación Rápida & Compartir**: Guardar en Galería o compartir directamente a WhatsApp / Telegram.
+            
+            ### Instrucciones de Instalación:
+            1. Descarga el archivo `BereaSnap-v1.0.apk` en tu celular Android.
+            2. Tócalo en tus Descargas para instalar (si Android te pregunta, permite "Instalar aplicaciones de fuentes desconocidas" para tu navegador o explorador).
+            3. ¡Ábrela y disfruta de tu propio estudio fotográfico en el bolsillo!
+          files: output-apk/BereaSnap-v1.0.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
