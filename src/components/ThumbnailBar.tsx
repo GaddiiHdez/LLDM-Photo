@@ -7,8 +7,6 @@ import {
   X,
   FolderArchive,
   Check,
-  ArrowLeft,
-  ArrowRight,
 } from 'lucide-react';
 import type { PhotoItem } from '../types/editor';
 
@@ -43,11 +41,28 @@ export const ThumbnailBar: React.FC<ThumbnailBarProps> = ({
 }) => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const activeThumbRef = useRef<HTMLButtonElement>(null);
-  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
-  // Auto-centrar la miniatura activa suavemente en el carrete al cambiar de foto
+  // Estados de Arrastre Táctil en Carrete
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [dropIndex, setDropIndex] = useState<number | null>(null);
+  const [isDragging, setIsDragging] = useState<boolean>(false);
+
+  // Estados de Arrastre en Cuadrícula
+  const [gridDragIndex, setGridDragIndex] = useState<number | null>(null);
+  const [gridDropIndex, setGridDropIndex] = useState<number | null>(null);
+
+  const pointerDownRef = useRef<{
+    startX: number;
+    startY: number;
+    index: number;
+    timer: number | null;
+    pointerId: number;
+    hasMoved: boolean;
+  } | null>(null);
+
+  // Auto-centrar la miniatura activa suavemente en el carrete al cambiar de foto (solo cuando no se está arrastrando)
   useEffect(() => {
-    if (activeThumbRef.current) {
+    if (activeThumbRef.current && !isDragging) {
       try {
         activeThumbRef.current.scrollIntoView({
           behavior: 'smooth',
@@ -58,58 +73,204 @@ export const ThumbnailBar: React.FC<ThumbnailBarProps> = ({
         // Fallback silencioso
       }
     }
-  }, [activePhotoId, photos.length]);
+  }, [activePhotoId, photos.length, isDragging]);
 
   const currentIndex = photos.findIndex((p) => p.id === activePhotoId);
   const activePhoto = photos[currentIndex >= 0 ? currentIndex : 0];
 
-  const handlePromptMove = (fromIndex: number) => {
-    if (!onMovePhoto) return;
-    const input = window.prompt(
-      `Mover foto #${fromIndex + 1} a la posición deseada (1 a ${photos.length}):`,
-      String(fromIndex + 1)
-    );
-    if (input) {
-      const parsed = parseInt(input.trim(), 10);
-      if (!isNaN(parsed) && parsed >= 1 && parsed <= photos.length) {
-        onMovePhoto(fromIndex, parsed - 1);
+  // =========================================================================
+  // GESTIÓN DE ARRASTRE TÁCTIL EN EL CARRETE (HORIZONTAL DRAG-TO-REORDER)
+  // =========================================================================
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLElement>, index: number) => {
+    // Solo botón principal del mouse o cualquier toque de pantalla
+    if (e.button !== 0 && e.pointerType === 'mouse') return;
+
+    const timer = window.setTimeout(() => {
+      // Activar modo arrastre tras 140ms de toque sostenido
+      setIsDragging(true);
+      setDragIndex(index);
+      setDropIndex(index);
+
+      // Feedback háptico nativo en Android
+      if (typeof navigator !== 'undefined' && navigator.vibrate) {
+        navigator.vibrate(35);
+      }
+    }, 140);
+
+    pointerDownRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      index,
+      timer,
+      pointerId: e.pointerId,
+      hasMoved: false,
+    };
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLElement>) => {
+    const downInfo = pointerDownRef.current;
+    if (!downInfo) return;
+
+    const dx = Math.abs(e.clientX - downInfo.startX);
+    const dy = Math.abs(e.clientY - downInfo.startY);
+
+    // Si el usuario desliza antes de los 140ms, cancelar el modo arrastre para permitir el scroll natural del carrete
+    if (!isDragging) {
+      if (dx > 8 || dy > 8) {
+        if (downInfo.timer) {
+          clearTimeout(downInfo.timer);
+          downInfo.timer = null;
+        }
+        downInfo.hasMoved = true;
+      }
+      return;
+    }
+
+    // Si YA está en modo arrastre:
+    e.preventDefault();
+
+    if (!scrollContainerRef.current) return;
+
+    // Auto-scroll horizontal si el dedo se acerca a los bordes de la pantalla
+    const scrollerRect = scrollContainerRef.current.getBoundingClientRect();
+    if (e.clientX < scrollerRect.left + 50) {
+      scrollContainerRef.current.scrollLeft -= 10;
+    } else if (e.clientX > scrollerRect.right - 50) {
+      scrollContainerRef.current.scrollLeft += 10;
+    }
+
+    // Calcular sobre qué miniatura está pasando el dedo
+    const thumbs = Array.from(
+      scrollContainerRef.current.querySelectorAll('.filmstrip-thumb')
+    ) as HTMLElement[];
+
+    let closestIndex = downInfo.index;
+    let minDistance = Infinity;
+
+    thumbs.forEach((thumb, i) => {
+      const rect = thumb.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const dist = Math.abs(e.clientX - centerX);
+      if (dist < minDistance) {
+        minDistance = dist;
+        closestIndex = i;
+      }
+    });
+
+    if (closestIndex !== dropIndex) {
+      setDropIndex(closestIndex);
+      if (typeof navigator !== 'undefined' && navigator.vibrate) {
+        navigator.vibrate(15);
       }
     }
   };
 
-  const handleDragStart = (e: React.DragEvent, index: number) => {
-    e.dataTransfer.setData('text/plain', String(index));
-    setDraggedIndex(index);
+  const handlePointerUp = (_e: React.PointerEvent<HTMLElement>, index: number) => {
+    const downInfo = pointerDownRef.current;
+    if (downInfo?.timer) {
+      clearTimeout(downInfo.timer);
+      downInfo.timer = null;
+    }
+
+    if (isDragging) {
+      if (dragIndex !== null && dropIndex !== null && dragIndex !== dropIndex && onMovePhoto) {
+        onMovePhoto(dragIndex, dropIndex);
+        if (typeof navigator !== 'undefined' && navigator.vibrate) {
+          navigator.vibrate([25, 30]);
+        }
+      }
+      setIsDragging(false);
+      setDragIndex(null);
+      setDropIndex(null);
+    } else if (!downInfo?.hasMoved) {
+      // Fue un toque limpio normal: Seleccionar fotografía
+      onSelectPhoto(photos[index].id);
+    }
+
+    pointerDownRef.current = null;
   };
 
-  const handleDrop = (e: React.DragEvent, targetIndex: number) => {
+  const handlePointerCancel = () => {
+    if (pointerDownRef.current?.timer) {
+      clearTimeout(pointerDownRef.current.timer);
+    }
+    setIsDragging(false);
+    setDragIndex(null);
+    setDropIndex(null);
+    pointerDownRef.current = null;
+  };
+
+  // =========================================================================
+  // GESTIÓN DE ARRASTRE EN LA CUADRÍCULA (BATCH GRID SHEET)
+  // =========================================================================
+
+  const handleGridDragStart = (e: React.DragEvent, index: number) => {
+    e.dataTransfer.setData('text/plain', String(index));
+    setGridDragIndex(index);
+  };
+
+  const handleGridDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    if (gridDropIndex !== index) {
+      setGridDropIndex(index);
+    }
+  };
+
+  const handleGridDrop = (e: React.DragEvent, targetIndex: number) => {
     e.preventDefault();
     const sourceIndex = parseInt(e.dataTransfer.getData('text/plain'), 10);
     if (!isNaN(sourceIndex) && sourceIndex !== targetIndex && onMovePhoto) {
       onMovePhoto(sourceIndex, targetIndex);
+      if (typeof navigator !== 'undefined' && navigator.vibrate) {
+        navigator.vibrate([25, 30]);
+      }
     }
-    setDraggedIndex(null);
+    setGridDragIndex(null);
+    setGridDropIndex(null);
   };
 
   return (
     <>
       {/* CARRETE PERSISTENTE INTEGRADO (SIEMPRE ACCESIBLE ENTRE EL LIENZO Y LAS HERRAMIENTAS) */}
       <div className="filmstrip-dock">
-        {/* Tira horizontal deslizable de miniaturas */}
-        <div className="filmstrip-scroller" ref={scrollContainerRef}>
+        {/* Tira horizontal deslizable de miniaturas con soporte de arrastre directo */}
+        <div
+          className="filmstrip-scroller"
+          ref={scrollContainerRef}
+          onPointerMove={handlePointerMove}
+          onPointerCancel={handlePointerCancel}
+        >
           {photos.map((photo, index) => {
             const isActive = photo.id === activePhoto?.id;
+            const isBeingDragged = isDragging && dragIndex === index;
+            const isDropTarget = isDragging && dropIndex === index && dragIndex !== index;
+
             return (
               <button
                 key={photo.id}
                 ref={isActive ? activeThumbRef : null}
                 type="button"
-                onClick={() => onSelectPhoto(photo.id)}
-                className={`filmstrip-thumb ${isActive ? 'active' : ''}`}
-                title={`Foto #${index + 1}: ${photo.name}`}
+                onPointerDown={(e) => handlePointerDown(e, index)}
+                onPointerUp={(e) => handlePointerUp(e, index)}
+                className={`filmstrip-thumb ${isActive ? 'active' : ''} ${
+                  isBeingDragged ? 'is-dragging' : ''
+                } ${isDropTarget ? 'drop-target' : ''}`}
+                title={`Foto #${index + 1}: ${photo.name} (Mantén presionado para arrastrar y cambiar de orden)`}
+                style={{
+                  touchAction: isDragging ? 'none' : 'pan-x',
+                  userSelect: 'none',
+                }}
               >
-                <img src={photo.thumbnailUrl} alt={photo.name} className="filmstrip-thumb-img" />
-                <span className="filmstrip-thumb-index">{index + 1}</span>
+                <img
+                  src={photo.thumbnailUrl}
+                  alt={photo.name}
+                  className="filmstrip-thumb-img"
+                  draggable={false}
+                />
+                <span className="filmstrip-thumb-index">
+                  {isDragging && dragIndex === index ? `⇄ ${dropIndex !== null ? dropIndex + 1 : index + 1}` : index + 1}
+                </span>
                 {photo.isRaw && <span className="filmstrip-thumb-raw">R</span>}
               </button>
             );
@@ -130,32 +291,6 @@ export const ThumbnailBar: React.FC<ThumbnailBarProps> = ({
         {/* Cápsula fija de acciones directas sobre la foto activa */}
         {activePhoto && (
           <div className="filmstrip-quick-actions">
-            {/* Reordenar posición de la foto activa */}
-            {onMovePhoto && photos.length > 1 && (
-              <div className="filmstrip-reorder-pair" style={{ display: 'flex', gap: '2px' }}>
-                <button
-                  type="button"
-                  disabled={currentIndex <= 0}
-                  onClick={() => onMovePhoto(currentIndex, currentIndex - 1)}
-                  className="filmstrip-action-btn"
-                  title="Mover foto hacia la izquierda"
-                  style={{ opacity: currentIndex <= 0 ? 0.35 : 1, padding: '0 5px' }}
-                >
-                  <ArrowLeft size={13} />
-                </button>
-                <button
-                  type="button"
-                  disabled={currentIndex >= photos.length - 1}
-                  onClick={() => onMovePhoto(currentIndex, currentIndex + 1)}
-                  className="filmstrip-action-btn"
-                  title="Mover foto hacia la derecha"
-                  style={{ opacity: currentIndex >= photos.length - 1 ? 0.35 : 1, padding: '0 5px' }}
-                >
-                  <ArrowRight size={13} />
-                </button>
-              </div>
-            )}
-
             <button
               type="button"
               onClick={() => onReplacePhoto(activePhoto.id)}
@@ -206,7 +341,7 @@ export const ThumbnailBar: React.FC<ThumbnailBarProps> = ({
                 <div>
                   <h3 style={{ margin: 0 }}>Carrete de Sesión ({photos.length})</h3>
                   <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>
-                    Toca el número # para mover o usa las flechas ◀ ▶
+                    Toca y arrastra cualquier foto a la posición deseada
                   </span>
                 </div>
               </div>
@@ -262,40 +397,35 @@ export const ThumbnailBar: React.FC<ThumbnailBarProps> = ({
             <div className="batch-grid-body">
               {photos.map((photo, index) => {
                 const isSelected = photo.id === activePhoto?.id;
+                const isCardDragging = gridDragIndex === index;
+                const isCardDropTarget = gridDropIndex === index && gridDragIndex !== index;
+
                 return (
                   <div
                     key={photo.id}
                     draggable
-                    onDragStart={(e) => handleDragStart(e, index)}
-                    onDragOver={(e) => e.preventDefault()}
-                    onDrop={(e) => handleDrop(e, index)}
+                    onDragStart={(e) => handleGridDragStart(e, index)}
+                    onDragOver={(e) => handleGridDragOver(e, index)}
+                    onDrop={(e) => handleGridDrop(e, index)}
+                    onDragEnd={() => {
+                      setGridDragIndex(null);
+                      setGridDropIndex(null);
+                    }}
                     onClick={() => {
                       onSelectPhoto(photo.id);
                       onToggleGrid(false);
                     }}
-                    className={`batch-grid-card ${isSelected ? 'active' : ''}`}
+                    className={`batch-grid-card ${isSelected ? 'active' : ''} ${
+                      isCardDragging ? 'is-dragging' : ''
+                    } ${isCardDropTarget ? 'drop-target' : ''}`}
                     style={{
-                      opacity: draggedIndex === index ? 0.4 : 1,
                       cursor: 'grab',
+                      transition: 'transform 0.15s ease, box-shadow 0.15s ease',
                     }}
                   >
                     <div className="batch-grid-img-wrap">
-                      <img src={photo.thumbnailUrl} alt={photo.name} />
-                      
-                      {/* Badge interactivo: Tocar permite mover directamente a cualquier posición (ej. foto 8 al puesto 2) */}
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handlePromptMove(index);
-                        }}
-                        className="batch-grid-badge"
-                        style={{ cursor: 'pointer', border: '1px solid rgba(255,255,255,0.2)' }}
-                        title={`Toca para mover la foto #${index + 1} a otra posición`}
-                      >
-                        #{index + 1} ✎
-                      </button>
-
+                      <img src={photo.thumbnailUrl} alt={photo.name} draggable={false} />
+                      <span className="batch-grid-badge">#{index + 1}</span>
                       {photo.isRaw && <span className="batch-grid-raw">RAW</span>}
                       {isSelected && (
                         <span className="batch-grid-active-pill">
@@ -305,37 +435,9 @@ export const ThumbnailBar: React.FC<ThumbnailBarProps> = ({
                     </div>
 
                     <div className="batch-grid-card-footer" onClick={(e) => e.stopPropagation()}>
-                      {/* Botones de Reordenamiento Instantáneo 1 Toque */}
-                      {onMovePhoto && photos.length > 1 && (
-                        <div style={{ display: 'flex', gap: '2px', marginRight: 'auto' }}>
-                          <button
-                            type="button"
-                            disabled={index === 0}
-                            onClick={() => onMovePhoto(index, index - 1)}
-                            className="batch-card-btn"
-                            style={{ padding: '4px 6px', opacity: index === 0 ? 0.3 : 1 }}
-                            title="Mover antes"
-                          >
-                            <ArrowLeft size={11} />
-                          </button>
-                          <button
-                            type="button"
-                            disabled={index >= photos.length - 1}
-                            onClick={() => onMovePhoto(index, index + 1)}
-                            className="batch-card-btn"
-                            style={{ padding: '4px 6px', opacity: index >= photos.length - 1 ? 0.3 : 1 }}
-                            title="Mover después"
-                          >
-                            <ArrowRight size={11} />
-                          </button>
-                        </div>
-                      )}
-
                       <button
                         type="button"
-                        onClick={() => {
-                          onReplacePhoto(photo.id);
-                        }}
+                        onClick={() => onReplacePhoto(photo.id)}
                         className="batch-card-btn"
                         title="Sustituir esta fotografía"
                       >
