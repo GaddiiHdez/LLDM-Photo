@@ -318,6 +318,39 @@ export const App: React.FC = () => {
     showToast(`✓ Ajustes sincronizados en las ${photos.length} fotos del lote`);
   };
 
+  const handleApplyCropToAll = () => {
+    if (!activePhoto) return;
+    setPhotos((prev) =>
+      prev.map((p) => ({
+        ...p,
+        crop: { ...activePhoto.crop },
+      }))
+    );
+    showToast(`✓ Encuadre (${activePhoto.crop.aspectRatio}) aplicado a las ${photos.length} fotos`);
+  };
+
+  const handleSyncFrameToAll = () => {
+    showToast(`✓ Marco (${frame.style !== 'none' ? frame.eventTitle || frame.style : 'Limpio'}) aplicado a todo el lote`);
+  };
+
+  const handleSyncWatermarkToAll = () => {
+    showToast(`✓ Firma (${watermark.enabled ? 'Activa' : 'Desactivada'}) aplicada a todo el lote`);
+  };
+
+  // Move photo in session (Reordenar lote)
+  const handleMovePhoto = (fromIndex: number, toIndex: number) => {
+    if (fromIndex < 0 || fromIndex >= photos.length || toIndex < 0 || toIndex >= photos.length) return;
+    if (fromIndex === toIndex) return;
+
+    setPhotos((prev) => {
+      const updated = [...prev];
+      const [movedItem] = updated.splice(fromIndex, 1);
+      updated.splice(toIndex, 0, movedItem);
+      return updated;
+    });
+    showToast(`✓ Foto #${fromIndex + 1} movida a la posición #${toIndex + 1}`);
+  };
+
   // Photo Navigation (< y >)
   const currentPhotoIndex = photos.findIndex((p) => p.id === activePhotoId);
   const hasPrevPhoto = currentPhotoIndex > 0;
@@ -526,6 +559,7 @@ export const App: React.FC = () => {
               onSelectPhoto={setActivePhotoId}
               onDeletePhoto={handleDeletePhoto}
               onReplacePhoto={handleReplacePhoto}
+              onMovePhoto={handleMovePhoto}
               onAddMorePhotos={triggerAddMoreFiles}
               onClearAll={() => {
                 photos.forEach((p) => {
@@ -553,6 +587,9 @@ export const App: React.FC = () => {
             onUpdateWatermark={(wm) => setWatermark((prev) => ({ ...prev, ...wm }))}
             onUpdateFrame={(f) => setFrame((prev) => ({ ...prev, ...f }))}
             onApplySettingsToAll={handleApplySettingsToAll}
+            onApplyCropToAll={handleApplyCropToAll}
+            onSyncFrameToAll={handleSyncFrameToAll}
+            onSyncWatermarkToAll={handleSyncWatermarkToAll}
             onSaveAsDefaultAppSettings={handleSaveAsDefaultAppSettings}
             totalPhotos={photos.length}
           />

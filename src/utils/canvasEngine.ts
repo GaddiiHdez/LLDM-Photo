@@ -6,7 +6,10 @@ import type { ImageAdjustments, WatermarkSettings, FrameSettings, CropSettings, 
 export function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
-    img.crossOrigin = 'anonymous';
+    // No establecer crossOrigin en URLs locales blob: o data: para evitar fallos de seguridad en Android WebView
+    if (!src.startsWith('blob:') && !src.startsWith('data:')) {
+      img.crossOrigin = 'anonymous';
+    }
     img.onload = () => resolve(img);
     img.onerror = (err) => reject(err);
     img.src = src;
@@ -175,7 +178,8 @@ export async function drawProcessedPhotoToCanvas(
   // Dimensiones finales del área de la foto en el canvas
   let width: number;
   let height: number;
-  const maxTargetDim = maxDimension > 0 ? maxDimension : 4000;
+  // 2560px es óptimo en resolución nativa móvil/web, previene OOM en WebViews y preserva nitidez cristalina
+  const maxTargetDim = maxDimension > 0 ? maxDimension : 2560;
   const effectiveMaxW = isRotated90 ? rawHeight : rawWidth;
   const effectiveMaxH = isRotated90 ? rawWidth : rawHeight;
 
@@ -728,7 +732,9 @@ export async function renderProcessedPhoto(
   watermark: WatermarkSettings,
   frame: FrameSettings,
   crop: CropSettings,
-  maxDimension: number = 0
+  maxDimension: number = 0,
+  cachedPngFrame?: HTMLImageElement | null,
+  cachedLogo?: HTMLImageElement | null
 ): Promise<HTMLCanvasElement> {
   const canvas = document.createElement('canvas');
   await drawProcessedPhotoToCanvas(
@@ -739,7 +745,9 @@ export async function renderProcessedPhoto(
     frame,
     crop,
     maxDimension,
-    false
+    false,
+    cachedPngFrame,
+    cachedLogo
   );
   return canvas;
 }

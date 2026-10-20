@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Trash2,
   Plus,
@@ -7,6 +7,8 @@ import {
   X,
   FolderArchive,
   Check,
+  ArrowLeft,
+  ArrowRight,
 } from 'lucide-react';
 import type { PhotoItem } from '../types/editor';
 
@@ -18,6 +20,7 @@ interface ThumbnailBarProps {
   onSelectPhoto: (id: string) => void;
   onDeletePhoto: (id: string, e?: React.MouseEvent) => void;
   onReplacePhoto: (id: string) => void;
+  onMovePhoto?: (fromIndex: number, toIndex: number) => void;
   onAddMorePhotos: () => void;
   onClearAll: () => void;
   onExportBatch?: () => void;
@@ -31,6 +34,7 @@ export const ThumbnailBar: React.FC<ThumbnailBarProps> = ({
   onSelectPhoto,
   onDeletePhoto,
   onReplacePhoto,
+  onMovePhoto,
   onAddMorePhotos,
   onClearAll,
   onExportBatch,
@@ -39,6 +43,7 @@ export const ThumbnailBar: React.FC<ThumbnailBarProps> = ({
 }) => {
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const activeThumbRef = useRef<HTMLButtonElement>(null);
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
   // Auto-centrar la miniatura activa suavemente en el carrete al cambiar de foto
   useEffect(() => {
@@ -55,7 +60,36 @@ export const ThumbnailBar: React.FC<ThumbnailBarProps> = ({
     }
   }, [activePhotoId, photos.length]);
 
-  const activePhoto = photos.find((p) => p.id === activePhotoId) || photos[0];
+  const currentIndex = photos.findIndex((p) => p.id === activePhotoId);
+  const activePhoto = photos[currentIndex >= 0 ? currentIndex : 0];
+
+  const handlePromptMove = (fromIndex: number) => {
+    if (!onMovePhoto) return;
+    const input = window.prompt(
+      `Mover foto #${fromIndex + 1} a la posición deseada (1 a ${photos.length}):`,
+      String(fromIndex + 1)
+    );
+    if (input) {
+      const parsed = parseInt(input.trim(), 10);
+      if (!isNaN(parsed) && parsed >= 1 && parsed <= photos.length) {
+        onMovePhoto(fromIndex, parsed - 1);
+      }
+    }
+  };
+
+  const handleDragStart = (e: React.DragEvent, index: number) => {
+    e.dataTransfer.setData('text/plain', String(index));
+    setDraggedIndex(index);
+  };
+
+  const handleDrop = (e: React.DragEvent, targetIndex: number) => {
+    e.preventDefault();
+    const sourceIndex = parseInt(e.dataTransfer.getData('text/plain'), 10);
+    if (!isNaN(sourceIndex) && sourceIndex !== targetIndex && onMovePhoto) {
+      onMovePhoto(sourceIndex, targetIndex);
+    }
+    setDraggedIndex(null);
+  };
 
   return (
     <>
@@ -96,6 +130,32 @@ export const ThumbnailBar: React.FC<ThumbnailBarProps> = ({
         {/* Cápsula fija de acciones directas sobre la foto activa */}
         {activePhoto && (
           <div className="filmstrip-quick-actions">
+            {/* Reordenar posición de la foto activa */}
+            {onMovePhoto && photos.length > 1 && (
+              <div className="filmstrip-reorder-pair" style={{ display: 'flex', gap: '2px' }}>
+                <button
+                  type="button"
+                  disabled={currentIndex <= 0}
+                  onClick={() => onMovePhoto(currentIndex, currentIndex - 1)}
+                  className="filmstrip-action-btn"
+                  title="Mover foto hacia la izquierda"
+                  style={{ opacity: currentIndex <= 0 ? 0.35 : 1, padding: '0 5px' }}
+                >
+                  <ArrowLeft size={13} />
+                </button>
+                <button
+                  type="button"
+                  disabled={currentIndex >= photos.length - 1}
+                  onClick={() => onMovePhoto(currentIndex, currentIndex + 1)}
+                  className="filmstrip-action-btn"
+                  title="Mover foto hacia la derecha"
+                  style={{ opacity: currentIndex >= photos.length - 1 ? 0.35 : 1, padding: '0 5px' }}
+                >
+                  <ArrowRight size={13} />
+                </button>
+              </div>
+            )}
+
             <button
               type="button"
               onClick={() => onReplacePhoto(activePhoto.id)}
@@ -143,7 +203,12 @@ export const ThumbnailBar: React.FC<ThumbnailBarProps> = ({
             <div className="batch-grid-header">
               <div className="batch-grid-title-group">
                 <LayoutGrid size={16} style={{ color: 'var(--color-accent)' }} />
-                <h3>Carrete de Sesión ({photos.length})</h3>
+                <div>
+                  <h3 style={{ margin: 0 }}>Carrete de Sesión ({photos.length})</h3>
+                  <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>
+                    Toca el número # para mover o usa las flechas ◀ ▶
+                  </span>
+                </div>
               </div>
 
               <div className="batch-grid-header-actions">
@@ -200,15 +265,37 @@ export const ThumbnailBar: React.FC<ThumbnailBarProps> = ({
                 return (
                   <div
                     key={photo.id}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, index)}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={(e) => handleDrop(e, index)}
                     onClick={() => {
                       onSelectPhoto(photo.id);
                       onToggleGrid(false);
                     }}
                     className={`batch-grid-card ${isSelected ? 'active' : ''}`}
+                    style={{
+                      opacity: draggedIndex === index ? 0.4 : 1,
+                      cursor: 'grab',
+                    }}
                   >
                     <div className="batch-grid-img-wrap">
                       <img src={photo.thumbnailUrl} alt={photo.name} />
-                      <span className="batch-grid-badge">#{index + 1}</span>
+                      
+                      {/* Badge interactivo: Tocar permite mover directamente a cualquier posición (ej. foto 8 al puesto 2) */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handlePromptMove(index);
+                        }}
+                        className="batch-grid-badge"
+                        style={{ cursor: 'pointer', border: '1px solid rgba(255,255,255,0.2)' }}
+                        title={`Toca para mover la foto #${index + 1} a otra posición`}
+                      >
+                        #{index + 1} ✎
+                      </button>
+
                       {photo.isRaw && <span className="batch-grid-raw">RAW</span>}
                       {isSelected && (
                         <span className="batch-grid-active-pill">
@@ -218,6 +305,32 @@ export const ThumbnailBar: React.FC<ThumbnailBarProps> = ({
                     </div>
 
                     <div className="batch-grid-card-footer" onClick={(e) => e.stopPropagation()}>
+                      {/* Botones de Reordenamiento Instantáneo 1 Toque */}
+                      {onMovePhoto && photos.length > 1 && (
+                        <div style={{ display: 'flex', gap: '2px', marginRight: 'auto' }}>
+                          <button
+                            type="button"
+                            disabled={index === 0}
+                            onClick={() => onMovePhoto(index, index - 1)}
+                            className="batch-card-btn"
+                            style={{ padding: '4px 6px', opacity: index === 0 ? 0.3 : 1 }}
+                            title="Mover antes"
+                          >
+                            <ArrowLeft size={11} />
+                          </button>
+                          <button
+                            type="button"
+                            disabled={index >= photos.length - 1}
+                            onClick={() => onMovePhoto(index, index + 1)}
+                            className="batch-card-btn"
+                            style={{ padding: '4px 6px', opacity: index >= photos.length - 1 ? 0.3 : 1 }}
+                            title="Mover después"
+                          >
+                            <ArrowRight size={11} />
+                          </button>
+                        </div>
+                      )}
+
                       <button
                         type="button"
                         onClick={() => {

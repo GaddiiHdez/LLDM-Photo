@@ -3,7 +3,7 @@ import { saveAs } from 'file-saver';
 import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
-import { renderProcessedPhoto, canvasToBlob } from './canvasEngine';
+import { renderProcessedPhoto, canvasToBlob, loadImage } from './canvasEngine';
 import type { PhotoItem, WatermarkSettings, FrameSettings, ExportOptions } from '../types/editor';
 
 const DEFAULT_EXPORT_OPTIONS: ExportOptions = {
@@ -116,23 +116,32 @@ export async function exportSinglePhoto(
   options: ExportOptions = DEFAULT_EXPORT_OPTIONS,
   mode: 'download' | 'share' = 'download'
 ): Promise<void> {
-  const maxDim = options.qualityPreset === 'social' ? 2048 : 0;
-  const jpegQuality = options.qualityPreset === 'social' ? 0.85 : 0.95;
+  const maxDim = options.qualityPreset === 'social' ? 2048 : 2560;
+  const jpegQuality = options.qualityPreset === 'social' ? 0.85 : 0.94;
   const prefix = (options.filenamePrefix || 'BereaSnap').trim().replace(/[^a-zA-Z0-9_-]/g, '_');
 
-  const canvas = await renderProcessedPhoto(
-    photo.originalUrl,
-    photo.adjustments,
-    watermark,
-    frame,
-    photo.crop,
-    maxDim
-  );
-  const blob = await canvasToBlob(canvas, jpegQuality);
-  const cleanName = photo.name.replace(/\.[^/.]+$/, '');
-  const fileName = `${prefix}_${cleanName}.jpg`;
+  let canvas: HTMLCanvasElement | null = null;
+  try {
+    canvas = await renderProcessedPhoto(
+      photo.originalUrl,
+      photo.adjustments,
+      watermark,
+      frame,
+      photo.crop,
+      maxDim
+    );
+    const blob = await canvasToBlob(canvas, jpegQuality);
+    const cleanName = photo.name.replace(/\.[^/.]+$/, '');
+    const fileName = `${prefix}_${cleanName}.jpg`;
 
-  await deliverExportedFile(blob, fileName, 'image/jpeg', mode);
+    await deliverExportedFile(blob, fileName, 'image/jpeg', mode);
+  } finally {
+    if (canvas) {
+      canvas.width = 0;
+      canvas.height = 0;
+      canvas = null;
+    }
+  }
 }
 
 /**
@@ -148,23 +157,50 @@ export async function exportBatchAsZip(
 ): Promise<void> {
   const zip = new JSZip();
   const prefix = (options.filenamePrefix || 'BereaSnap').trim().replace(/[^a-zA-Z0-9_-]/g, '_');
-  const maxDim = options.qualityPreset === 'social' ? 2048 : 0;
+  const maxDim = options.qualityPreset === 'social' ? 2048 : 2560;
   const jpegQuality = options.qualityPreset === 'social' ? 0.85 : 0.92;
 
   const folder = zip.folder(`${prefix}_Editadas`);
+
+  // Precargar elementos estáticos una sola vez para no recargarlos en cada iteración
+  let cachedPngFrame: HTMLImageElement | null = null;
+  if (frame.style === 'custom-png' && frame.pngDataUrl) {
+    try {
+      cachedPngFrame = await loadImage(frame.pngDataUrl);
+    } catch (e) {
+      console.warn('[BatchExport] No se pudo precargar marco PNG:', e);
+    }
+  }
+
+  let cachedLogo: HTMLImageElement | null = null;
+  if (watermark.enabled && watermark.type === 'image' && watermark.imageDataUrl) {
+    try {
+      cachedLogo = await loadImage(watermark.imageDataUrl);
+    } catch (e) {
+      console.warn('[BatchExport] No se pudo precargar logo:', e);
+    }
+  }
+
+  let processedCount = 0;
 
   for (let i = 0; i < photos.length; i++) {
     const photo = photos[i];
     onProgress(i + 1, photos.length, photo.name);
 
+    // Ceder el hilo de la UI y permitir Garbage Collection en memoria móvil
+    await new Promise((resolve) => setTimeout(resolve, 40));
+
+    let canvas: HTMLCanvasElement | null = null;
     try {
-      const canvas = await renderProcessedPhoto(
+      canvas = await renderProcessedPhoto(
         photo.originalUrl,
         photo.adjustments,
         watermark,
         frame,
         photo.crop,
-        maxDim
+        maxDim,
+        cachedPngFrame,
+        cachedLogo
       );
 
       const blob = await canvasToBlob(canvas, jpegQuality);
@@ -173,12 +209,55 @@ export async function exportBatchAsZip(
       const fileName = `${prefix}_${paddedIndex}_${cleanName}.jpg`;
 
       folder?.file(fileName, blob);
+      processedCount++;
     } catch (error) {
-      console.error(`Error procesando foto ${photo.name}:`, error);
+      console.error(`Error procesando foto ${photo.name} a resolución completa:`, error);
+      // Reintento de emergencia a 1600px en caso de pico de memoria en dispositivo de baja gama
+      try {
+        if (canvas) {
+          canvas.width = 0;
+          canvas.height = 0;
+        }
+        canvas = await renderProcessedPhoto(
+          photo.originalUrl,
+          photo.adjustments,
+          watermark,
+          frame,
+          photo.crop,
+          1600,
+          cachedPngFrame,
+          cachedLogo
+        );
+        const fallbackBlob = await canvasToBlob(canvas, 0.85);
+        const cleanName = photo.name.replace(/\.[^/.]+$/, '');
+        const paddedIndex = String(i + 1).padStart(2, '0');
+        const fileName = `${prefix}_${paddedIndex}_${cleanName}.jpg`;
+
+        folder?.file(fileName, fallbackBlob);
+        processedCount++;
+      } catch (retryErr) {
+        console.error(`Fallo definitivo en foto ${photo.name}:`, retryErr);
+      }
+    } finally {
+      // Liberar inmediatamente el buffer de memoria del Canvas en el motor gráfico
+      if (canvas) {
+        canvas.width = 0;
+        canvas.height = 0;
+        canvas = null;
+      }
     }
   }
 
-  const zipContent = await zip.generateAsync({ type: 'blob' });
+  if (processedCount === 0) {
+    throw new Error('No se pudo procesar ninguna fotografía del lote.');
+  }
+
+  const zipContent = await zip.generateAsync({
+    type: 'blob',
+    compression: 'DEFLATE',
+    compressionOptions: { level: 4 }, // Nivel 4 para balance velocidad/memoria en móvil
+  });
+
   const dateStr = new Date().toISOString().split('T')[0];
   const zipFileName = `${prefix}_Lote_${dateStr}.zip`;
 

@@ -73,6 +73,9 @@ interface SidebarControlsProps {
   onUpdateWatermark: (watermark: Partial<WatermarkSettings>) => void;
   onUpdateFrame: (frame: Partial<FrameSettings>) => void;
   onApplySettingsToAll: () => void;
+  onApplyCropToAll?: () => void;
+  onSyncFrameToAll?: () => void;
+  onSyncWatermarkToAll?: () => void;
   onSaveAsDefaultAppSettings: () => void;
   totalPhotos?: number;
 }
@@ -87,6 +90,9 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
   onUpdateWatermark,
   onUpdateFrame,
   onApplySettingsToAll,
+  onApplyCropToAll,
+  onSyncFrameToAll,
+  onSyncWatermarkToAll,
 }) => {
   const [activeTab, setActiveTab] = useState<'presets' | 'develop' | 'crop' | 'watermark' | 'frame'>('develop');
   const [frameSubMode, setFrameSubMode] = useState<'style' | 'text'>('style');
@@ -581,6 +587,16 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
                     <Target size={11} />
                     <span>Reset</span>
                   </button>
+
+                  <button
+                    type="button"
+                    onClick={onApplyCropToAll || onApplySettingsToAll}
+                    className="deck-mini-btn sync"
+                    title="Sincronizar este encuadre y proporción con todo el lote"
+                  >
+                    <CheckCheck size={11} />
+                    <span>Sync</span>
+                  </button>
                 </div>
               </div>
 
@@ -686,6 +702,18 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
                     ))}
                   </div>
                 )}
+
+                <div className="deck-row-actions">
+                  <button
+                    type="button"
+                    onClick={onSyncWatermarkToAll || onApplySettingsToAll}
+                    className="deck-mini-btn sync"
+                    title="Sincronizar firma con todas las fotos"
+                  >
+                    <CheckCheck size={11} />
+                    <span>Sync</span>
+                  </button>
+                </div>
               </div>
 
               {watermark.enabled && (
@@ -888,6 +916,16 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
                           <span>{frame.borderColor === '#ffffff' ? 'Fondo Blanco' : 'Fondo Oscuro'}</span>
                         </button>
                       )}
+
+                      <button
+                        type="button"
+                        onClick={onSyncFrameToAll || onApplySettingsToAll}
+                        className="deck-mini-btn sync"
+                        title="Sincronizar marco en todas las fotos del lote"
+                      >
+                        <CheckCheck size={11} />
+                        <span>Sync</span>
+                      </button>
                     </div>
                   </div>
 
@@ -1038,6 +1076,16 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
                       className={`deck-toggle-chip ${(frame.dynamicTextEnabled ?? true) ? 'on' : 'off'}`}
                     >
                       {(frame.dynamicTextEnabled ?? true) ? '✓' : 'Off'}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={onSyncFrameToAll || onApplySettingsToAll}
+                      className="deck-mini-btn sync"
+                      title="Sincronizar este texto de marco con todo el lote"
+                    >
+                      <CheckCheck size={11} />
+                      <span>Sync</span>
                     </button>
                   </div>
                 </div>
