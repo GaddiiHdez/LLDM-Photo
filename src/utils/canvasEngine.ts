@@ -393,10 +393,10 @@ export async function drawProcessedPhotoToCanvas(
 
           const lum = 0.299 * r + 0.587 * g + 0.114 * bPixel;
 
-          // Sombras (levantar o profundizar tonos oscuros)
+          // Sombras (levantar o profundizar tonos oscuros de forma suave sin ruido)
           if (shadowFactor !== 0 && lum < 140) {
             const weight = Math.pow((140 - lum) / 140, 1.4);
-            const delta = weight * shadowFactor * 75;
+            const delta = weight * shadowFactor * 55;
             r = Math.min(255, Math.max(0, r + delta));
             g = Math.min(255, Math.max(0, g + delta));
             bPixel = Math.min(255, Math.max(0, bPixel + delta));
@@ -405,7 +405,7 @@ export async function drawProcessedPhotoToCanvas(
           // Altas Luces (recuperar blancos quemados si < 0, o dar brillo especular si > 0)
           if (highlightFactor !== 0 && lum > 135) {
             const weight = Math.pow((lum - 135) / 120, 1.25);
-            const delta = weight * highlightFactor * 55;
+            const delta = weight * highlightFactor * 65;
             r = Math.min(255, Math.max(0, r + delta));
             g = Math.min(255, Math.max(0, g + delta));
             bPixel = Math.min(255, Math.max(0, bPixel + delta));
@@ -413,9 +413,9 @@ export async function drawProcessedPhotoToCanvas(
 
           // Calidez (Temperatura de color Ámbar / Azul)
           if (warmthFactor !== 0) {
-            r = Math.min(255, Math.max(0, r + warmthFactor * 26));
-            g = Math.min(255, Math.max(0, g + warmthFactor * 4));
-            bPixel = Math.min(255, Math.max(0, bPixel - warmthFactor * 26));
+            r = Math.min(255, Math.max(0, r + warmthFactor * 22));
+            g = Math.min(255, Math.max(0, g + warmthFactor * 3));
+            bPixel = Math.min(255, Math.max(0, bPixel - warmthFactor * 22));
           }
 
           data[i] = r;

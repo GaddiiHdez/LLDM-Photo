@@ -69,7 +69,7 @@ interface SidebarControlsProps {
   frame: FrameSettings;
   onUpdateAdjustments: (adjustments: ImageAdjustments) => void;
   onUpdateCrop: (crop: CropSettings) => void;
-  onApplyPreset: (preset: PresetType, customAdjustments?: ImageAdjustments) => void;
+  onApplyPreset: (preset: PresetType, customAdjustments?: ImageAdjustments) => void | Promise<void>;
   onUpdateWatermark: (watermark: Partial<WatermarkSettings>) => void;
   onUpdateFrame: (frame: Partial<FrameSettings>) => void;
   onApplySettingsToAll: () => void;

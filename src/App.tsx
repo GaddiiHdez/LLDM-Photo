@@ -241,9 +241,8 @@ export const App: React.FC = () => {
         if (sensorData) {
           realWidth = sensorData.width;
           realHeight = sensorData.height;
-          if (isRaw) {
-            adaptiveAdjustments = computeAdaptiveChurchEnhancement(sensorData);
-          }
+          // Calibración adaptativa inteligente individual para CADA fotografía (RAW y JPEG)
+          adaptiveAdjustments = computeAdaptiveChurchEnhancement(sensorData);
         }
 
         return {
@@ -296,8 +295,19 @@ export const App: React.FC = () => {
     );
   };
 
-  // Apply preset to active photo (soporta presets oficiales y personalizados de usuario)
-  const handleApplyPreset = (preset: PresetType, customAdjustments?: ImageAdjustments) => {
+  // Apply preset to active photo (soporta auto-análisis dinámico y presets personalizados)
+  const handleApplyPreset = async (preset: PresetType, customAdjustments?: ImageAdjustments) => {
+    if (preset === 'auto-church' && activePhoto) {
+      showToast('⚡ Analizando rango dinámico e histograma...');
+      const sensorData = await analyzeImageHistogram(activePhoto.originalUrl, activePhoto.isRaw);
+      const adaptive = computeAdaptiveChurchEnhancement(sensorData);
+      setPhotos((prev) =>
+        prev.map((p) => (p.id === activePhotoId ? { ...p, adjustments: adaptive, preset: 'auto-church' } : p))
+      );
+      showToast('✨ Auto-Tono inteligente adaptado (Luces y color protegidos)');
+      return;
+    }
+
     const adjustments = customAdjustments || (PRESET_ADJUSTMENTS as any)[preset] || PRESET_ADJUSTMENTS['custom'];
     setPhotos((prev) =>
       prev.map((p) => (p.id === activePhotoId ? { ...p, adjustments, preset } : p))
