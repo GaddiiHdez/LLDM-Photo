@@ -32,7 +32,9 @@ jobs:
           $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-36" "build-tools;36.0.0" "platform-tools" || true
 
       - name: Otorgar Permisos de Ejecución a Gradle
-        run: chmod +x android/gradlew
+        run: |
+          sed -i 's/\r$//' android/gradlew
+          chmod +x android/gradlew
 
       - name: Configurar Node.js 20
         uses: actions/setup-node@v4
@@ -47,7 +49,9 @@ jobs:
         run: npm run build
 
       - name: Sincronizar con Proyecto Android (Capacitor Sync)
-        run: npm run cap:sync
+        run: |
+          mkdir -p android/app/src/main/assets/public
+          npm run cap:sync
 
       - name: Compilar APK Android (assembleDebug)
         run: |
