@@ -70,40 +70,49 @@ jobs:
           cd android
           ./gradlew assembleDebug --stacktrace
 
-      - name: Renombrar Archivo APK
+      - name: Obtener Versión Semántica del Proyecto
+        run: |
+          APP_VER=$(node -p "require('./package.json').version")
+          echo "APP_VER=$APP_VER" >> $GITHUB_ENV
+
+      - name: Preparar y Nombrar Archivos APK
         run: |
           mkdir -p output-apk
-          cp android/app/build/outputs/apk/debug/app-debug.apk output-apk/BereaSnap-v1.0.apk
+          cp android/app/build/outputs/apk/debug/app-debug.apk output-apk/BereaSnap-v${{ env.APP_VER }}.apk
+          cp android/app/build/outputs/apk/debug/app-debug.apk output-apk/BereaSnap.apk
 
       - name: Publicar Archivo APK como Artefacto Descargable
         uses: actions/upload-artifact@v4
         with:
-          name: BereaSnap-v1.0-APK
-          path: output-apk/BereaSnap-v1.0.apk
+          name: BereaSnap-v${{ env.APP_VER }}-APK
+          path: output-apk/BereaSnap-v${{ env.APP_VER }}.apk
           retention-days: 30
 
       - name: Crear Release Automático con APK Adjunto
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/') || github.ref == 'refs/heads/main'
         with:
-          tag_name: v1.0.0-build${{ github.run_number }}
-          name: BereaSnap v1.0 (Build ${{ github.run_number }})
+          tag_name: v${{ env.APP_VER }}
+          name: BereaSnap v${{ env.APP_VER }} (Compilación ${{ github.run_number }})
           body: |
-            ## BereaSnap para Android (100% Offline)
+            ## 📱 BereaSnap para Android v${{ env.APP_VER }} (100% Offline)
             
-            ¡Tu archivo instalable `.apk` para Android está listo!
+            ¡La nueva versión de **BereaSnap** está lista para instalar!
             
-            ### Novedades:
-            - **100% Offline**: Funciona sin internet y sin pagar hosting.
-            - **Revelado RAW 14-Bit**: Soporte nativo para cámaras Nikon, Canon, Sony y Adobe DNG.
-            - **Marcos Dinámicos**: Marco Centenario oficial con tipografía dorada imperial personalizable.
-            - **Firma & Logos**: Marca de agua institucional o textos editoriales.
-            - **Exportación Rápida & Compartir**: Guardar en Galería o compartir directamente a WhatsApp / Telegram.
+            ### ✨ Novedades:
+            - **Sistema de Actualización In-App**: Notificación y descarga directa de actualizaciones desde la propia app.
+            - **Deck de Herramientas Cero-Scroll**: Arquitectura de 2 filas horizontales fijas sin scroll vertical.
+            - **Carrete Filmstrip Inteligente**: Sustitución de fotos en caliente manteniendo ajustes, borrado instantáneo y vista de cuadrícula.
+            - **Lienzo Maximizado & Gestos**: Swipe táctil con 1 dedo para navegación rápida y pellizco fluido (Pinch-to-zoom) a 60 FPS.
+            - **Motor RAW 14-Bit**: Revelado fotográfico offline para cámaras Nikon (.NEF), Canon (.CR2), Sony (.ARW) y Adobe DNG.
+            - **Marcos Dinámicos Centenario**: Tipografía Cinzel en oro imperial con chips para cultos y oraciones.
             
-            ### Instrucciones de Instalación:
-            1. Descarga el archivo `BereaSnap-v1.0.apk` en tu celular Android.
-            2. Tócalo en tus Descargas para instalar (si Android te pregunta, permite "Instalar aplicaciones de fuentes desconocidas" para tu navegador o explorador).
-            3. ¡Ábrela y disfruta de tu propio estudio fotográfico en el bolsillo!
-          files: output-apk/BereaSnap-v1.0.apk
+            ### 📥 Instrucciones de Instalación:
+            1. Descarga el archivo `BereaSnap-v${{ env.APP_VER }}.apk` en tu dispositivo Android.
+            2. Tócalo en tus Descargas para instalar (si Android te pregunta, permite "Instalar aplicaciones de fuentes desconocidas").
+            3. ¡Listo! Abre BereaSnap y disfruta de tu propio estudio fotográfico en el bolsillo.
+          files: |
+            output-apk/BereaSnap-v${{ env.APP_VER }}.apk
+            output-apk/BereaSnap.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

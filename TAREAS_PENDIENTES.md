@@ -1,42 +1,47 @@
-# 📋 Tareas Pendientes y Hoja de Ruta — LLDM Photo Studio PRO
+# 📋 Hoja de Ruta y Tareas — BereaSnap Android
 
-Documento de seguimiento de mejoras técnicas, optimizaciones de rendimiento y características planificadas para futuras versiones de la aplicación.
+Seguimiento de optimizaciones y características planificadas para las siguientes versiones de **BereaSnap**.
 
 ---
 
-## ⚡ 1. Rendimiento & Motor Gráfico (Alta Prioridad)
+## ✅ Implementado en BereaSnap v1.1.0
 
-### 🚀 Optimización del Motor de Lienzo para Dispositivos de Gama de Entrada
+- [x] **Rediseño UX/UI 2.0 Móvil**:
+  - Deck de herramientas ergonómico de 2 filas horizontales con cero scroll vertical.
+  - Carrete filmstrip persistente (50px) bajo el lienzo.
+  - Botón de sustitución directa de fotografía conservando ajustes en lote.
+  - Vista de cuadrícula completa de lote (`⊞ Lote`).
+  - Gestos táctiles de deslizamiento (Swipe con 1 dedo) y zoom a 60 FPS (Pinch con 2 dedos).
+- [x] **Empaquetado Nativo Android con Capacitor**:
+  - Pipeline de compilación automática de APK en GitHub Actions.
+  - Funcionamiento 100% offline sin servidores ni costos de alojamiento.
+  - Fuentes, iconos y marcos integrados localmente en los assets.
+- [x] **Sistema de Actualización In-App (APK Updater)**:
+  - Detección automática de nuevas versiones desde GitHub Releases.
+  - Modal informativo con notas de la versión y descarga directa del APK.
+- [x] **Adopción de Versionado Semántico (SemVer)**:
+  - Estándar `MAJOR.MINOR.PATCH` coordinado entre `package.json`, Gradle y GitHub Actions.
+- [x] **Documentación y Organización del Repositorio**:
+  - `README.md` reescrito con arquitectura, badges y guías de desarrollo.
+
+---
+
+## 🚀 Próximas Versiones (v1.2.0+)
+
+### ⚡ 1. Rendimiento & Motor Gráfico
 - [ ] **Migración a `OffscreenCanvas` en Web Worker**:
-  - Mover las operaciones de procesamiento y renderizado de canvas fuera del hilo principal (Main UI Thread) hacia un Web Worker secundario.
-  - Esto garantiza que la interfaz de usuario, los gestos táctiles y las animaciones permanezcan a 60–120 FPS sin importar la carga de procesamiento de la imagen.
-- [ ] **Arquitectura de Drag basada en CSS Transform con Commit Diferido**:
-  - Durante el arrastre o pellizco en tiempo real, transformar la posición y escala visual del contenedor con `transform: translate3d(...) scale(...)` acelerado al 100% por el Compositor de la GPU.
-  - Ejecutar el redibujado de la matriz gráfica del canvas únicamente al levantar los dedos (`touchend` / `mouseup`).
-- [ ] **Pipeline de Shaders WebGL / WebGPU**:
-  - Implementar shaders GLSL para filtros de exposición, brillo, contraste, temperatura, sombras y altas luces.
-  - El cálculo pixel por pixel se ejecutará en paralelo en los núcleos de la GPU del celular en microsegundos, eliminando cualquier cuello de botella en CPU para teléfonos de gama baja o media.
+  - Mover el procesamiento intensivo de imágenes grandes (24-45 megapíxeles) fuera del hilo principal para garantizar fluidez absoluta durante la exportación.
+- [ ] **Aceleración por GPU (WebGL Shaders)**:
+  - Shaders para ajustes de balance de blancos, contraste y exposición en tiempo real en microsegundos.
 
----
-
-## 🎨 2. Interfaz y Experiencia de Usuario (UI/UX)
-
-- [ ] **Soporte para Gestos de Rotación (Giro con dos dedos)**:
-  - Permitir rotar libremente o nivelar horizontes torcidos con dos dedos sobre la pantalla.
-- [ ] **Guías de Composición Superpuestas (Regla de Tercios / Sección Áurea)**:
-  - Opción para activar una cuadrícula translúcida al arrastrar para facilitar el encuadre fotográfico profesional.
-- [ ] **Historial de Deshacer / Rehacer (Undo / Redo)**:
-  - Botones y atajos `Ctrl+Z` / `Ctrl+Y` para revertir ajustes y encuadres aplicados por error.
-
----
-
-## 📦 3. Procesamiento en Lote y Exportación
-
-- [ ] **Opciones de Compresión y Formato en la Exportación**:
-  - Selector de calidad JPEG (80%, 90%, 100%) y soporte para exportar en WebP para reducir peso de descarga.
+### 📦 2. Exportación y Almacenamiento
+- [ ] **Selector de Compresión y Formato**:
+  - Opciones de calidad JPEG (85%, 95%, 100%) y exportación alternativa en formato WebP para ahorrar espacio.
 - [ ] **Renombrado Inteligente de Lote**:
-  - Posibilidad de definir un prefijo común (ej. `Culto_Dominical_01.jpg`, `Culto_Dominical_02.jpg`).
+  - Plantillas de nombre personalizadas para eventos (ej. `Escuela_Dominical_2026_01.jpg`).
+- [ ] **Integración con Android MediaStore**:
+  - Guardado directo en el álbum fotográfico del dispositivo con nombre de álbum `BereaSnap`.
 
 ---
 
-*Última actualización: 26 de Septiembre, 2026*
+*Actualizado: Octubre 2026 — BereaSnap v1.1.0*

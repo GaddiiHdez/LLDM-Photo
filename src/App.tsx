@@ -6,6 +6,9 @@ import { ThumbnailBar } from './components/ThumbnailBar';
 import { PreviewStage } from './components/PreviewStage';
 import { SidebarControls } from './components/SidebarControls';
 import { ExportModal } from './components/ExportModal';
+import { UpdateModal } from './components/UpdateModal';
+import { checkForUpdate, type UpdateInfo } from './services/updateService';
+import { APP_VERSION } from './version';
 
 import type {
   PhotoItem,
@@ -128,6 +131,29 @@ export const App: React.FC = () => {
       setToastMsg(null);
     }, 2800);
   };
+
+  // In-App Update Checker State
+  const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
+  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
+  const [hasUpdateBadge, setHasUpdateBadge] = useState(false);
+
+  useEffect(() => {
+    // Comprobar actualizaciones silenciosamente al iniciar
+    checkForUpdate(APP_VERSION)
+      .then((info) => {
+        if (info.isAvailable) {
+          setUpdateInfo(info);
+          setHasUpdateBadge(true);
+          const dismissed = localStorage.getItem('bereasnap_dismissed_version');
+          if (dismissed !== info.latestVersion) {
+            setIsUpdateModalOpen(true);
+          }
+        }
+      })
+      .catch(() => {
+        // Modo offline silencioso
+      });
+  }, []);
 
   // Batch Grid Sheet State (Vista de cuadrícula para gestionar todo el carrete)
   const [isGridOpen, setIsGridOpen] = useState<boolean>(false);
@@ -461,10 +487,12 @@ export const App: React.FC = () => {
         activePhoto={activePhoto}
         theme={theme}
         showOriginal={showOriginal}
+        hasUpdateBadge={hasUpdateBadge}
         onToggleOriginal={(val) => setShowOriginal((prev) => (typeof val === 'boolean' ? val : !prev))}
         onSelectTheme={handleSelectTheme}
         onToggleTheme={toggleTheme}
         onOpenGrid={() => setIsGridOpen(true)}
+        onOpenAbout={() => setIsUpdateModalOpen(true)}
         onSingleExport={handleSingleExport}
         onSingleShare={handleSingleShare}
         onExportBatch={handleExportBatch}
@@ -542,6 +570,18 @@ export const App: React.FC = () => {
         onChangeOptions={setExportOptions}
         onStartExport={handleStartBatchExport}
         onClose={() => setIsExportModalOpen(false)}
+      />
+
+      {/* Modal In-App de Actualizaciones & Versión */}
+      <UpdateModal
+        isOpen={isUpdateModalOpen}
+        onClose={() => {
+          setIsUpdateModalOpen(false);
+          if (updateInfo?.latestVersion) {
+            localStorage.setItem('bereasnap_dismissed_version', updateInfo.latestVersion);
+          }
+        }}
+        initialInfo={updateInfo}
       />
 
       {/* Notificación Toast Flotante No-Intrusiva (Popover Top-Layer + Fallback) */}
