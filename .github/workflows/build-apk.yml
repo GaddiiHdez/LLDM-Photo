@@ -13,6 +13,8 @@ jobs:
   build-apk:
     name: Compilar APK Android
     runs-on: ubuntu-latest
+    env:
+      CAPACITOR_TELEMETRY: "false"
 
     steps:
       - name: Descargar Código
@@ -23,6 +25,9 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '21'
+
+      - name: Configurar Android SDK
+        uses: android-actions/setup-android@v3
 
       - name: Otorgar Permisos de Ejecución a Gradle
         run: chmod +x android/gradlew
@@ -40,7 +45,7 @@ jobs:
         run: npm run build
 
       - name: Sincronizar con Proyecto Android (Capacitor Sync)
-        run: npx cap sync android
+        run: npx @capacitor/cli sync android
 
       - name: Compilar APK Android (assembleDebug)
         run: |
