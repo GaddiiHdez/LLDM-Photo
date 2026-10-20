@@ -8,8 +8,6 @@ import {
   RotateCcw,
   Crop,
   Maximize2,
-  Bookmark,
-  Trash2,
   Star,
   Wand2,
   SunMedium,
@@ -21,8 +19,6 @@ import {
   Plus,
   Square,
   ZoomIn,
-  MoveHorizontal,
-  MoveVertical,
   Target,
   Type,
   Eye,
@@ -34,6 +30,8 @@ import {
   RotateCw,
   FlipHorizontal2,
   Compass,
+  Check,
+  X,
 } from 'lucide-react';
 import {
   getCustomPresets,
@@ -77,8 +75,6 @@ interface SidebarControlsProps {
   onApplySettingsToAll: () => void;
   onSaveAsDefaultAppSettings: () => void;
   totalPhotos?: number;
-  onToggleFilmstrip?: () => void;
-  isFilmstripCollapsed?: boolean;
 }
 
 export const SidebarControls: React.FC<SidebarControlsProps> = ({
@@ -91,26 +87,18 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
   onUpdateWatermark,
   onUpdateFrame,
   onApplySettingsToAll,
-  onSaveAsDefaultAppSettings,
-  totalPhotos,
-  onToggleFilmstrip,
-  isFilmstripCollapsed,
 }) => {
-  const [activeTab, setActiveTab] = useState<'develop' | 'crop' | 'watermark' | 'frame'>('develop');
-  const [developSubMode, setDevelopSubMode] = useState<'manual' | 'presets'>('manual');
-  const [watermarkSubMode, setWatermarkSubMode] = useState<'source' | 'adjust'>('source');
+  const [activeTab, setActiveTab] = useState<'presets' | 'develop' | 'crop' | 'watermark' | 'frame'>('develop');
   const [frameSubMode, setFrameSubMode] = useState<'style' | 'text'>('style');
-  const [activeLightParam, setActiveLightParam] = useState<keyof ImageAdjustments>('contrast');
+  const [activeLightParam, setActiveLightParam] = useState<keyof ImageAdjustments>('brightness');
   const [customPresets, setCustomPresets] = useState<CustomPreset[]>([]);
-  const [showSavePresetModal, setShowSavePresetModal] = useState<boolean>(false);
+  const [showSavePresetInput, setShowSavePresetInput] = useState<boolean>(false);
   const [newPresetName, setNewPresetName] = useState<string>('');
-  const [savePresetToast, setSavePresetToast] = useState<string | null>(null);
-  const [activeCropParam, setActiveCropParam] = useState<'zoom' | 'straighten' | 'offsetX' | 'offsetY'>('zoom');
+  const [activeCropParam, setActiveCropParam] = useState<'straighten' | 'zoom'>('straighten');
   const [activeWmParam, setActiveWmParam] = useState<'opacity' | 'size'>('opacity');
 
   const [savedFrames, setSavedFrames] = useState<SavedPngFrame[]>([]);
   const [savedLogos, setSavedLogos] = useState<SavedLogo[]>([]);
-  const [savedDefaultToast, setSavedDefaultToast] = useState<boolean>(false);
 
   const logoInputRef = useRef<HTMLInputElement>(null);
   const framePngInputRef = useRef<HTMLInputElement>(null);
@@ -128,31 +116,30 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
 
   const handleSaveCustomPreset = () => {
     if (!newPresetName.trim()) return;
-    const updated = saveCustomPreset(newPresetName, photo.adjustments);
+    const updated = saveCustomPreset(newPresetName.trim(), photo.adjustments);
     setCustomPresets(updated);
     const createdId = updated[0]?.id || 'custom';
     onApplyPreset(createdId, photo.adjustments);
     setNewPresetName('');
-    setShowSavePresetModal(false);
-    setSavePresetToast('¡Preset guardado!');
-    setTimeout(() => setSavePresetToast(null), 2500);
+    setShowSavePresetInput(false);
   };
 
   const lightParams: {
     key: keyof ImageAdjustments;
     label: string;
+    shortLabel: string;
     icon: React.FC<{ size?: number; className?: string }>;
     min: number;
     max: number;
     step: number;
   }[] = [
-    { key: 'brightness', label: 'Exposición', icon: SunMedium, min: -100, max: 100, step: 1 },
-    { key: 'contrast', label: 'Contraste', icon: Contrast, min: -100, max: 100, step: 1 },
-    { key: 'highlights', label: 'Altas Luces', icon: Sun, min: -100, max: 100, step: 1 },
-    { key: 'shadows', label: 'Sombras', icon: Moon, min: -100, max: 100, step: 1 },
-    { key: 'saturation', label: 'Saturación', icon: Droplets, min: -100, max: 100, step: 1 },
-    { key: 'warmth', label: 'Calidez', icon: Thermometer, min: -100, max: 100, step: 1 },
-    { key: 'sharpness', label: 'Nitidez', icon: Focus, min: 0, max: 100, step: 1 },
+    { key: 'brightness', label: 'Exposición', shortLabel: 'Exposición', icon: SunMedium, min: -100, max: 100, step: 1 },
+    { key: 'contrast', label: 'Contraste', shortLabel: 'Contraste', icon: Contrast, min: -100, max: 100, step: 1 },
+    { key: 'highlights', label: 'Altas Luces', shortLabel: 'Altas Luces', icon: Sun, min: -100, max: 100, step: 1 },
+    { key: 'shadows', label: 'Sombras', shortLabel: 'Sombras', icon: Moon, min: -100, max: 100, step: 1 },
+    { key: 'saturation', label: 'Saturación', shortLabel: 'Saturación', icon: Droplets, min: -100, max: 100, step: 1 },
+    { key: 'warmth', label: 'Calidez', shortLabel: 'Calidez', icon: Thermometer, min: -100, max: 100, step: 1 },
+    { key: 'sharpness', label: 'Nitidez', shortLabel: 'Nitidez', icon: Focus, min: 0, max: 100, step: 1 },
   ];
 
   const handleSliderChange = (key: keyof ImageAdjustments, value: number) => {
@@ -177,8 +164,7 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
       reader.onload = (event) => {
         if (event.target?.result) {
           const dataUrl = event.target.result as string;
-          // Guardar automáticamente en el catálogo persistente
-          const updated = saveLogo(name || 'Logo de la Iglesia', dataUrl, true);
+          const updated = saveLogo(name || 'Logo', dataUrl, true);
           setSavedLogos(updated);
           onUpdateWatermark({
             type: 'image',
@@ -207,7 +193,6 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
     setSavedLogos(updated);
   };
 
-
   const handleFramePngUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
@@ -216,7 +201,7 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
       reader.onload = (event) => {
         if (event.target?.result) {
           const dataUrl = event.target.result as string;
-          const updated = savePngFrame(fileName || 'Marco de la Iglesia', dataUrl, true);
+          const updated = savePngFrame(fileName || 'Marco PNG', dataUrl, true);
           setSavedFrames(updated);
           onUpdateFrame({
             style: 'custom-png',
@@ -243,652 +228,381 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
     setSavedFrames(updated);
   };
 
-
-  const handleSaveCurrentDefault = () => {
-    onSaveAsDefaultAppSettings();
-    setSavedDefaultToast(true);
-    setTimeout(() => setSavedDefaultToast(false), 2500);
-  };
-
-  const presetsList: { id: PresetType; label: string; icon: React.FC<{ size?: number; className?: string }>; desc: string }[] = [
+  const presetsList: { id: PresetType; label: string; shortDesc: string; icon: React.FC<{ size?: number; className?: string }> }[] = [
     {
       id: 'auto-church',
-      label: 'Auto Enhance',
+      label: 'Auto-Tono',
+      shortDesc: 'Luz y Balance IA',
       icon: Wand2,
-      desc: 'Optimización inteligente de balance de blancos, sombras y rango dinámico',
     },
     {
       id: 'warm-worship',
-      label: 'Warm Light',
+      label: 'Luz Cálida',
+      shortDesc: 'Dorado Solemne',
       icon: SunMedium,
-      desc: 'Atmósfera dorada envolvente, ideal para retratos y cultos de adoración',
     },
     {
       id: 'vibrant-praise',
-      label: 'Vivid Stage',
+      label: 'Escenario Vivo',
+      shortDesc: 'Color y Nitidez',
       icon: Sparkles,
-      desc: 'Colores vivos, micro-contraste y saturación selectiva para eventos',
     },
     {
       id: 'elegant-bw',
-      label: 'Classic Monochrome',
+      label: 'Monocromo',
+      shortDesc: 'B&N Editorial',
       icon: Contrast,
-      desc: 'Blanco y negro cinematográfico con transiciones tonales ricas',
     },
   ];
 
-  const ratioList = [
-    {
-      id: 'original' as AspectRatioType,
-      label: 'Original',
-      renderIcon: () => (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M4 8V4m0 0h4M4 4l5 5m11-5v4m0-4h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 4h-4m4 0l-5-5" />
-        </svg>
-      ),
-    },
-    {
-      id: '1:1' as AspectRatioType,
-      label: '1:1 Cuadrado',
-      renderIcon: () => (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <rect x="3" y="3" width="18" height="18" rx="2" />
-        </svg>
-      ),
-    },
-    {
-      id: '4:5' as AspectRatioType,
-      label: '4:5 Post IG',
-      renderIcon: () => (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <rect x="4.5" y="2" width="15" height="20" rx="2" />
-        </svg>
-      ),
-    },
-    {
-      id: '9:16' as AspectRatioType,
-      label: '9:16 Story',
-      renderIcon: () => (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <rect x="6.5" y="2" width="11" height="20" rx="2" />
-        </svg>
-      ),
-    },
-    {
-      id: '16:9' as AspectRatioType,
-      label: '16:9 Cine',
-      renderIcon: () => (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <rect x="2" y="6.5" width="20" height="11" rx="2" />
-        </svg>
-      ),
-    },
-    {
-      id: '3:2' as AspectRatioType,
-      label: '3:2 Paisaje',
-      renderIcon: () => (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <rect x="2" y="5" width="20" height="14" rx="2" />
-        </svg>
-      ),
-    },
-    {
-      id: '2:3' as AspectRatioType,
-      label: '2:3 Retrato',
-      renderIcon: () => (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <rect x="5" y="2" width="14" height="20" rx="2" />
-        </svg>
-      ),
-    },
-    {
-      id: '3:4' as AspectRatioType,
-      label: '3:4 Clásico',
-      renderIcon: () => (
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <rect x="4" y="3" width="16" height="18" rx="2" />
-        </svg>
-      ),
-    },
+  const ratioList: { id: AspectRatioType; label: string; w: number; h: number }[] = [
+    { id: 'original', label: 'Libre', w: 18, h: 14 },
+    { id: '1:1', label: '1:1', w: 15, h: 15 },
+    { id: '4:5', label: '4:5 IG', w: 13, h: 16 },
+    { id: '9:16', label: '9:16 Story', w: 10, h: 17 },
+    { id: '16:9', label: '16:9 Cine', w: 18, h: 10 },
+    { id: '3:2', label: '3:2 Foto', w: 17, h: 12 },
+    { id: '2:3', label: '2:3 Retrato', w: 12, h: 17 },
+    { id: '3:4', label: '3:4 Clásico', w: 13, h: 17 },
   ];
 
-
+  const hasAnyAdjustment = Object.values(photo.adjustments).some((v) => v !== 0);
 
   return (
     <aside className="sidebar-controls card-glass">
-      {/* Control Tabs Header (Dock de Navegación) */}
-      <div className="sidebar-tabs">
-        <button
-          onClick={() => setActiveTab('develop')}
-          className={`sidebar-tab ${activeTab === 'develop' ? 'active' : ''}`}
-          title="Revelado: Presets y Ajustes Manuales de Luz"
-        >
-          <Sparkles size={15} />
-          <span>Revelado</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('crop')}
-          className={`sidebar-tab ${activeTab === 'crop' ? 'active' : ''}`}
-          title="Relación de aspecto y encuadre"
-        >
-          <Crop size={15} />
-          <span>Encuadre</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('watermark')}
-          className={`sidebar-tab ${activeTab === 'watermark' ? 'active' : ''}`}
-          title="Marca de agua y logotipo institucional"
-        >
-          <ImageIcon size={15} />
-          <span>Firma</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab('frame')}
-          className={`sidebar-tab ${activeTab === 'frame' ? 'active' : ''}`}
-          title="Marcos institucionales y de eventos"
-        >
-          <FrameIcon size={15} />
-          <span>Marcos</span>
-        </button>
-
-        {onToggleFilmstrip && (
-          <button
-            onClick={onToggleFilmstrip}
-            className={`sidebar-tab tab-session ${!isFilmstripCollapsed ? 'active' : ''}`}
-            title="Ver o gestionar tira de fotos de la sesión"
-          >
-            <Bookmark size={15} />
-            <span>Sesión {totalPhotos ? `(${totalPhotos})` : ''}</span>
-          </button>
-        )}
-      </div>
-
-      {/* Barra de Sincronización de Sesión Minimalista */}
-      <div className="session-sync-bar">
-        <button
-          onClick={onApplySettingsToAll}
-          className="sync-pill-btn"
-          title="Copiar los ajustes actuales a todas las fotos del lote"
-        >
-          <CheckCheck size={13} style={{ color: 'var(--color-brand-light)' }} />
-          <span>Sincronizar Lote</span>
-        </button>
-
-        <button
-          onClick={() => setShowSavePresetModal((prev) => !prev)}
-          className="default-pill-btn"
-          title="Guardar estos ajustes como un nuevo preset personalizado"
-        >
-          <Plus size={13} />
-          <span>Guardar Preset</span>
-        </button>
-
-        <button
-          onClick={handleSaveCurrentDefault}
-          className={`default-pill-btn ${savedDefaultToast ? 'saved' : ''}`}
-          title="Guardar esta configuración como inicio predeterminado global"
-          style={{ display: 'none' }}
-        >
-          <Bookmark size={13} />
-          <span>Predeterminar</span>
-        </button>
-      </div>
-
+      {/* CONTENIDO DEL PANEL DE HERRAMIENTAS (ESTRICTO 2 FILAS EN MÓVIL — CERO SCROLL VERTICAL) */}
       <div className="sidebar-content">
-        {/* TAB UNIFICADO: REVELADO (PRESETS + AJUSTES MANUALES ESTILO SNAPSEED / LIGHTROOM) */}
-        {activeTab === 'develop' && (
-          <div className="control-section develop-section">
-            {/* Modal / Card para Guardar Preset Personalizado */}
-            {showSavePresetModal && (
-              <div className="save-preset-card">
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
-                  <strong style={{ fontSize: '0.78rem', color: 'var(--color-accent)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                    <Star size={13} fill="var(--color-accent)" />
-                    Guardar Preset de Revelado
-                  </strong>
-                  <span style={{ fontSize: '0.65rem', color: 'var(--text-muted)' }}>Guarda en tu navegador</span>
-                </div>
-                <div style={{ display: 'flex', gap: '0.4rem' }}>
+        {/* ============================================================
+            TAB 1: FILTROS Y PRESETS (CARRUSEL HORIZONTAL VISUAL)
+           ============================================================ */}
+        {activeTab === 'presets' && (
+          <div className="tool-deck-panel">
+            {/* FILA 1: Barra superior de acciones de Presets */}
+            <div className="deck-top-row">
+              {showSavePresetInput ? (
+                <div className="inline-save-preset-row">
                   <input
                     type="text"
                     value={newPresetName}
                     onChange={(e) => setNewPresetName(e.target.value)}
-                    placeholder="Ej. Retrato Cálido Culto..."
-                    className="form-input"
-                    style={{ flex: 1, padding: '0.42rem 0.65rem', fontSize: '0.78rem' }}
+                    placeholder="Nombre de tu filtro..."
+                    className="deck-compact-input"
                     autoFocus
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') handleSaveCustomPreset();
                     }}
                   />
-                  <button
-                    type="button"
-                    onClick={handleSaveCustomPreset}
-                    className="btn-primary"
-                    style={{ padding: '0.42rem 0.75rem', fontSize: '0.75rem', fontWeight: 700 }}
-                  >
-                    Guardar
+                  <button type="button" onClick={handleSaveCustomPreset} className="deck-mini-btn primary">
+                    <Check size={12} />
+                    <span>Guardar</span>
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowSavePresetModal(false)}
-                    className="btn-secondary"
-                    style={{ padding: '0.42rem 0.55rem', fontSize: '0.75rem' }}
-                  >
-                    ✕
+                  <button type="button" onClick={() => setShowSavePresetInput(false)} className="deck-mini-btn">
+                    <X size={12} />
                   </button>
                 </div>
-              </div>
-            )}
-
-            {savePresetToast && (
-              <div className="preset-toast-badge">
-                <Star size={13} fill="#f59e0b" color="#f59e0b" />
-                <span>{savePresetToast}</span>
-              </div>
-            )}
-
-            {/* Selector de Sub-modo: Ajustes Manuales vs Presets */}
-            <div className="develop-mode-pills">
-              <button
-                type="button"
-                onClick={() => setDevelopSubMode('manual')}
-                className={`develop-mode-btn ${developSubMode === 'manual' ? 'active' : ''}`}
-              >
-                <SlidersHorizontal size={13} />
-                <span>Ajustes Manuales</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setDevelopSubMode('presets')}
-                className={`develop-mode-btn ${developSubMode === 'presets' ? 'active' : ''}`}
-              >
-                <Wand2 size={13} />
-                <span>Presets ({presetsList.length + customPresets.length})</span>
-              </button>
+              ) : (
+                <>
+                  <div className="deck-row-left">
+                    <Sparkles size={13} style={{ color: 'var(--color-accent)' }} />
+                    <span className="deck-row-title">ESTILOS DE REVELADO</span>
+                  </div>
+                  <div className="deck-row-actions">
+                    <button
+                      type="button"
+                      onClick={() => setShowSavePresetInput(true)}
+                      className="deck-mini-btn accent"
+                      title="Guardar tus ajustes actuales como un nuevo filtro"
+                    >
+                      <Plus size={12} />
+                      <span>Guardar Filtro</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onApplyPreset('custom')}
+                      className="deck-mini-btn"
+                      title="Quitar filtro y volver a valores neutros"
+                    >
+                      <RotateCcw size={11} />
+                      <span>Neutro</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={onApplySettingsToAll}
+                      className="deck-mini-btn sync"
+                      title="Aplicar este estilo a todas las fotos del lote"
+                    >
+                      <CheckCheck size={12} />
+                      <span>Sync Lote</span>
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
 
-            {/* MODO 1: AJUSTES MANUALES (VISTA 1: SLIDER MAESTRO ACTIVO + CINTA DE PARÁMETROS) */}
-            {developSubMode === 'manual' && (
-              <div className="manual-develop-container">
-                {(() => {
-                  const activeParamConfig = lightParams.find((p) => p.key === activeLightParam) || lightParams[1];
-                  const ActiveIcon = activeParamConfig.icon;
-                  const activeValue = photo.adjustments[activeLightParam] ?? 0;
-
-                  return (
-                    <div className="master-slider-card">
-                      <div className="master-slider-header">
-                        <div className="slider-label-group">
-                          <ActiveIcon size={15} className="active-param-icon" />
-                          <span className="slider-param-name">{activeParamConfig.label.toUpperCase()}</span>
-                        </div>
-
-                        <div className="slider-value-bubble">
-                          <span>{activeValue > 0 ? `+${activeValue}` : activeValue}</span>
-                        </div>
-
-                        <button
-                          type="button"
-                          onClick={() => handleSliderChange(activeLightParam, 0)}
-                          className="slider-reset-action"
-                          title="Restablecer este parámetro a 0"
-                        >
-                          <span>Reiniciar</span>
-                          <RotateCcw size={11} />
-                        </button>
-                      </div>
-
-                      <div className="master-slider-track-wrap">
-                        <input
-                          type="range"
-                          min={activeParamConfig.min}
-                          max={activeParamConfig.max}
-                          step={activeParamConfig.step}
-                          value={activeValue}
-                          onChange={(e) => handleSliderChange(activeLightParam, Number(e.target.value))}
-                          onDoubleClick={() => handleSliderChange(activeLightParam, 0)}
-                          className="master-range-slider"
-                          title="Doble toque para restablecer a 0"
-                        />
-                        <div className="master-slider-ticks">
-                          <span className="tick-side">{activeParamConfig.min}</span>
-                          <span className="tick-center">{activeParamConfig.min === 0 ? '50' : '0'}</span>
-                          <span className="tick-side">+{activeParamConfig.max}</span>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })()}
-
-                {/* CINTA DE PARÁMETROS CON ICONOS (VISTA 1) */}
-                <div className="param-icons-carousel">
-                  {lightParams.map((p) => {
-                    const Icon = p.icon;
-                    const isSelected = activeLightParam === p.key;
-                    const val = photo.adjustments[p.key] ?? 0;
-                    const isModified = val !== 0;
-
-                    return (
-                      <button
-                        key={p.key}
-                        type="button"
-                        onClick={() => setActiveLightParam(p.key)}
-                        onDoubleClick={() => handleSliderChange(p.key, 0)}
-                        className={`param-icon-pill ${isSelected ? 'active' : ''}`}
-                        title={`${p.label} (Doble toque para reiniciar)`}
-                      >
-                        <div className={`param-icon-circle ${isSelected ? 'active' : ''}`}>
-                          <Icon size={18} />
-                          {isModified && <span className="param-modified-dot" />}
-                        </div>
-                        <span className="param-icon-name">{p.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {/* ACCIONES RÁPIDAS EN DESARROLLO MANUAL */}
-                <div className="develop-quick-actions">
+            {/* FILA 2: Carrusel horizontal de tarjetas de filtros */}
+            <div className="deck-horizontal-strip presets-strip">
+              {/* Presets de Fábrica */}
+              {presetsList.map((p) => {
+                const IconComponent = p.icon;
+                const isActive = photo.preset === p.id;
+                return (
                   <button
+                    key={p.id}
                     type="button"
-                    onClick={() => onApplyPreset('auto-church')}
-                    className="btn-secondary develop-action-btn"
-                    title="Calcular y aplicar balance tonal óptimo automáticamente"
+                    onClick={() => onApplyPreset(p.id)}
+                    className={`filter-strip-card ${isActive ? 'active' : ''}`}
                   >
-                    <Wand2 size={13} style={{ color: '#38bdf8' }} />
-                    <span>Auto-Tono</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setShowSavePresetModal(true)}
-                    className="btn-secondary develop-action-btn"
-                    title="Guardar ajuste actual como preset personalizado"
-                  >
-                    <Star size={13} style={{ color: '#f59e0b' }} />
-                    <span>Guardar Preset</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => onApplyPreset('custom')}
-                    className="btn-secondary develop-action-btn"
-                    title="Restablecer todos los sliders a neutro"
-                  >
-                    <RotateCcw size={13} />
-                    <span>Restablecer</span>
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* MODO 2: PRESETS (PREAJUSTES DE FÁBRICA + PRESETS PROPIOS) */}
-            {developSubMode === 'presets' && (
-              <div className="presets-develop-container">
-                {/* PRESETS PROPIOS DEL USUARIO */}
-                {customPresets.length > 0 && (
-                  <div style={{ marginBottom: '1rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.45rem' }}>
-                      <span style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--color-accent)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                        ★ Mis Presets Guardados ({customPresets.length})
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => setShowSavePresetModal(true)}
-                        className="btn-secondary btn-sm"
-                        style={{ fontSize: '0.68rem', padding: '0.18rem 0.5rem' }}
-                      >
-                        <Plus size={11} />
-                        <span>Nuevo</span>
-                      </button>
+                    <div className={`filter-strip-icon ${isActive ? 'active' : ''}`}>
+                      <IconComponent size={16} />
                     </div>
-
-                    <div className="preset-grid">
-                      {customPresets.map((cp) => {
-                        const isActive = photo.preset === cp.id;
-                        return (
-                          <div
-                            key={cp.id}
-                            onClick={() => onApplyPreset(cp.id, cp.adjustments)}
-                            className={`preset-card user-preset ${isActive ? 'active' : ''}`}
-                          >
-                            <div className={`preset-icon-wrapper user-preset ${isActive ? 'active' : ''}`}>
-                              <Star size={16} fill={isActive ? '#ffffff' : '#f59e0b'} color={isActive ? '#ffffff' : '#f59e0b'} />
-                            </div>
-                            <div className="preset-info">
-                              <strong className="preset-name">{cp.name}</strong>
-                              <span className="preset-desc" style={{ color: 'var(--text-muted)' }}>Mío · {cp.createdAt}</span>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                const updated = deleteCustomPreset(cp.id);
-                                setCustomPresets(updated);
-                              }}
-                              className="delete-preset-btn"
-                              title="Eliminar preset personalizado"
-                            >
-                              <Trash2 size={12} />
-                            </button>
-                          </div>
-                        );
-                      })}
+                    <div className="filter-strip-text">
+                      <strong>{p.label}</strong>
+                      <span>{p.shortDesc}</span>
                     </div>
+                  </button>
+                );
+              })}
+
+              {/* Presets Personalizados del Usuario */}
+              {customPresets.map((cp) => {
+                const isActive = photo.preset === cp.id;
+                return (
+                  <div
+                    key={cp.id}
+                    onClick={() => onApplyPreset(cp.id, cp.adjustments)}
+                    className={`filter-strip-card custom ${isActive ? 'active' : ''}`}
+                  >
+                    <div className={`filter-strip-icon custom ${isActive ? 'active' : ''}`}>
+                      <Star size={14} fill={isActive ? '#fff' : '#f59e0b'} color={isActive ? '#fff' : '#f59e0b'} />
+                    </div>
+                    <div className="filter-strip-text">
+                      <strong>{cp.name}</strong>
+                      <span>Personalizado</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setCustomPresets(deleteCustomPreset(cp.id));
+                      }}
+                      className="filter-strip-del"
+                      title="Eliminar filtro"
+                    >
+                      <X size={10} />
+                    </button>
                   </div>
-                )}
-
-                {/* PRESETS DE FÁBRICA */}
-                <span style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '0.45rem' }}>
-                  Filtros de Revelado BereaSnap
-                </span>
-
-                <div className="preset-grid">
-                  {presetsList.map((p) => {
-                    const IconComponent = p.icon;
-                    const isActive = photo.preset === p.id;
-                    return (
-                      <button
-                        key={p.id}
-                        onClick={() => onApplyPreset(p.id)}
-                        className={`preset-card ${isActive ? 'active' : ''}`}
-                      >
-                        <div className={`preset-icon-wrapper ${isActive ? 'active' : ''}`}>
-                          <IconComponent size={18} />
-                        </div>
-                        <div className="preset-info">
-                          <strong className="preset-name">{p.label}</strong>
-                          <span className="preset-desc">{p.desc}</span>
-                        </div>
-                      </button>
-                    );
-                  })}
-                </div>
-
-                <button
-                  onClick={() => onApplyPreset('custom')}
-                  className="btn-secondary btn-block"
-                  style={{ marginTop: '0.85rem' }}
-                >
-                  <RotateCcw size={14} />
-                  <span>Restablecer Ajustes Originales</span>
-                </button>
-              </div>
-            )}
+                );
+              })}
+            </div>
           </div>
         )}
 
-        {/* TAB 2: ENCUADRE & RELACIÓN DE ASPECTO (BARRA HORIZONTAL ESTILO SNAPSEED) */}
+        {/* ============================================================
+            TAB 2: AJUSTES DE LUZ Y COLOR (SLIDER COMPACTO + DIALES)
+           ============================================================ */}
+        {activeTab === 'develop' && (
+          <div className="tool-deck-panel">
+            {(() => {
+              const activeParamConfig = lightParams.find((p) => p.key === activeLightParam) || lightParams[0];
+              const ActiveIcon = activeParamConfig.icon;
+              const activeValue = photo.adjustments[activeLightParam] ?? 0;
+
+              return (
+                <>
+                  {/* FILA 1: Slider Maestro Ultracompacto + Botones Rápidos en Línea */}
+                  <div className="deck-slider-box">
+                    <div className="deck-slider-top">
+                      <div className="deck-param-indicator">
+                        <ActiveIcon size={14} className="active-param-icon" />
+                        <span className="deck-param-title">{activeParamConfig.label.toUpperCase()}</span>
+                        <span className={`deck-value-pill ${activeValue !== 0 ? 'modified' : ''}`}>
+                          {activeValue > 0 ? `+${activeValue}` : activeValue}
+                        </span>
+                      </div>
+
+                      <div className="deck-row-actions">
+                        <button
+                          type="button"
+                          onClick={() => onApplyPreset('auto-church')}
+                          className="deck-mini-btn"
+                          title="Optimización automática de tono e iluminación"
+                        >
+                          <Wand2 size={11} style={{ color: '#38bdf8' }} />
+                          <span>Auto</span>
+                        </button>
+
+                        {activeValue !== 0 && (
+                          <button
+                            type="button"
+                            onClick={() => handleSliderChange(activeLightParam, 0)}
+                            className="deck-mini-btn"
+                            title="Poner este control en 0"
+                          >
+                            <RotateCcw size={11} />
+                            <span>0</span>
+                          </button>
+                        )}
+
+                        {hasAnyAdjustment && (
+                          <button
+                            type="button"
+                            onClick={() => onApplyPreset('custom')}
+                            className="deck-mini-btn"
+                            title="Restablecer todos los ajustes de luz y color"
+                          >
+                            <RotateCcw size={11} />
+                            <span>Todo</span>
+                          </button>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={onApplySettingsToAll}
+                          className="deck-mini-btn sync"
+                          title="Sincronizar ajustes con todas las fotos"
+                        >
+                          <CheckCheck size={12} />
+                          <span>Sync</span>
+                        </button>
+                      </div>
+                    </div>
+
+                    <input
+                      type="range"
+                      min={activeParamConfig.min}
+                      max={activeParamConfig.max}
+                      step={activeParamConfig.step}
+                      value={activeValue}
+                      onChange={(e) => handleSliderChange(activeLightParam, Number(e.target.value))}
+                      onDoubleClick={() => handleSliderChange(activeLightParam, 0)}
+                      className="master-range-slider slim"
+                      aria-label={activeParamConfig.label}
+                    />
+                  </div>
+
+                  {/* FILA 2: Cinta Horizontal de Parámetros con Indicador Numérico */}
+                  <div className="deck-horizontal-strip dials-strip">
+                    {lightParams.map((p) => {
+                      const Icon = p.icon;
+                      const isSelected = activeLightParam === p.key;
+                      const val = photo.adjustments[p.key] ?? 0;
+                      const isModified = val !== 0;
+
+                      return (
+                        <button
+                          key={p.key}
+                          type="button"
+                          onClick={() => setActiveLightParam(p.key)}
+                          onDoubleClick={() => handleSliderChange(p.key, 0)}
+                          className={`dial-pill ${isSelected ? 'active' : ''}`}
+                        >
+                          <div className={`dial-circle ${isSelected ? 'active' : ''} ${isModified ? 'modified' : ''}`}>
+                            <Icon size={16} />
+                            {isModified && (
+                              <span className="dial-val-badge">{val > 0 ? `+${val}` : val}</span>
+                            )}
+                          </div>
+                          <span className="dial-label">{p.shortLabel}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+        )}
+
+        {/* ============================================================
+            TAB 3: ENCUADRE, HORIZONTE Y PROPORCIÓN (2 FILAS SIN SCROLL)
+           ============================================================ */}
         {activeTab === 'crop' && (
-          <div className="control-section crop-section">
-            {/* SLIDER MAESTRO PARA ENCUADRE */}
-            <div className="master-slider-card">
-              <div className="master-slider-header">
-                <div className="slider-label-group">
-                  {activeCropParam === 'zoom' && <ZoomIn size={15} className="active-param-icon" />}
-                  {activeCropParam === 'straighten' && <Compass size={15} className="active-param-icon" />}
-                  {activeCropParam === 'offsetX' && <MoveHorizontal size={15} className="active-param-icon" />}
-                  {activeCropParam === 'offsetY' && <MoveVertical size={15} className="active-param-icon" />}
-                  <span className="slider-param-name">
-                    {activeCropParam === 'zoom'
-                      ? 'ZOOM / ESCALA'
-                      : activeCropParam === 'straighten'
-                        ? 'NIVELAR HORIZONTE'
-                        : activeCropParam === 'offsetX'
-                          ? 'DESPLAZAMIENTO X'
-                          : 'DESPLAZAMIENTO Y'}
-                  </span>
+          <div className="tool-deck-panel">
+            {/* FILA 1: Nivelar Horizonte / Zoom + Acciones Geométricas Instantáneas */}
+            <div className="deck-slider-box">
+              <div className="deck-slider-top">
+                <div className="deck-Inline-Segmented">
+                  <button
+                    type="button"
+                    onClick={() => setActiveCropParam('straighten')}
+                    className={`seg-btn ${activeCropParam === 'straighten' ? 'active' : ''}`}
+                  >
+                    <Compass size={12} />
+                    <span>Nivelar {photo.crop?.straighten ? `${photo.crop.straighten > 0 ? '+' : ''}${photo.crop.straighten}°` : '0°'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveCropParam('zoom')}
+                    className={`seg-btn ${activeCropParam === 'zoom' ? 'active' : ''}`}
+                  >
+                    <ZoomIn size={12} />
+                    <span>Zoom {Math.round((photo.crop?.zoom || 1) * 100)}%</span>
+                  </button>
                 </div>
 
-                <div className="slider-value-bubble">
-                  <span>
-                    {activeCropParam === 'zoom'
-                      ? `${Math.round((photo.crop?.zoom || 1) * 100)}%`
-                      : activeCropParam === 'straighten'
-                        ? `${(photo.crop?.straighten || 0) > 0 ? '+' : ''}${photo.crop?.straighten || 0}°`
-                        : `${(photo.crop as any)?.[activeCropParam] || 0}%`}
-                  </span>
-                </div>
+                <div className="deck-row-actions">
+                  <button
+                    type="button"
+                    onClick={() => handleCropChange('rotation', ((photo.crop?.rotation || 0) + 90) % 360)}
+                    className={`deck-mini-btn ${photo.crop?.rotation ? 'active' : ''}`}
+                    title="Girar 90° a la derecha"
+                  >
+                    <RotateCw size={11} />
+                    <span>90°</span>
+                  </button>
 
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (activeCropParam === 'zoom') handleCropChange('zoom', 1.0);
-                    if (activeCropParam === 'straighten') handleCropChange('straighten', 0);
-                    if (activeCropParam === 'offsetX') handleCropChange('offsetX', 0);
-                    if (activeCropParam === 'offsetY') handleCropChange('offsetY', 0);
-                  }}
-                  className="slider-reset-action"
-                  title="Restablecer este parámetro"
-                >
-                  <span>Reiniciar</span>
-                  <RotateCcw size={11} />
-                </button>
-              </div>
+                  <button
+                    type="button"
+                    onClick={() => handleCropChange('flipH', !photo.crop?.flipH)}
+                    className={`deck-mini-btn ${photo.crop?.flipH ? 'active' : ''}`}
+                    title="Voltear en espejo horizontal"
+                  >
+                    <FlipHorizontal2 size={11} />
+                    <span>Espejo</span>
+                  </button>
 
-              <div className="master-slider-track-wrap">
-                <input
-                  type="range"
-                  min={activeCropParam === 'zoom' ? 1.0 : activeCropParam === 'straighten' ? -15 : -50}
-                  max={activeCropParam === 'zoom' ? 2.5 : activeCropParam === 'straighten' ? 15 : 50}
-                  step={activeCropParam === 'zoom' ? 0.05 : activeCropParam === 'straighten' ? 0.5 : 1}
-                  value={
-                    activeCropParam === 'zoom'
-                      ? (photo.crop?.zoom || 1)
-                      : activeCropParam === 'straighten'
-                        ? (photo.crop?.straighten || 0)
-                        : ((photo.crop as any)?.[activeCropParam] || 0)
-                  }
-                  onChange={(e) => handleCropChange(activeCropParam, Number(e.target.value))}
-                  className="master-range-slider"
-                />
-                <div className="master-slider-ticks">
-                  <span className="tick-side">
-                    {activeCropParam === 'zoom' ? '100%' : activeCropParam === 'straighten' ? '-15°' : '-50%'}
-                  </span>
-                  <span className="tick-center">
-                    {activeCropParam === 'zoom' ? '175%' : activeCropParam === 'straighten' ? '0°' : '0'}
-                  </span>
-                  <span className="tick-side">
-                    {activeCropParam === 'zoom' ? '250%' : activeCropParam === 'straighten' ? '+15°' : '+50%'}
-                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onUpdateCrop({
+                        ...photo.crop,
+                        offsetX: 0,
+                        offsetY: 0,
+                        zoom: 1.0,
+                        rotation: 0,
+                        straighten: 0,
+                        flipH: false,
+                        flipV: false,
+                      });
+                    }}
+                    className="deck-mini-btn"
+                    title="Restablecer encuadre completo"
+                  >
+                    <Target size={11} />
+                    <span>Reset</span>
+                  </button>
                 </div>
               </div>
+
+              <input
+                type="range"
+                min={activeCropParam === 'zoom' ? 1.0 : -15}
+                max={activeCropParam === 'zoom' ? 2.5 : 15}
+                step={activeCropParam === 'zoom' ? 0.05 : 0.5}
+                value={
+                  activeCropParam === 'zoom'
+                    ? (photo.crop?.zoom || 1)
+                    : (photo.crop?.straighten || 0)
+                }
+                onChange={(e) => handleCropChange(activeCropParam, Number(e.target.value))}
+                onDoubleClick={() => handleCropChange(activeCropParam, activeCropParam === 'zoom' ? 1.0 : 0)}
+                className="master-range-slider slim"
+                aria-label={activeCropParam === 'zoom' ? 'Zoom' : 'Nivelar horizonte'}
+              />
             </div>
 
-            {/* BOTONES DE PARÁMETROS DE ENCUADRE + ROTACIÓN Y ESPEJO */}
-            <div className="develop-quick-actions" style={{ marginBottom: '0.5rem' }}>
-              <button
-                type="button"
-                onClick={() => setActiveCropParam('zoom')}
-                className={`develop-action-btn btn-secondary ${activeCropParam === 'zoom' ? 'active' : ''}`}
-              >
-                <ZoomIn size={13} />
-                <span>Zoom</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveCropParam('straighten')}
-                className={`develop-action-btn btn-secondary ${activeCropParam === 'straighten' ? 'active' : ''}`}
-              >
-                <Compass size={13} />
-                <span>Nivelar</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveCropParam('offsetX')}
-                className={`develop-action-btn btn-secondary ${activeCropParam === 'offsetX' ? 'active' : ''}`}
-              >
-                <MoveHorizontal size={13} />
-                <span>Pos X</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setActiveCropParam('offsetY')}
-                className={`develop-action-btn btn-secondary ${activeCropParam === 'offsetY' ? 'active' : ''}`}
-              >
-                <MoveVertical size={13} />
-                <span>Pos Y</span>
-              </button>
-            </div>
-
-            <div className="develop-quick-actions" style={{ marginBottom: '0.85rem' }}>
-              <button
-                type="button"
-                onClick={() => handleCropChange('rotation', ((photo.crop?.rotation || 0) + 90) % 360)}
-                className="develop-action-btn btn-secondary"
-                title="Rotar fotografía 90° a la derecha"
-              >
-                <RotateCw size={13} />
-                <span>Girar 90° {photo.crop?.rotation ? `(${photo.crop.rotation}°)` : ''}</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleCropChange('flipH', !photo.crop?.flipH)}
-                className={`develop-action-btn btn-secondary ${photo.crop?.flipH ? 'active' : ''}`}
-                title="Voltear horizontalmente (Espejo)"
-              >
-                <FlipHorizontal2 size={13} />
-                <span>Espejo</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  onUpdateCrop({
-                    ...photo.crop,
-                    offsetX: 0,
-                    offsetY: 0,
-                    zoom: 1.0,
-                    rotation: 0,
-                    straighten: 0,
-                    flipH: false,
-                    flipV: false,
-                  });
-                }}
-                className="develop-action-btn btn-secondary"
-                title="Restablecer todo el encuadre y rotación"
-              >
-                <Target size={13} />
-                <span>Restablecer</span>
-              </button>
-            </div>
-
-            {/* CINTA HORIZONTAL DE ASPECT RATIOS (ICONOS GEOMÉTRICOS ESTILO REFERENCIA) */}
-            <span style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '0.45rem' }}>
-              Relación de Aspecto & Recorte
-            </span>
-
-            <div className="ratio-icons-carousel">
+            {/* FILA 2: Cinta Horizontal de Proporciones (Aspect Ratios) */}
+            <div className="deck-horizontal-strip ratios-strip">
               {ratioList.map((r) => {
                 const isSelected = (photo.crop?.aspectRatio || 'original') === r.id;
                 return (
@@ -896,12 +610,15 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
                     key={r.id}
                     type="button"
                     onClick={() => handleCropChange('aspectRatio', r.id)}
-                    className={`ratio-icon-pill ${isSelected ? 'active' : ''}`}
+                    className={`dial-pill ${isSelected ? 'active' : ''}`}
                   >
-                    <div className={`ratio-icon-box ${isSelected ? 'active' : ''}`}>
-                      {r.renderIcon()}
+                    <div className={`dial-circle ratio-box ${isSelected ? 'active' : ''}`}>
+                      <span
+                        className="ratio-shape-preview"
+                        style={{ width: `${r.w}px`, height: `${r.h}px` }}
+                      />
                     </div>
-                    <span className="ratio-icon-name">{r.label}</span>
+                    <span className="dial-label">{r.label}</span>
                   </button>
                 );
               })}
@@ -909,435 +626,424 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
           </div>
         )}
 
-        {/* TAB 3: FIRMA & LOGOS (SUB-MODOS ERGONÓMICOS SIN SCROLL INTERNO) */}
+        {/* ============================================================
+            TAB 4: FIRMA Y MARCA DE AGUA (TODO INTEGRADO EN 2 FILAS)
+           ============================================================ */}
         {activeTab === 'watermark' && (
-          <div className="control-section watermark-section">
-            {/* Barra Superior: Sub-modo + Interruptor Activa/Desactivada */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', marginBottom: '0.65rem' }}>
-              <div className="develop-mode-pills" style={{ flex: 1, marginBottom: 0 }}>
-                <button
-                  type="button"
-                  onClick={() => setWatermarkSubMode('source')}
-                  className={`develop-mode-btn ${watermarkSubMode === 'source' ? 'active' : ''}`}
-                >
-                  <ImageIcon size={13} />
-                  <span>Logo / Texto</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setWatermarkSubMode('adjust')}
-                  className={`develop-mode-btn ${watermarkSubMode === 'adjust' ? 'active' : ''}`}
-                >
-                  <SlidersHorizontal size={13} />
-                  <span>Posición & Ajuste</span>
-                </button>
-              </div>
-
-              <button
-                type="button"
-                onClick={() => onUpdateWatermark({ enabled: !watermark.enabled })}
-                className={`toggle-pill-btn ${watermark.enabled ? 'active' : ''}`}
-                style={{ flexShrink: 0 }}
-              >
-                {watermark.enabled ? '✓ Activa' : 'Off'}
-              </button>
-            </div>
-
-            {watermark.enabled && watermarkSubMode === 'source' && (
-              <>
-                {/* Conmutador Logo PNG vs Texto Editorial */}
-                <div className="develop-quick-actions" style={{ marginBottom: '0.65rem' }}>
+          <div className="tool-deck-panel">
+            {/* FILA 1: Estado, Tipo, Posición Esquinas y Slider Opacidad/Tamaño */}
+            <div className="deck-slider-box">
+              <div className="deck-slider-top">
+                <div className="deck-row-left" style={{ gap: '0.3rem' }}>
                   <button
                     type="button"
-                    onClick={() => onUpdateWatermark({ type: 'image' })}
-                    className={`develop-action-btn btn-secondary ${watermark.type === 'image' ? 'active' : ''}`}
+                    onClick={() => onUpdateWatermark({ enabled: !watermark.enabled })}
+                    className={`deck-toggle-chip ${watermark.enabled ? 'on' : 'off'}`}
                   >
-                    <ImageIcon size={13} />
-                    <span>Catálogo de Logos PNG</span>
+                    {watermark.enabled ? '✓ Activa' : 'Off'}
                   </button>
 
-                  <button
-                    type="button"
-                    onClick={() => onUpdateWatermark({ type: 'text' })}
-                    className={`develop-action-btn btn-secondary ${watermark.type === 'text' ? 'active' : ''}`}
-                  >
-                    <Type size={13} />
-                    <span>Firma de Texto</span>
-                  </button>
-                </div>
-
-                {/* SELECTOR DE LOGOS PNG HORIZONTAL */}
-                {watermark.type === 'image' && (
-                  <div className="logo-carousel">
-                    <input
-                      ref={logoInputRef}
-                      type="file"
-                      accept="image/png,image/svg+xml"
-                      onChange={handleLogoUpload}
-                      style={{ display: 'none' }}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => logoInputRef.current?.click()}
-                      className="logo-upload-pill"
-                      title="Subir nuevo logo PNG"
-                    >
-                      <Upload size={16} />
-                      <span>+ Subir</span>
-                    </button>
-
-                    {savedLogos.map((l) => {
-                      const isSelected = watermark.imageDataUrl === l.imageDataUrl;
-                      return (
-                        <div
-                          key={l.id}
-                          onClick={() => handleSelectSavedLogo(l)}
-                          className={`logo-pill-card ${isSelected ? 'active' : ''}`}
-                          title={l.name}
-                        >
-                          <img src={l.imageDataUrl} alt={l.name} className="logo-pill-img" />
-                          <span className="logo-pill-name">{l.isOfficial ? 'Oficial' : l.name.slice(0, 8)}</span>
-                          {isSelected && <span className="param-modified-dot" />}
-                          {!l.isOfficial && (
-                            <button
-                              type="button"
-                              onClick={(e) => handleDeleteSavedLogo(l.id, e)}
-                              className="delete-pill-badge"
-                              title="Eliminar logo"
-                            >
-                              ✕
-                            </button>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {/* MODO TEXTO EDITORIAL */}
-                {watermark.type === 'text' && (
-                  <div>
-                    <div style={{ display: 'flex', gap: '0.45rem', alignItems: 'center', marginBottom: '0.45rem' }}>
-                      <input
-                        type="text"
-                        value={watermark.text || ''}
-                        onChange={(e) => onUpdateWatermark({ text: e.target.value })}
-                        placeholder="Ej. BereaSnap • Fotografía Oficial"
-                        className="form-input"
-                        style={{ flex: 1, fontSize: '0.78rem' }}
-                      />
+                  {watermark.enabled && (
+                    <div className="deck-Inline-Segmented">
                       <button
                         type="button"
-                        onClick={() => onUpdateWatermark({ color: '#ffffff' })}
-                        className={`color-pill-btn ${watermark.color === '#ffffff' ? 'active' : ''}`}
-                        style={{ background: '#ffffff' }}
-                        title="Blanco Puro"
-                      />
+                        onClick={() => onUpdateWatermark({ type: 'image' })}
+                        className={`seg-btn ${watermark.type === 'image' ? 'active' : ''}`}
+                      >
+                        <ImageIcon size={11} />
+                        <span>Logo</span>
+                      </button>
                       <button
                         type="button"
-                        onClick={() => onUpdateWatermark({ color: '#d4af37' })}
-                        className={`color-pill-btn ${watermark.color === '#d4af37' ? 'active' : ''}`}
-                        style={{ background: '#d4af37' }}
-                        title="Oro Noble"
-                      />
+                        onClick={() => onUpdateWatermark({ type: 'text' })}
+                        className={`seg-btn ${watermark.type === 'text' ? 'active' : ''}`}
+                      >
+                        <Type size={11} />
+                        <span>Texto</span>
+                      </button>
                     </div>
-
-                    <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap' }}>
-                      {['BereaSnap Oficial', 'Berea Prensa & Crónica', 'Berea Fotografía'].map((pt) => (
-                        <button
-                          key={pt}
-                          type="button"
-                          onClick={() => onUpdateWatermark({ text: pt })}
-                          className="quick-chip-btn"
-                        >
-                          {pt}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
-
-            {watermark.enabled && watermarkSubMode === 'adjust' && (
-              <>
-                {/* SLIDER MAESTRO PARA FIRMA (OPACIDAD / TAMAÑO) */}
-                <div className="master-slider-card" style={{ marginBottom: '0.55rem' }}>
-                  <div className="master-slider-header">
-                    <div className="slider-label-group">
-                      {activeWmParam === 'opacity' ? <Eye size={15} className="active-param-icon" /> : <Maximize2 size={15} className="active-param-icon" />}
-                      <span className="slider-param-name">
-                        {activeWmParam === 'opacity' ? 'OPACIDAD' : 'TAMAÑO DE FIRMA'}
-                      </span>
-                    </div>
-
-                    <div className="slider-value-bubble">
-                      <span>
-                        {activeWmParam === 'opacity'
-                          ? `${Math.round(watermark.opacity * 100)}%`
-                          : `${watermark.size}%`}
-                      </span>
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (activeWmParam === 'opacity') onUpdateWatermark({ opacity: 0.75 });
-                        if (activeWmParam === 'size') onUpdateWatermark({ size: 24 });
-                      }}
-                      className="slider-reset-action"
-                    >
-                      <span>Reiniciar</span>
-                      <RotateCcw size={11} />
-                    </button>
-                  </div>
-
-                  <div className="master-slider-track-wrap">
-                    <input
-                      type="range"
-                      min={activeWmParam === 'opacity' ? 0.1 : 10}
-                      max={activeWmParam === 'opacity' ? 1.0 : 60}
-                      step={activeWmParam === 'opacity' ? 0.05 : 1}
-                      value={activeWmParam === 'opacity' ? watermark.opacity : watermark.size}
-                      onChange={(e) => {
-                        if (activeWmParam === 'opacity') onUpdateWatermark({ opacity: Number(e.target.value) });
-                        if (activeWmParam === 'size') onUpdateWatermark({ size: Number(e.target.value) });
-                      }}
-                      className="master-range-slider"
-                    />
-                  </div>
+                  )}
                 </div>
 
-                <div className="develop-quick-actions" style={{ marginBottom: '0.55rem' }}>
-                  <button
-                    type="button"
-                    onClick={() => setActiveWmParam('opacity')}
-                    className={`develop-action-btn btn-secondary ${activeWmParam === 'opacity' ? 'active' : ''}`}
-                  >
-                    <Eye size={13} />
-                    <span>Opacidad</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setActiveWmParam('size')}
-                    className={`develop-action-btn btn-secondary ${activeWmParam === 'size' ? 'active' : ''}`}
-                  >
-                    <Maximize2 size={13} />
-                    <span>Tamaño</span>
-                  </button>
-                </div>
-
-                <div className="position-pills-row">
-                  {[
-                    { id: 'top-left', label: '↖ Sup-Izq' },
-                    { id: 'top-right', label: '↗ Sup-Der' },
-                    { id: 'center', label: '• Centro' },
-                    { id: 'bottom-left', label: '↙ Inf-Izq' },
-                    { id: 'bottom-right', label: '↘ Inf-Der' },
-                  ].map((pos) => {
-                    const isPosActive = watermark.position === pos.id;
-                    return (
+                {watermark.enabled && (
+                  <div className="deck-pos-group">
+                    {[
+                      { id: 'top-left', label: '↖' },
+                      { id: 'top-right', label: '↗' },
+                      { id: 'center', label: '•' },
+                      { id: 'bottom-left', label: '↙' },
+                      { id: 'bottom-right', label: '↘' },
+                    ].map((pos) => (
                       <button
                         key={pos.id}
                         type="button"
                         onClick={() => onUpdateWatermark({ position: pos.id as any })}
-                        className={`position-pill ${isPosActive ? 'active' : ''}`}
+                        className={`pos-dot-btn ${watermark.position === pos.id ? 'active' : ''}`}
+                        title={`Posición: ${pos.id}`}
                       >
                         {pos.label}
                       </button>
-                    );
-                  })}
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {watermark.enabled && (
+                <div className="deck-inline-slider-row">
+                  <button
+                    type="button"
+                    onClick={() => setActiveWmParam((prev) => (prev === 'opacity' ? 'size' : 'opacity'))}
+                    className="deck-param-switch-pill"
+                    title="Toca para alternar entre Opacidad y Tamaño"
+                  >
+                    {activeWmParam === 'opacity' ? <Eye size={11} /> : <Maximize2 size={11} />}
+                    <span>
+                      {activeWmParam === 'opacity'
+                        ? `Opacidad ${Math.round(watermark.opacity * 100)}%`
+                        : `Tamaño ${watermark.size}%`}
+                    </span>
+                  </button>
+
+                  <input
+                    type="range"
+                    min={activeWmParam === 'opacity' ? 0.1 : 10}
+                    max={activeWmParam === 'opacity' ? 1.0 : 60}
+                    step={activeWmParam === 'opacity' ? 0.05 : 1}
+                    value={activeWmParam === 'opacity' ? watermark.opacity : watermark.size}
+                    onChange={(e) => {
+                      if (activeWmParam === 'opacity') onUpdateWatermark({ opacity: Number(e.target.value) });
+                      if (activeWmParam === 'size') onUpdateWatermark({ size: Number(e.target.value) });
+                    }}
+                    className="master-range-slider slim"
+                  />
                 </div>
-              </>
+              )}
+            </div>
+
+            {/* FILA 2: Selector de Logos PNG o Editor de Texto de Firma */}
+            {watermark.enabled && watermark.type === 'image' && (
+              <div className="deck-horizontal-strip logos-strip">
+                <input
+                  ref={logoInputRef}
+                  type="file"
+                  accept="image/png,image/svg+xml"
+                  onChange={handleLogoUpload}
+                  style={{ display: 'none' }}
+                />
+                <button
+                  type="button"
+                  onClick={() => logoInputRef.current?.click()}
+                  className="compact-asset-tile upload"
+                  title="Subir nuevo logo PNG"
+                >
+                  <Upload size={14} />
+                  <span>+ Logo</span>
+                </button>
+
+                {savedLogos.map((l) => {
+                  const isSelected = watermark.imageDataUrl === l.imageDataUrl;
+                  return (
+                    <div
+                      key={l.id}
+                      onClick={() => handleSelectSavedLogo(l)}
+                      className={`compact-asset-tile ${isSelected ? 'active' : ''}`}
+                      title={l.name}
+                    >
+                      <img src={l.imageDataUrl} alt={l.name} className="compact-asset-img" />
+                      <span className="compact-asset-name">{l.isOfficial ? 'Oficial' : l.name.slice(0, 8)}</span>
+                      {!l.isOfficial && (
+                        <button
+                          type="button"
+                          onClick={(e) => handleDeleteSavedLogo(l.id, e)}
+                          className="compact-asset-del"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {watermark.enabled && watermark.type === 'text' && (
+              <div className="deck-text-signature-row">
+                <div className="deck-text-input-line">
+                  <input
+                    type="text"
+                    value={watermark.text || ''}
+                    onChange={(e) => onUpdateWatermark({ text: e.target.value })}
+                    placeholder="Texto de firma..."
+                    className="deck-compact-input"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => onUpdateWatermark({ color: '#ffffff' })}
+                    className={`color-pill-btn ${watermark.color === '#ffffff' ? 'active' : ''}`}
+                    style={{ background: '#ffffff', width: '1.35rem', height: '1.35rem', flexShrink: 0 }}
+                    title="Blanco"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => onUpdateWatermark({ color: '#d4af37' })}
+                    className={`color-pill-btn ${watermark.color === '#d4af37' ? 'active' : ''}`}
+                    style={{ background: '#d4af37', width: '1.35rem', height: '1.35rem', flexShrink: 0 }}
+                    title="Oro"
+                  />
+                </div>
+                <div className="deck-horizontal-strip chips-strip">
+                  {['BereaSnap Oficial', 'Berea Prensa & Crónica', 'Berea Fotografía'].map((pt) => (
+                    <button
+                      key={pt}
+                      type="button"
+                      onClick={() => onUpdateWatermark({ text: pt })}
+                      className={`quick-chip-btn ${watermark.text === pt ? 'active' : ''}`}
+                    >
+                      {pt}
+                    </button>
+                  ))}
+                </div>
+              </div>
             )}
           </div>
         )}
 
-        {/* TAB 4: MARCOS FOTOGRÁFICOS (SUB-MODOS ERGONÓMICOS: ESTILO & TEXTO DINÁMICO) */}
+        {/* ============================================================
+            TAB 5: MARCOS INSTITUCIONALES Y DINÁMICOS (2 FILAS SIN SCROLL)
+           ============================================================ */}
         {activeTab === 'frame' && (
-          <div className="control-section frame-section">
-            {/* Selector de Sub-modo en Marcos si hay un marco activo que soporta texto */}
-            {frame.style !== 'none' && (
-              <div className="develop-mode-pills" style={{ marginBottom: '0.65rem' }}>
-                <button
-                  type="button"
-                  onClick={() => setFrameSubMode('style')}
-                  className={`develop-mode-btn ${frameSubMode === 'style' ? 'active' : ''}`}
-                >
-                  <FrameIcon size={13} />
-                  <span>Estilo & Plantilla</span>
-                </button>
+          <div className="tool-deck-panel">
+            <input
+              ref={framePngInputRef}
+              type="file"
+              accept="image/png"
+              onChange={handleFramePngUpload}
+              style={{ display: 'none' }}
+            />
 
-                <button
-                  type="button"
-                  onClick={() => setFrameSubMode('text')}
-                  className={`develop-mode-btn ${frameSubMode === 'text' ? 'active' : ''}`}
-                >
-                  <Type size={13} />
-                  <span>Texto del Evento</span>
-                </button>
-              </div>
-            )}
-
+            {/* MODO PLANTILLA DE MARCO */}
             {(frame.style === 'none' || frameSubMode === 'style') && (
               <>
-                <div className="frame-styles-carousel" style={{ marginBottom: '0.55rem' }}>
+                {/* FILA 1: Controles Contextuales del Marco Activo */}
+                <div className="deck-slider-box">
+                  <div className="deck-slider-top">
+                    <div className="deck-row-left">
+                      <FrameIcon size={13} style={{ color: 'var(--color-accent)' }} />
+                      <span className="deck-row-title">
+                        {frame.style === 'none' ? 'ELIGE UN MARCO' : 'MARCO ACTIVO'}
+                      </span>
+                    </div>
+
+                    <div className="deck-row-actions">
+                      {frame.style !== 'none' && (
+                        <button
+                          type="button"
+                          onClick={() => setFrameSubMode('text')}
+                          className="deck-mini-btn accent"
+                          title="Personalizar título del evento, fecha o tamaño de letra"
+                        >
+                          <Type size={11} />
+                          <span>Texto: {(frame.eventTitle || 'Editar').slice(0, 14)}</span>
+                        </button>
+                      )}
+
+                      {frame.style === 'custom-png' && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              onUpdateFrame({
+                                dynamicTextColorStyle: frame.dynamicTextColorStyle === 'white' ? 'gold' : 'white',
+                              })
+                            }
+                            className="deck-mini-btn"
+                            title="Alternar color de letra entre Oro Imperial y Blanco"
+                          >
+                            <span
+                              className="color-dot"
+                              style={{
+                                width: 9,
+                                height: 9,
+                                borderRadius: '50%',
+                                background: frame.dynamicTextColorStyle === 'white' ? '#fff' : '#fbbf24',
+                              }}
+                            />
+                            <span>{frame.dynamicTextColorStyle === 'white' ? 'Blanco' : 'Oro'}</span>
+                          </button>
+                        </>
+                      )}
+
+                      {(frame.style === 'fine-gallery' || frame.style === 'editorial') && (
+                        <button
+                          type="button"
+                          onClick={() =>
+                            onUpdateFrame(
+                              frame.borderColor === '#ffffff'
+                                ? { borderColor: '#0a0f1d', textColor: '#ffffff' }
+                                : { borderColor: '#ffffff', textColor: '#0f172a' }
+                            )
+                          }
+                          className="deck-mini-btn"
+                        >
+                          <span>{frame.borderColor === '#ffffff' ? 'Fondo Blanco' : 'Fondo Oscuro'}</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Slider contextual: Escala de texto en PNG o Grosor de borde en Marcos Digitales */}
+                  {frame.style === 'custom-png' && (
+                    <div className="deck-inline-slider-row">
+                      <span className="deck-inline-label">Letra {frame.dynamicTextScale || 100}%</span>
+                      <input
+                        type="range"
+                        min="75"
+                        max="135"
+                        step="5"
+                        value={frame.dynamicTextScale || 100}
+                        onChange={(e) => onUpdateFrame({ dynamicTextScale: Number(e.target.value) })}
+                        onDoubleClick={() => onUpdateFrame({ dynamicTextScale: 100 })}
+                        className="master-range-slider slim"
+                      />
+                    </div>
+                  )}
+
+                  {frame.style !== 'none' && frame.style !== 'custom-png' && (
+                    <div className="deck-inline-slider-row">
+                      <span className="deck-inline-label">Borde {frame.borderTop || 24}px</span>
+                      <input
+                        type="range"
+                        min="8"
+                        max="70"
+                        step="2"
+                        value={frame.borderTop || 24}
+                        onChange={(e) => {
+                          const val = Number(e.target.value);
+                          onUpdateFrame({ borderTop: val, borderBottom: val, borderLeft: val, borderRight: val });
+                        }}
+                        className="master-range-slider slim"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* FILA 2: Carrusel Unificado de Marcos (Sin Marco + Subir PNG + Marcos PNG + Marcos Digitales) */}
+                <div className="deck-horizontal-strip logos-strip">
+                  {/* 1. Sin Marco */}
+                  <button
+                    type="button"
+                    onClick={() => onUpdateFrame({ style: 'none' })}
+                    className={`compact-asset-tile ${frame.style === 'none' ? 'active' : ''}`}
+                  >
+                    <Ban size={16} />
+                    <span className="compact-asset-name">Ninguno</span>
+                  </button>
+
+                  {/* 2. Subir PNG */}
+                  <button
+                    type="button"
+                    onClick={() => framePngInputRef.current?.click()}
+                    className="compact-asset-tile upload"
+                    title="Importar marco PNG transparente desde tu teléfono"
+                  >
+                    <Upload size={14} />
+                    <span className="compact-asset-name">+ PNG</span>
+                  </button>
+
+                  {/* 3. Marcos PNG Oficiales y Guardados */}
+                  {savedFrames.map((f) => {
+                    const isSelected = frame.style === 'custom-png' && frame.pngDataUrl === f.pngDataUrl;
+                    return (
+                      <div
+                        key={f.id}
+                        onClick={() => handleSelectSavedFrame(f)}
+                        className={`compact-asset-tile ${isSelected ? 'active' : ''}`}
+                        title={f.name}
+                      >
+                        <img src={f.pngDataUrl} alt={f.name} className="compact-asset-img" />
+                        <span className="compact-asset-name">{f.name.replace('Centenario ', 'Cent. ').slice(0, 10)}</span>
+                        {f.isDynamic && <span className="param-modified-dot" />}
+                        {!f.id.includes('official') && (
+                          <button
+                            type="button"
+                            onClick={(e) => handleDeleteSavedFrame(f.id, e)}
+                            className="compact-asset-del"
+                          >
+                            ✕
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+
+                  {/* 4. Marcos Digitales Clásicos */}
                   {[
-                    { id: 'none', label: 'Sin Marco', icon: Ban },
-                    { id: 'custom-png', label: 'PNG Oficial', icon: FrameIcon },
                     { id: 'fine-gallery', label: 'Galería', icon: Landmark },
                     { id: 'editorial', label: 'Editorial', icon: Newspaper },
                     { id: 'gold-accent', label: 'Filo Oro', icon: Sparkles },
                     { id: 'polaroid-card', label: 'Polaroid', icon: Square },
                   ].map((st) => {
-                    const isSelected = frame.style === st.id;
                     const Icon = st.icon;
+                    const isSelected = frame.style === st.id;
                     return (
                       <button
                         key={st.id}
                         type="button"
                         onClick={() => onUpdateFrame({ style: st.id as any })}
-                        className={`frame-style-pill ${isSelected ? 'active' : ''}`}
+                        className={`compact-asset-tile ${isSelected ? 'active' : ''}`}
                       >
-                        <div className={`frame-style-box ${isSelected ? 'active' : ''}`}>
-                          <Icon size={18} />
-                        </div>
-                        <span className="frame-style-name">{st.label}</span>
+                        <Icon size={16} />
+                        <span className="compact-asset-name">{st.label}</span>
                       </button>
                     );
                   })}
                 </div>
-
-                {/* CARROUSEL DE MARCOS PNG SI ESTÁ EN CUSTOM-PNG */}
-                {frame.style === 'custom-png' && (
-                  <div>
-                    <input
-                      ref={framePngInputRef}
-                      type="file"
-                      accept="image/png"
-                      onChange={handleFramePngUpload}
-                      style={{ display: 'none' }}
-                    />
-
-                    <div className="logo-carousel">
-                      <button
-                        type="button"
-                        onClick={() => framePngInputRef.current?.click()}
-                        className="logo-upload-pill"
-                        title="Subir nuevo marco PNG transparente"
-                      >
-                        <Upload size={15} />
-                        <span>+ PNG</span>
-                      </button>
-
-                      {savedFrames.map((f) => {
-                        const isSelected = frame.pngDataUrl === f.pngDataUrl;
-                        return (
-                          <div
-                            key={f.id}
-                            onClick={() => handleSelectSavedFrame(f)}
-                            className={`logo-pill-card ${isSelected ? 'active' : ''}`}
-                            title={f.name}
-                          >
-                            <img src={f.pngDataUrl} alt={f.name} className="logo-pill-img" />
-                            <span className="logo-pill-name">{f.name.slice(0, 10)}</span>
-                            {f.isDynamic && <span className="param-modified-dot" title="Marco con texto dinámico" />}
-                            {!f.id.includes('official') && (
-                              <button
-                                type="button"
-                                onClick={(e) => handleDeleteSavedFrame(f.id, e)}
-                                className="delete-pill-badge"
-                                title="Eliminar marco"
-                              >
-                                ✕
-                              </button>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {/* SLIDER DE GROSOR Y COLOR PARA MARCOS DIGITALES NO-PNG */}
-                {frame.style !== 'none' && frame.style !== 'custom-png' && (
-                  <div className="master-slider-card" style={{ marginBottom: '0.45rem', padding: '0.6rem 0.85rem' }}>
-                    <div className="master-slider-header" style={{ marginBottom: '0.4rem' }}>
-                      <div className="slider-label-group">
-                        <FrameIcon size={14} className="active-param-icon" />
-                        <span className="slider-param-name">GROSOR ({frame.borderTop || 24}px)</span>
-                      </div>
-
-                      {(frame.style === 'fine-gallery' || frame.style === 'editorial') && (
-                        <div style={{ display: 'flex', gap: '0.35rem' }}>
-                          <button
-                            type="button"
-                            onClick={() => onUpdateFrame({ borderColor: '#ffffff', textColor: '#0f172a' })}
-                            className={`color-pill-btn ${frame.borderColor === '#ffffff' ? 'active' : ''}`}
-                            style={{ background: '#ffffff', width: '1.25rem', height: '1.25rem' }}
-                            title="Blanco Galería"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => onUpdateFrame({ borderColor: '#0a0f1d', textColor: '#ffffff' })}
-                            className={`color-pill-btn ${frame.borderColor === '#0a0f1d' ? 'active' : ''}`}
-                            style={{ background: '#0a0f1d', width: '1.25rem', height: '1.25rem', border: '1px solid #475569' }}
-                            title="Grafito Oscuro"
-                          />
-                        </div>
-                      )}
-
-                      <button
-                        type="button"
-                        onClick={() => onUpdateFrame({ borderTop: 24, borderBottom: 24, borderLeft: 24, borderRight: 24 })}
-                        className="slider-reset-action"
-                      >
-                        <RotateCcw size={11} />
-                      </button>
-                    </div>
-
-                    <input
-                      type="range"
-                      min="8"
-                      max="70"
-                      step="2"
-                      value={frame.borderTop || 24}
-                      onChange={(e) => {
-                        const val = Number(e.target.value);
-                        onUpdateFrame({ borderTop: val, borderBottom: val, borderLeft: val, borderRight: val });
-                      }}
-                      className="master-range-slider"
-                    />
-                  </div>
-                )}
               </>
             )}
 
-            {/* SUB-MODO 2: TEXTO DEL MARCO (DINÁMICO CENTENARIO O EDITORIAL) */}
+            {/* MODO EDICIÓN DE TEXTO DEL EVENTO EN EL MARCO */}
             {frame.style !== 'none' && frameSubMode === 'text' && (
-              <div style={{ padding: '0.55rem 0.65rem', background: 'var(--bg-subcard)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.45rem' }}>
-                  <input
-                    type="text"
-                    value={frame.eventTitle || ''}
-                    onChange={(e) => onUpdateFrame({ eventTitle: e.target.value, dynamicTextEnabled: true })}
-                    placeholder="Título del evento (Ej. Escuela Dominical)..."
-                    className="form-input"
-                    style={{ flex: 1, fontSize: '0.78rem', padding: '0.35rem 0.6rem' }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => onUpdateFrame({ dynamicTextEnabled: !(frame.dynamicTextEnabled ?? true) })}
-                    className={`toggle-pill-btn ${(frame.dynamicTextEnabled ?? true) ? 'active' : ''}`}
-                    style={{ fontSize: '0.64rem', padding: '0.28rem 0.55rem', flexShrink: 0 }}
-                  >
-                    {(frame.dynamicTextEnabled ?? true) ? '✓ Visible' : 'Oculto'}
-                  </button>
+              <>
+                {/* FILA 1: Inputs de Título y Texto Secundario + Botón Volver */}
+                <div className="deck-slider-box">
+                  <div className="deck-text-input-line">
+                    <button
+                      type="button"
+                      onClick={() => setFrameSubMode('style')}
+                      className="deck-mini-btn"
+                      title="Volver a la selección de marcos"
+                    >
+                      <span>← Marcos</span>
+                    </button>
+
+                    <input
+                      type="text"
+                      value={frame.eventTitle || ''}
+                      onChange={(e) => onUpdateFrame({ eventTitle: e.target.value, dynamicTextEnabled: true })}
+                      placeholder="Título (Ej. Escuela Dominical)"
+                      className="deck-compact-input"
+                    />
+
+                    <input
+                      type="text"
+                      value={frame.dynamicTextRight || ''}
+                      onChange={(e) => onUpdateFrame({ dynamicTextRight: e.target.value, dynamicTextEnabled: true })}
+                      placeholder="Fecha / Lugar (Opcional)"
+                      className="deck-compact-input secondary"
+                    />
+
+                    <button
+                      type="button"
+                      onClick={() => onUpdateFrame({ dynamicTextEnabled: !(frame.dynamicTextEnabled ?? true) })}
+                      className={`deck-toggle-chip ${(frame.dynamicTextEnabled ?? true) ? 'on' : 'off'}`}
+                    >
+                      {(frame.dynamicTextEnabled ?? true) ? '✓' : 'Off'}
+                    </button>
+                  </div>
                 </div>
 
-                {/* Chips Rápidos Deslizables Horizontalmente */}
-                <div className="position-pills-row" style={{ marginBottom: '0.5rem' }}>
+                {/* FILA 2: Chips Rápidos de Eventos Institucionales Deslizables */}
+                <div className="deck-horizontal-strip chips-strip">
                   {[
                     'Escuela Dominical',
                     'Oración de 7:00 PM',
@@ -1346,6 +1052,7 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
                     'Consagración',
                     'Estudio Bíblico',
                     'Bautismos',
+                    'Santa Cena',
                     'Servicio Especial',
                   ].map((ev) => {
                     const isEvActive = (frame.eventTitle || '').trim().toLowerCase() === ev.toLowerCase();
@@ -1355,65 +1062,64 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
                         type="button"
                         onClick={() => onUpdateFrame({ eventTitle: ev, dynamicTextEnabled: true })}
                         className={`quick-chip-btn ${isEvActive ? 'active' : ''}`}
-                        style={{ whiteSpace: 'nowrap', flexShrink: 0 }}
                       >
                         {ev}
                       </button>
                     );
                   })}
                 </div>
-
-                {/* Fila Compacta: Color + Tamaño + Texto Derecho */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
-                  <button
-                    type="button"
-                    onClick={() => onUpdateFrame({ dynamicTextColorStyle: 'gold' })}
-                    className={`color-choice-pill ${(!frame.dynamicTextColorStyle || frame.dynamicTextColorStyle === 'gold') ? 'active' : ''}`}
-                    style={{ padding: '0.22rem 0.45rem', fontSize: '0.65rem', flex: '0 0 auto' }}
-                  >
-                    <span className="color-dot" style={{ background: 'linear-gradient(135deg, #fef08a, #cea544)' }} />
-                    <span>Oro</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onUpdateFrame({ dynamicTextColorStyle: 'white' })}
-                    className={`color-choice-pill ${frame.dynamicTextColorStyle === 'white' ? 'active' : ''}`}
-                    style={{ padding: '0.22rem 0.45rem', fontSize: '0.65rem', flex: '0 0 auto' }}
-                  >
-                    <span className="color-dot" style={{ background: '#ffffff', border: '1px solid #cbd5e1' }} />
-                    <span>Blanco</span>
-                  </button>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flex: 1, minWidth: '110px' }}>
-                    <span style={{ fontSize: '0.64rem', color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
-                      {frame.dynamicTextScale || 100}%
-                    </span>
-                    <input
-                      type="range"
-                      min="75"
-                      max="135"
-                      step="5"
-                      value={frame.dynamicTextScale || 100}
-                      onChange={(e) => onUpdateFrame({ dynamicTextScale: Number(e.target.value) })}
-                      className="master-range-slider"
-                      style={{ flex: 1 }}
-                      title="Tamaño de letra del marco"
-                    />
-                  </div>
-
-                  <input
-                    type="text"
-                    value={frame.dynamicTextRight || ''}
-                    onChange={(e) => onUpdateFrame({ dynamicTextRight: e.target.value, dynamicTextEnabled: true })}
-                    placeholder="Texto der. opcional (Fecha/Lugar)"
-                    className="form-input"
-                    style={{ width: '100%', fontSize: '0.72rem', padding: '0.28rem 0.55rem', marginTop: '0.15rem' }}
-                  />
-                </div>
-              </div>
+              </>
             )}
           </div>
         )}
+      </div>
+
+      {/* BARRA INFERIOR DE NAVEGACIÓN DE 5 PESTAÑAS (ESTILO DARKROOM / LIGHTROOM MOBILE) */}
+      <div className="sidebar-tabs">
+        <button
+          type="button"
+          onClick={() => setActiveTab('presets')}
+          className={`sidebar-tab ${activeTab === 'presets' ? 'active' : ''}`}
+        >
+          <Wand2 size={15} />
+          <span>Filtros</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('develop')}
+          className={`sidebar-tab ${activeTab === 'develop' ? 'active' : ''}`}
+        >
+          <SlidersHorizontal size={15} />
+          <span>Ajustes</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('crop')}
+          className={`sidebar-tab ${activeTab === 'crop' ? 'active' : ''}`}
+        >
+          <Crop size={15} />
+          <span>Encuadre</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('watermark')}
+          className={`sidebar-tab ${activeTab === 'watermark' ? 'active' : ''}`}
+        >
+          <ImageIcon size={15} />
+          <span>Firma</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('frame')}
+          className={`sidebar-tab ${activeTab === 'frame' ? 'active' : ''}`}
+        >
+          <FrameIcon size={15} />
+          <span>Marcos</span>
+        </button>
       </div>
     </aside>
   );

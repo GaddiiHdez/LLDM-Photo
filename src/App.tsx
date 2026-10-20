@@ -129,10 +129,8 @@ export const App: React.FC = () => {
     }, 2800);
   };
 
-  // Filmstrip Collapsed State (inicia colapsado en móvil para maximizar el lienzo y controles)
-  const [isFilmstripCollapsed, setIsFilmstripCollapsed] = useState<boolean>(() => {
-    return typeof window !== 'undefined' ? window.innerWidth <= 768 : false;
-  });
+  // Batch Grid Sheet State (Vista de cuadrícula para gestionar todo el carrete)
+  const [isGridOpen, setIsGridOpen] = useState<boolean>(false);
 
   // State
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
@@ -363,17 +361,70 @@ export const App: React.FC = () => {
   };
 
   // Delete individual photo (Liberando memoria Blob URL para evitar fugas de RAM en móvil)
-  const handleDeletePhoto = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    const target = photos.find((p) => p.id === id);
+  const handleDeletePhoto = (id: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    const currentIndex = photos.findIndex((p) => p.id === id);
+    const target = photos[currentIndex];
     if (target?.originalUrl?.startsWith('blob:')) {
       URL.revokeObjectURL(target.originalUrl);
     }
     const filtered = photos.filter((p) => p.id !== id);
     setPhotos(filtered);
     if (activePhotoId === id && filtered.length > 0) {
-      setActivePhotoId(filtered[0].id);
+      const nextIdx = Math.min(currentIndex, filtered.length - 1);
+      setActivePhotoId(filtered[Math.max(0, nextIdx)].id);
     }
+    showToast('Fotografía eliminada del carrete');
+  };
+
+  // Replace individual photo in place (Conservando posición en el carrete y ajustes actuales)
+  const handleReplacePhoto = (id: string) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.multiple = false;
+    input.accept = 'image/*,.cr2,.nef,.arw,.dng,.raf';
+    input.onchange = async (e: any) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      const isRaw = /\.(cr2|nef|arw|dng|raf)$/i.test(file.name);
+      const url = await getDrawableImageUrl(file);
+      let realWidth = 4000;
+      let realHeight = 3000;
+
+      const sensorData = await analyzeImageHistogram(url, isRaw);
+      if (sensorData) {
+        realWidth = sensorData.width;
+        realHeight = sensorData.height;
+      }
+
+      setPhotos((prev) =>
+        prev.map((p) => {
+          if (p.id !== id) return p;
+          if (p.originalUrl?.startsWith('blob:')) {
+            URL.revokeObjectURL(p.originalUrl);
+          }
+          return {
+            ...p,
+            file,
+            name: file.name,
+            sizeFormatted: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
+            originalUrl: url,
+            thumbnailUrl: url,
+            width: realWidth,
+            height: realHeight,
+            isRaw,
+            crop: {
+              ...p.crop,
+              orientation: realWidth >= realHeight ? 'landscape' : 'portrait',
+            },
+          };
+        })
+      );
+      setActivePhotoId(id);
+      showToast('✓ Fotografía sustituida conservando tus ajustes');
+    };
+    input.click();
   };
 
   // Guardar configuración actual como Default global
@@ -392,6 +443,15 @@ export const App: React.FC = () => {
     });
   };
 
+  const triggerAddMoreFiles = () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.multiple = true;
+    input.accept = 'image/*,.cr2,.nef,.arw,.dng,.raf';
+    input.onchange = (e: any) => e.target.files && handleFilesSelected(e.target.files);
+    input.click();
+  };
+
   return (
     <div className="app-container">
       {/* Unified Studio Top Bar */}
@@ -404,14 +464,7 @@ export const App: React.FC = () => {
         onToggleOriginal={(val) => setShowOriginal((prev) => (typeof val === 'boolean' ? val : !prev))}
         onSelectTheme={handleSelectTheme}
         onToggleTheme={toggleTheme}
-        onAddPhotosClick={() => {
-          const input = document.createElement('input');
-          input.type = 'file';
-          input.multiple = true;
-          input.accept = 'image/*,.cr2,.nef,.arw,.dng,.raf';
-          input.onchange = (e: any) => e.target.files && handleFilesSelected(e.target.files);
-          input.click();
-        }}
+        onOpenGrid={() => setIsGridOpen(true)}
         onSingleExport={handleSingleExport}
         onSingleShare={handleSingleShare}
         onExportBatch={handleExportBatch}
@@ -422,13 +475,12 @@ export const App: React.FC = () => {
         <BatchDropzone onFilesSelected={handleFilesSelected} />
       ) : (
         <div className="studio-body">
-          {/* Main Visual Column: Preview Stage + Thumbnail Strip directly underneath */}
+          {/* Main Visual Column: Preview Stage + Persistent Smart Filmstrip */}
           <div className="studio-main-column">
             <PreviewStage
               photo={activePhoto}
               watermark={watermark}
               frame={frame}
-              isFilmstripCollapsed={isFilmstripCollapsed}
               showOriginal={showOriginal}
               onToggleOriginal={(val) => setShowOriginal((prev) => (typeof val === 'boolean' ? val : !prev))}
               onSingleExport={handleSingleExport}
@@ -443,18 +495,10 @@ export const App: React.FC = () => {
             <ThumbnailBar
               photos={photos}
               activePhotoId={activePhotoId}
-              isCollapsed={isFilmstripCollapsed}
-              onToggleCollapse={() => setIsFilmstripCollapsed((prev) => !prev)}
               onSelectPhoto={setActivePhotoId}
               onDeletePhoto={handleDeletePhoto}
-              onAddMorePhotos={() => {
-                const input = document.createElement('input');
-                input.type = 'file';
-                input.multiple = true;
-                input.accept = 'image/*,.cr2,.nef,.arw,.dng,.raf';
-                input.onchange = (e: any) => e.target.files && handleFilesSelected(e.target.files);
-                input.click();
-              }}
+              onReplacePhoto={handleReplacePhoto}
+              onAddMorePhotos={triggerAddMoreFiles}
               onClearAll={() => {
                 photos.forEach((p) => {
                   if (p.originalUrl?.startsWith('blob:')) {
@@ -465,10 +509,12 @@ export const App: React.FC = () => {
                 setActivePhotoId('');
               }}
               onExportBatch={handleExportBatch}
+              isGridOpen={isGridOpen}
+              onToggleGrid={(open) => setIsGridOpen((prev) => (typeof open === 'boolean' ? open : !prev))}
             />
           </div>
 
-          {/* Right Sidebar Controls */}
+          {/* Bottom / Right Tool Deck */}
           <SidebarControls
             photo={activePhoto}
             watermark={watermark}
@@ -481,8 +527,6 @@ export const App: React.FC = () => {
             onApplySettingsToAll={handleApplySettingsToAll}
             onSaveAsDefaultAppSettings={handleSaveAsDefaultAppSettings}
             totalPhotos={photos.length}
-            onToggleFilmstrip={() => setIsFilmstripCollapsed((prev) => !prev)}
-            isFilmstripCollapsed={isFilmstripCollapsed}
           />
         </div>
       )}

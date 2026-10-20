@@ -1,13 +1,13 @@
 import React from 'react';
 import {
   Download,
-  Plus,
   Sun,
   Moon,
   Share2,
   Eye,
   EyeOff,
   FolderArchive,
+  LayoutGrid,
 } from 'lucide-react';
 import type { PhotoItem } from '../types/editor';
 
@@ -20,7 +20,7 @@ interface HeaderProps {
   onToggleOriginal?: (val?: boolean) => void;
   onSelectTheme?: (theme: 'light' | 'dark') => void;
   onToggleTheme: () => void;
-  onAddPhotosClick: () => void;
+  onOpenGrid?: () => void;
   onSingleExport?: () => void;
   onSingleShare?: () => void;
   onExportBatch: () => void;
@@ -34,7 +34,7 @@ export const Header: React.FC<HeaderProps> = ({
   showOriginal = false,
   onToggleOriginal,
   onToggleTheme,
-  onAddPhotosClick,
+  onOpenGrid,
   onSingleExport,
   onSingleShare,
   onExportBatch,
@@ -60,23 +60,23 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
         ) : (
           <div className="studio-header-meta">
-            <span className="studio-counter-pill">
-              {currentPhotoIndex + 1}/{totalPhotos}
-            </span>
+            <button
+              type="button"
+              onClick={onOpenGrid}
+              className="studio-counter-pill interactive"
+              title="Ver cuadrícula de todas las fotos de la sesión"
+            >
+              <LayoutGrid size={12} style={{ color: 'var(--color-accent)' }} />
+              <span>
+                {currentPhotoIndex + 1}/{totalPhotos}
+              </span>
+            </button>
             {activePhoto?.isRaw && <span className="badge-raw">RAW</span>}
             {activePhoto && (
               <span className="header-filename-desktop" title={activePhoto.name}>
                 {activePhoto.name}
               </span>
             )}
-            <button
-              type="button"
-              onClick={onAddPhotosClick}
-              className="header-icon-btn add-more-btn"
-              title="Importar más fotos a la sesión"
-            >
-              <Plus size={15} />
-            </button>
           </div>
         )}
       </div>
@@ -84,7 +84,7 @@ export const Header: React.FC<HeaderProps> = ({
       <div className="header-actions">
         {totalPhotos > 0 && (
           <>
-            {/* Botón Comparar Antes / Después (Toque o Mantener Presionado) */}
+            {/* Botón Comparar Antes / Después */}
             {onToggleOriginal && (
               <button
                 type="button"
@@ -103,7 +103,7 @@ export const Header: React.FC<HeaderProps> = ({
                 type="button"
                 onClick={onSingleShare}
                 className="header-icon-btn"
-                title="Compartir esta foto (WhatsApp, Telegram, Galería)"
+                title="Compartir esta foto (WhatsApp, Telegram, Redes)"
               >
                 <Share2 size={15} style={{ color: 'var(--color-brand-light)' }} />
                 <span className="btn-label-desktop">Compartir</span>
@@ -131,7 +131,7 @@ export const Header: React.FC<HeaderProps> = ({
               title="Exportar o compartir lote completo"
             >
               <FolderArchive size={14} />
-              <span className="btn-label-desktop">Lote ({totalPhotos})</span>
+              <span className="btn-label-desktop">Exportar ({totalPhotos})</span>
               <span className="btn-label-mobile">Lote ({totalPhotos})</span>
             </button>
           </>
