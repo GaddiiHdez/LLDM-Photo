@@ -96,7 +96,7 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
   onSyncFrameToAll,
   onSyncWatermarkToAll,
 }) => {
-  const [activeTab, setActiveTab] = useState<'presets' | 'develop' | 'crop' | 'watermark' | 'frame'>('frame');
+  const [activeTab, setActiveTab] = useState<'presets' | 'develop' | 'crop' | 'watermark' | 'frame'>('develop');
   const [frameSubMode, setFrameSubMode] = useState<'style' | 'text'>('style');
   const [activeLightParam, setActiveLightParam] = useState<keyof ImageAdjustments>('brightness');
   const [customPresets, setCustomPresets] = useState<CustomPreset[]>([]);
@@ -1137,14 +1137,14 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
         )}
       </div>
 
-      {/* BARRA INFERIOR DE 5 PESTAÑAS — FLUJO: MARCO → ENCUADRE → FILTROS → AJUSTES → FIRMA */}
+      {/* BARRA INFERIOR DE 5 PESTAÑAS — FLUJO: FILTROS → AJUSTES → ENCUADRE → FIRMA → MARCOS */}
       <div className="sidebar-tabs">
         {([
-          { id: 'frame', label: 'Marcos', icon: FrameIcon },
-          { id: 'crop', label: 'Encuadre', icon: Crop },
           { id: 'presets', label: 'Filtros', icon: Wand2 },
           { id: 'develop', label: 'Ajustes', icon: SlidersHorizontal },
+          { id: 'crop', label: 'Encuadre', icon: Crop },
           { id: 'watermark', label: 'Firma', icon: ImageIcon },
+          { id: 'frame', label: 'Marcos', icon: FrameIcon },
         ] as const).map((tab) => {
           const TabIcon = tab.icon;
           return (

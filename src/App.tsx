@@ -26,22 +26,10 @@ import { analyzeImageHistogram, computeAdaptiveChurchEnhancement } from './utils
 import { getDefaultAppSettings, saveDefaultAppSettings, getSavedPngFrames } from './utils/frameStorage';
 import { getSavedLogos } from './utils/logoStorage';
 import {
-  fitPhotosToFrame,
   computeSmartCropOffsets,
   getFrameAspectRatio,
   resolveCropRatio,
 } from './utils/smartCrop';
-
-const LAST_FRAME_KEY = 'bereasnap_last_frame';
-
-function readLastFrame(): FrameSettings | null {
-  try {
-    const raw = localStorage.getItem(LAST_FRAME_KEY);
-    return raw ? (JSON.parse(raw) as FrameSettings) : null;
-  } catch {
-    return null;
-  }
-}
 
 const PRESET_ADJUSTMENTS: Record<PresetType, ImageAdjustments> = {
   'auto-church': computeAdaptiveChurchEnhancement(null),
@@ -202,11 +190,10 @@ export const App: React.FC = () => {
     }
   );
 
-  // Frame State: el marco es la función principal, así que se recuerda el último usado.
-  // En el primer arranque se activa por defecto el marco oficial Centenario.
+  // Frame State (Por defecto la foto inicia limpia sin marco 'none')
   const [frame, setFrame] = useState<FrameSettings>(
-    savedDefaults?.frame || readLastFrame() || {
-      style: 'custom-png',
+    savedDefaults?.frame || {
+      style: 'none',
       pngDataUrl: defaultPngFrame ? defaultPngFrame.pngDataUrl : '/frames/marco-centenario-V2-notexto.png',
       pngFit: 'stretch',
       borderTop: 24,
@@ -293,12 +280,9 @@ export const App: React.FC = () => {
       })
     );
 
-    // Encuadre inteligente automático según el marco activo (dimensiones del PNG + sujeto principal)
-    const fittedPhotos = await fitPhotosToFrame(newPhotos, frame);
-
-    setPhotos((prev) => [...prev, ...fittedPhotos]);
-    if (!activePhotoId && fittedPhotos.length > 0) {
-      setActivePhotoId(fittedPhotos[0].id);
+    setPhotos((prev) => [...prev, ...newPhotos]);
+    if (!activePhotoId && newPhotos.length > 0) {
+      setActivePhotoId(newPhotos[0].id);
     }
   };
 
@@ -306,38 +290,6 @@ export const App: React.FC = () => {
   useEffect(() => {
     photosRef.current = photos;
   }, [photos]);
-
-  // Persistir el último marco usado y re-encuadrar todo el lote cuando cambia el marco
-  const frameFitKey = `${frame.style}|${frame.pngDataUrl ?? ''}`;
-  const isFirstFrameRender = useRef(true);
-  useEffect(() => {
-    try {
-      localStorage.setItem(LAST_FRAME_KEY, JSON.stringify(frame));
-    } catch {
-      // Marco PNG propio demasiado grande para localStorage: se ignora
-    }
-
-    if (isFirstFrameRender.current) {
-      isFirstFrameRender.current = false;
-      return;
-    }
-    if (photosRef.current.length === 0) return;
-
-    let cancelled = false;
-    fitPhotosToFrame(photosRef.current, frame).then((updated) => {
-      if (cancelled) return;
-      setPhotos((prev) =>
-        prev.map((p) => {
-          const match = updated.find((u) => u.id === p.id);
-          return match ? { ...p, crop: match.crop } : p;
-        })
-      );
-    });
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [frameFitKey]);
 
   // Active photo selection
   const activePhoto = photos.find((p) => p.id === activePhotoId) || photos[0];
@@ -659,11 +611,7 @@ export const App: React.FC = () => {
 
       {/* Main Studio Area */}
       {photos.length === 0 ? (
-        <BatchDropzone
-          onFilesSelected={handleFilesSelected}
-          frame={frame}
-          onUpdateFrame={(f) => setFrame((prev) => ({ ...prev, ...f }))}
-        />
+        <BatchDropzone onFilesSelected={handleFilesSelected} />
       ) : (
         <div className="studio-body">
           {/* Main Visual Column: Preview Stage + Persistent Smart Filmstrip */}
