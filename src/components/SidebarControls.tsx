@@ -74,6 +74,7 @@ interface SidebarControlsProps {
   onUpdateFrame: (frame: Partial<FrameSettings>) => void;
   onApplySettingsToAll: () => void;
   onApplyCropToAll?: () => void;
+  onSmartCrop?: () => void;
   onSyncFrameToAll?: () => void;
   onSyncWatermarkToAll?: () => void;
   onSaveAsDefaultAppSettings: () => void;
@@ -91,10 +92,11 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
   onUpdateFrame,
   onApplySettingsToAll,
   onApplyCropToAll,
+  onSmartCrop,
   onSyncFrameToAll,
   onSyncWatermarkToAll,
 }) => {
-  const [activeTab, setActiveTab] = useState<'presets' | 'develop' | 'crop' | 'watermark' | 'frame'>('develop');
+  const [activeTab, setActiveTab] = useState<'presets' | 'develop' | 'crop' | 'watermark' | 'frame'>('frame');
   const [frameSubMode, setFrameSubMode] = useState<'style' | 'text'>('style');
   const [activeLightParam, setActiveLightParam] = useState<keyof ImageAdjustments>('brightness');
   const [customPresets, setCustomPresets] = useState<CustomPreset[]>([]);
@@ -261,7 +263,10 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
     },
   ];
 
+  const hasPngFrame = frame.style === 'custom-png' && Boolean(frame.pngDataUrl);
+
   const ratioList: { id: AspectRatioType; label: string; w: number; h: number }[] = [
+    ...(hasPngFrame ? [{ id: 'frame' as AspectRatioType, label: 'Ajuste Marco', w: 17, h: 12 }] : []),
     { id: 'original', label: 'Libre', w: 18, h: 14 },
     { id: '1:1', label: '1:1', w: 15, h: 15 },
     { id: '4:5', label: '4:5 IG', w: 13, h: 16 },
@@ -547,6 +552,16 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
                 </div>
 
                 <div className="deck-row-actions">
+                  <button
+                    type="button"
+                    onClick={onSmartCrop}
+                    className="deck-mini-btn accent"
+                    title="Reencuadrar esta foto de forma inteligente: conserva rostros y sujeto principal"
+                  >
+                    <Wand2 size={11} style={{ color: '#38bdf8' }} />
+                    <span>Auto</span>
+                  </button>
+
                   <button
                     type="button"
                     onClick={() => handleCropChange('rotation', ((photo.crop?.rotation || 0) + 90) % 360)}
@@ -1122,52 +1137,28 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
         )}
       </div>
 
-      {/* BARRA INFERIOR DE NAVEGACIÓN DE 5 PESTAÑAS (ESTILO DARKROOM / LIGHTROOM MOBILE) */}
+      {/* BARRA INFERIOR DE 5 PESTAÑAS — FLUJO: MARCO → ENCUADRE → FILTROS → AJUSTES → FIRMA */}
       <div className="sidebar-tabs">
-        <button
-          type="button"
-          onClick={() => setActiveTab('presets')}
-          className={`sidebar-tab ${activeTab === 'presets' ? 'active' : ''}`}
-        >
-          <Wand2 size={15} />
-          <span>Filtros</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('develop')}
-          className={`sidebar-tab ${activeTab === 'develop' ? 'active' : ''}`}
-        >
-          <SlidersHorizontal size={15} />
-          <span>Ajustes</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('crop')}
-          className={`sidebar-tab ${activeTab === 'crop' ? 'active' : ''}`}
-        >
-          <Crop size={15} />
-          <span>Encuadre</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('watermark')}
-          className={`sidebar-tab ${activeTab === 'watermark' ? 'active' : ''}`}
-        >
-          <ImageIcon size={15} />
-          <span>Firma</span>
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setActiveTab('frame')}
-          className={`sidebar-tab ${activeTab === 'frame' ? 'active' : ''}`}
-        >
-          <FrameIcon size={15} />
-          <span>Marcos</span>
-        </button>
+        {([
+          { id: 'frame', label: 'Marcos', icon: FrameIcon },
+          { id: 'crop', label: 'Encuadre', icon: Crop },
+          { id: 'presets', label: 'Filtros', icon: Wand2 },
+          { id: 'develop', label: 'Ajustes', icon: SlidersHorizontal },
+          { id: 'watermark', label: 'Firma', icon: ImageIcon },
+        ] as const).map((tab) => {
+          const TabIcon = tab.icon;
+          return (
+            <button
+              key={tab.id}
+              type="button"
+              onClick={() => setActiveTab(tab.id)}
+              className={`sidebar-tab ${activeTab === tab.id ? 'active' : ''}`}
+            >
+              <TabIcon size={15} />
+              <span>{tab.label}</span>
+            </button>
+          );
+        })}
       </div>
     </aside>
   );

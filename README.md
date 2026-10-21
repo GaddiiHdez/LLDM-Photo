@@ -34,12 +34,23 @@ Puedes descargar el archivo instalador oficial directamente en tu teléfono Andr
 
 ## ✨ Características Principales
 
+### 🖼️ 0. Flujo "Primero el Marco" y Encuadre Inteligente
+* **Pantalla de inicio en 2 pasos:** `1 · Elige tu marco` (con título del evento editable) y `2 · Importa tus fotografías`. Se recuerda el último marco usado.
+* **Pestañas en orden de trabajo:** `Marcos → Encuadre → Filtros → Ajustes → Firma`; la app abre directamente en `Marcos`.
+* **Encuadre automático al marco:** el lienzo adopta exactamente las dimensiones del PNG (proporción `Ajuste Marco`) y cada foto se reencuadra sola.
+* **Recorte inteligente:** analiza bordes, tonos de piel y ubicación de cabezas para mantener a las personas dentro del marco. Botón `Auto` en Encuadre, y se recalcula al cambiar de proporción, sincronizar el lote o sustituir una foto.
+
+### 📤 0.1 Exportación Directa en JPG
+* **Fotos JPG individuales** (por defecto): en Android se guardan directo en `Galería › BereaSnap` mediante MediaStore, sin ZIP ni descompresión.
+* **Archivo ZIP** como alternativa para enviar todo el lote en un solo archivo.
+* Compartir lote: abre el menú nativo con todas las fotos a la vez.
+
 ### 🎚️ 1. Deck de Herramientas Ergonómico "Cero-Scroll"
 Inspirado en la fluidez de **Lightroom Mobile y Snapseed**:
 * **Arquitectura de 2 Filas Fijas:** Olvídate del scroll vertical en paneles comprimidos; cada herramienta opera en dos niveles horizontales limpios:
   * **Fila Superior:** Slider maestro activo con indicador numérico en vivo (`+15`, `-20`), botones de 1 toque (`Auto`, `0`, `Todo`, `Sync`).
   * **Fila Inferior:** Cinta deslizable con difuminado suave (*soft-edge content fade*) que muestra todas las opciones y diales de un vistazo.
-* **5 Módulos Dedicados:** `Filtros`, `Ajustes`, `Encuadre`, `Firma`, `Marcos`.
+* **5 Módulos Dedicados:** `Marcos`, `Encuadre`, `Filtros`, `Ajustes`, `Firma`.
 
 ### 🎞️ 2. Carrete Filmstrip Inteligente
 * **Cinta Persistente (50px):** Acceso permanente a todas las fotografías de la sesión bajo el lienzo, con centrado automático suave de la toma activa.
@@ -123,7 +134,9 @@ LLDM-Photo/
 │   ├── utils/
 │   │   ├── canvasEngine.ts    # Motor de renderizado de marcos y marcas de agua
 │   │   ├── rawProcessingEngine.ts # Algoritmos de ajuste de luz, color y contraste
-│   │   └── rawDecoder.ts      # Decodificación de archivos RAW
+│   │   ├── rawDecoder.ts      # Decodificación de archivos RAW
+│   │   ├── smartCrop.ts       # Encuadre inteligente y ajuste al marco
+│   │   └── mediaSaver.ts      # Puente al plugin nativo de Galería (Android)
 │   ├── version.ts             # Constante de versión sincronizada
 │   ├── App.tsx                # Orquestador principal de estado
 │   └── index.css              # Sistema de diseño de Cuarto Oscuro móvil

@@ -4,12 +4,38 @@ import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 import { renderProcessedPhoto, canvasToBlob, loadImage } from './canvasEngine';
+import { MediaSaver } from './mediaSaver';
 import type { PhotoItem, WatermarkSettings, FrameSettings, ExportOptions } from '../types/editor';
 
 const DEFAULT_EXPORT_OPTIONS: ExportOptions = {
   qualityPreset: 'max',
   filenamePrefix: 'BereaSnap',
+  deliveryFormat: 'jpg',
 };
+
+export type ExportOutcome = 'gallery' | 'share' | 'download' | 'file';
+
+export interface BatchExportResult {
+  total: number;
+  saved: number;
+  outcome: ExportOutcome;
+}
+
+/**
+ * Guarda una foto JPG directamente en la Galería de Android (Pictures/BereaSnap).
+ * Devuelve false si el plugin nativo no está disponible o el permiso fue denegado.
+ */
+async function saveBlobToGallery(blob: Blob, fileName: string): Promise<boolean> {
+  if (!Capacitor.isNativePlatform()) return false;
+  try {
+    const data = await blobToBase64(blob);
+    await MediaSaver.saveImage({ data, fileName, album: 'BereaSnap' });
+    return true;
+  } catch (err) {
+    console.warn('[MediaSaver] Galería no disponible, se usará alternativa:', err);
+    return false;
+  }
+}
 
 function blobToBase64(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -115,7 +141,7 @@ export async function exportSinglePhoto(
   frame: FrameSettings,
   options: ExportOptions = DEFAULT_EXPORT_OPTIONS,
   mode: 'download' | 'share' = 'download'
-): Promise<void> {
+): Promise<ExportOutcome> {
   const maxDim = options.qualityPreset === 'social' ? 2048 : 2560;
   const jpegQuality = options.qualityPreset === 'social' ? 0.85 : 0.94;
   const prefix = (options.filenamePrefix || 'BereaSnap').trim().replace(/[^a-zA-Z0-9_-]/g, '_');
@@ -134,7 +160,13 @@ export async function exportSinglePhoto(
     const cleanName = photo.name.replace(/\.[^/.]+$/, '');
     const fileName = `${prefix}_${cleanName}.jpg`;
 
+    // Guardado directo en la Galería de Android (sin menús intermedios)
+    if (mode === 'download' && (await saveBlobToGallery(blob, fileName))) {
+      return 'gallery';
+    }
+
     await deliverExportedFile(blob, fileName, 'image/jpeg', mode);
+    return mode === 'share' ? 'share' : Capacitor.isNativePlatform() ? 'file' : 'download';
   } finally {
     if (canvas) {
       canvas.width = 0;
@@ -142,6 +174,145 @@ export async function exportSinglePhoto(
       canvas = null;
     }
   }
+}
+
+/**
+ * Procesa en lote todas las fotos y las entrega como archivos JPG individuales:
+ * - Android (descargar): directo a la Galería, álbum "BereaSnap".
+ * - Android (compartir) o si la Galería no está disponible: menú nativo con todas las fotos a la vez.
+ * - Web: descarga de cada JPG (o hoja de compartir si el navegador lo soporta).
+ */
+export async function exportBatchAsJpgs(
+  photos: PhotoItem[],
+  watermark: WatermarkSettings,
+  frame: FrameSettings,
+  onProgress: (current: number, total: number, currentName: string) => void,
+  options: ExportOptions = DEFAULT_EXPORT_OPTIONS,
+  mode: 'download' | 'share' = 'download'
+): Promise<BatchExportResult> {
+  const prefix = (options.filenamePrefix || 'BereaSnap').trim().replace(/[^a-zA-Z0-9_-]/g, '_');
+  const maxDim = options.qualityPreset === 'social' ? 2048 : 2560;
+  const jpegQuality = options.qualityPreset === 'social' ? 0.85 : 0.92;
+  const isNative = Capacitor.isNativePlatform();
+
+  let cachedPngFrame: HTMLImageElement | null = null;
+  if (frame.style === 'custom-png' && frame.pngDataUrl) {
+    try {
+      cachedPngFrame = await loadImage(frame.pngDataUrl);
+    } catch (e) {
+      console.warn('[BatchExport] No se pudo precargar marco PNG:', e);
+    }
+  }
+
+  let cachedLogo: HTMLImageElement | null = null;
+  if (watermark.enabled && watermark.type === 'image' && watermark.imageDataUrl) {
+    try {
+      cachedLogo = await loadImage(watermark.imageDataUrl);
+    } catch (e) {
+      console.warn('[BatchExport] No se pudo precargar logo:', e);
+    }
+  }
+
+  let savedToGallery = 0;
+  let galleryAvailable = isNative && mode === 'download';
+  const nativeShareUris: string[] = [];
+  const webShareFiles: File[] = [];
+  let processedCount = 0;
+
+  for (let i = 0; i < photos.length; i++) {
+    const photo = photos[i];
+    onProgress(i + 1, photos.length, photo.name);
+    await new Promise((resolve) => setTimeout(resolve, 40));
+
+    let canvas: HTMLCanvasElement | null = null;
+    try {
+      let blob: Blob;
+      try {
+        canvas = await renderProcessedPhoto(
+          photo.originalUrl, photo.adjustments, watermark, frame, photo.crop, maxDim, cachedPngFrame, cachedLogo
+        );
+        blob = await canvasToBlob(canvas, jpegQuality);
+      } catch (error) {
+        console.error(`Error procesando ${photo.name} a resolución completa, reintento a 1600px:`, error);
+        if (canvas) {
+          canvas.width = 0;
+          canvas.height = 0;
+        }
+        canvas = await renderProcessedPhoto(
+          photo.originalUrl, photo.adjustments, watermark, frame, photo.crop, 1600, cachedPngFrame, cachedLogo
+        );
+        blob = await canvasToBlob(canvas, 0.85);
+      }
+
+      const cleanName = photo.name.replace(/\.[^/.]+$/, '');
+      const fileName = `${prefix}_${String(i + 1).padStart(2, '0')}_${cleanName}.jpg`;
+
+      if (isNative) {
+        if (galleryAvailable) {
+          if (await saveBlobToGallery(blob, fileName)) {
+            savedToGallery++;
+          } else {
+            galleryAvailable = false;
+          }
+        }
+        if (!galleryAvailable) {
+          const base64Data = await blobToBase64(blob);
+          const res = await Filesystem.writeFile({
+            path: `BereaSnap_export/${fileName}`,
+            data: base64Data,
+            directory: Directory.Cache,
+            recursive: true,
+          });
+          nativeShareUris.push(res.uri);
+        }
+      } else if (mode === 'share') {
+        webShareFiles.push(new File([blob], fileName, { type: 'image/jpeg' }));
+      } else {
+        saveAs(blob, fileName);
+        await new Promise((resolve) => setTimeout(resolve, 280));
+      }
+      processedCount++;
+    } catch (retryErr) {
+      console.error(`Fallo definitivo en foto ${photo.name}:`, retryErr);
+    } finally {
+      if (canvas) {
+        canvas.width = 0;
+        canvas.height = 0;
+        canvas = null;
+      }
+    }
+  }
+
+  if (processedCount === 0) {
+    throw new Error('No se pudo procesar ninguna fotografía del lote.');
+  }
+
+  if (isNative) {
+    if (nativeShareUris.length > 0) {
+      await Share.share({
+        title: `${prefix} (${nativeShareUris.length} fotos)`,
+        files: nativeShareUris,
+        dialogTitle: 'Guardar o compartir fotografías',
+      });
+      return { total: photos.length, saved: processedCount, outcome: 'share' };
+    }
+    return { total: photos.length, saved: savedToGallery, outcome: 'gallery' };
+  }
+
+  if (mode === 'share' && webShareFiles.length > 0 && typeof navigator !== 'undefined' && navigator.canShare?.({ files: webShareFiles })) {
+    try {
+      await navigator.share({ title: prefix, files: webShareFiles });
+      return { total: photos.length, saved: processedCount, outcome: 'share' };
+    } catch (err) {
+      if ((err as Error)?.name === 'AbortError') {
+        return { total: photos.length, saved: processedCount, outcome: 'share' };
+      }
+    }
+  }
+  if (mode === 'share') {
+    webShareFiles.forEach((f) => saveAs(f, f.name));
+  }
+  return { total: photos.length, saved: processedCount, outcome: 'download' };
 }
 
 /**

@@ -20,11 +20,28 @@ import type {
   ExportOptions,
 } from './types/editor';
 
-import { exportSinglePhoto, exportBatchAsZip } from './utils/batchExporter';
+import { exportSinglePhoto, exportBatchAsZip, exportBatchAsJpgs } from './utils/batchExporter';
 import { getDrawableImageUrl } from './utils/rawDecoder';
 import { analyzeImageHistogram, computeAdaptiveChurchEnhancement } from './utils/rawProcessingEngine';
 import { getDefaultAppSettings, saveDefaultAppSettings, getSavedPngFrames } from './utils/frameStorage';
 import { getSavedLogos } from './utils/logoStorage';
+import {
+  fitPhotosToFrame,
+  computeSmartCropOffsets,
+  getFrameAspectRatio,
+  resolveCropRatio,
+} from './utils/smartCrop';
+
+const LAST_FRAME_KEY = 'bereasnap_last_frame';
+
+function readLastFrame(): FrameSettings | null {
+  try {
+    const raw = localStorage.getItem(LAST_FRAME_KEY);
+    return raw ? (JSON.parse(raw) as FrameSettings) : null;
+  } catch {
+    return null;
+  }
+}
 
 const PRESET_ADJUSTMENTS: Record<PresetType, ImageAdjustments> = {
   'auto-church': computeAdaptiveChurchEnhancement(null),
@@ -185,11 +202,11 @@ export const App: React.FC = () => {
     }
   );
 
-  // Frame State (Si hay un marco PNG predeterminado guardado, se activa por defecto)
-  // Frame State (Por defecto la foto inicia limpia sin marco 'none')
+  // Frame State: el marco es la función principal, así que se recuerda el último usado.
+  // En el primer arranque se activa por defecto el marco oficial Centenario.
   const [frame, setFrame] = useState<FrameSettings>(
-    savedDefaults?.frame || {
-      style: 'none',
+    savedDefaults?.frame || readLastFrame() || {
+      style: 'custom-png',
       pngDataUrl: defaultPngFrame ? defaultPngFrame.pngDataUrl : '/frames/marco-centenario-V2-notexto.png',
       pngFit: 'stretch',
       borderTop: 24,
@@ -221,7 +238,11 @@ export const App: React.FC = () => {
   const [exportOptions, setExportOptions] = useState<ExportOptions>({
     qualityPreset: 'max',
     filenamePrefix: 'BereaSnap',
+    deliveryFormat: 'jpg',
   });
+
+  // Referencia siempre actualizada del lote (para efectos asíncronos sin cierres obsoletos)
+  const photosRef = useRef<PhotoItem[]>([]);
 
   // Handle uploaded files (Soporta archivos RAW .NEF, .CR2, .ARW, dimensiones reales e histograma adaptativo)
   const handleFilesSelected = async (files: FileList | File[]) => {
@@ -272,11 +293,51 @@ export const App: React.FC = () => {
       })
     );
 
-    setPhotos((prev) => [...prev, ...newPhotos]);
-    if (!activePhotoId && newPhotos.length > 0) {
-      setActivePhotoId(newPhotos[0].id);
+    // Encuadre inteligente automático según el marco activo (dimensiones del PNG + sujeto principal)
+    const fittedPhotos = await fitPhotosToFrame(newPhotos, frame);
+
+    setPhotos((prev) => [...prev, ...fittedPhotos]);
+    if (!activePhotoId && fittedPhotos.length > 0) {
+      setActivePhotoId(fittedPhotos[0].id);
     }
   };
+
+  // Mantener referencia fresca del lote
+  useEffect(() => {
+    photosRef.current = photos;
+  }, [photos]);
+
+  // Persistir el último marco usado y re-encuadrar todo el lote cuando cambia el marco
+  const frameFitKey = `${frame.style}|${frame.pngDataUrl ?? ''}`;
+  const isFirstFrameRender = useRef(true);
+  useEffect(() => {
+    try {
+      localStorage.setItem(LAST_FRAME_KEY, JSON.stringify(frame));
+    } catch {
+      // Marco PNG propio demasiado grande para localStorage: se ignora
+    }
+
+    if (isFirstFrameRender.current) {
+      isFirstFrameRender.current = false;
+      return;
+    }
+    if (photosRef.current.length === 0) return;
+
+    let cancelled = false;
+    fitPhotosToFrame(photosRef.current, frame).then((updated) => {
+      if (cancelled) return;
+      setPhotos((prev) =>
+        prev.map((p) => {
+          const match = updated.find((u) => u.id === p.id);
+          return match ? { ...p, crop: match.crop } : p;
+        })
+      );
+    });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [frameFitKey]);
 
   // Active photo selection
   const activePhoto = photos.find((p) => p.id === activePhotoId) || photos[0];
@@ -288,11 +349,32 @@ export const App: React.FC = () => {
     );
   };
 
-  // Update crop settings for active photo
+  // Reencuadre inteligente: conserva rostros y sujeto principal dentro de la proporción/marco activo
+  const smartReframe = async (photo: PhotoItem, crop: CropSettings) => {
+    const frameRatio =
+      frame.style === 'custom-png' && frame.pngDataUrl ? await getFrameAspectRatio(frame.pngDataUrl) : null;
+    const ratio = resolveCropRatio(crop, photo.width, photo.height, frameRatio);
+    const offsets = await computeSmartCropOffsets(photo.originalUrl, ratio, crop.rotation || 0);
+    setPhotos((prev) =>
+      prev.map((p) => (p.id === photo.id ? { ...p, crop: { ...p.crop, ...offsets } } : p))
+    );
+  };
+
+  // Update crop settings for active photo (al cambiar de proporción se reencuadra de forma inteligente)
   const handleUpdateCrop = (newCrop: CropSettings) => {
+    const current = photos.find((p) => p.id === activePhotoId);
     setPhotos((prev) =>
       prev.map((p) => (p.id === activePhotoId ? { ...p, crop: newCrop } : p))
     );
+    if (current && current.crop.aspectRatio !== newCrop.aspectRatio && newCrop.aspectRatio !== 'original') {
+      smartReframe(current, newCrop);
+    }
+  };
+
+  const handleSmartCrop = async () => {
+    if (!activePhoto) return;
+    await smartReframe(activePhoto, activePhoto.crop);
+    showToast('✨ Encuadre inteligente aplicado a esta foto');
   };
 
   // Apply preset to active photo (soporta auto-análisis dinámico y presets personalizados)
@@ -328,15 +410,33 @@ export const App: React.FC = () => {
     showToast(`✓ Ajustes sincronizados en las ${photos.length} fotos del lote`);
   };
 
-  const handleApplyCropToAll = () => {
+  const handleApplyCropToAll = async () => {
     if (!activePhoto) return;
-    setPhotos((prev) =>
-      prev.map((p) => ({
-        ...p,
-        crop: { ...activePhoto.crop },
-      }))
+    const base = activePhoto.crop;
+    // Si la foto activa fue acercada a mano se copia su composición; si no, cada foto se reencuadra de forma inteligente
+    const copyOffsets = (base.zoom || 1) > 1.01 || base.aspectRatio === 'original';
+    const frameRatio =
+      frame.style === 'custom-png' && frame.pngDataUrl ? await getFrameAspectRatio(frame.pngDataUrl) : null;
+
+    const updated = await Promise.all(
+      photosRef.current.map(async (p) => {
+        if (p.id === activePhoto.id) return { id: p.id, crop: { ...base } };
+        let offsets = { offsetX: base.offsetX, offsetY: base.offsetY };
+        if (!copyOffsets) {
+          const ratio = resolveCropRatio(base, p.width, p.height, frameRatio);
+          offsets = await computeSmartCropOffsets(p.originalUrl, ratio, base.rotation || 0);
+        }
+        return { id: p.id, crop: { ...base, ...offsets, orientation: p.crop.orientation } };
+      })
     );
-    showToast(`✓ Encuadre (${activePhoto.crop.aspectRatio}) aplicado a las ${photos.length} fotos`);
+
+    setPhotos((prev) =>
+      prev.map((p) => {
+        const match = updated.find((u) => u.id === p.id);
+        return match ? { ...p, crop: match.crop } : p;
+      })
+    );
+    showToast(`✓ Encuadre (${base.aspectRatio === 'frame' ? 'Ajuste al marco' : base.aspectRatio}) aplicado a las ${photos.length} fotos`);
   };
 
   const handleSyncFrameToAll = () => {
@@ -378,13 +478,19 @@ export const App: React.FC = () => {
     }
   };
 
-  // Single Photo Export (Save)
+  // Single Photo Export (Save): en Android va directo a la Galería
   const handleSingleExport = async () => {
     if (!activePhoto) return;
     try {
-      await exportSinglePhoto(activePhoto, watermark, frame, exportOptions, 'download');
+      const outcome = await exportSinglePhoto(activePhoto, watermark, frame, exportOptions, 'download');
+      if (outcome === 'gallery') {
+        showToast('✓ Foto guardada en Galería › BereaSnap');
+      } else if (outcome === 'download') {
+        showToast('✓ Foto descargada');
+      }
     } catch (err) {
       console.error('Error exportando foto:', err);
+      showToast('⚠ No se pudo exportar la foto');
     }
   };
 
@@ -404,25 +510,30 @@ export const App: React.FC = () => {
     setIsExportModalOpen(true);
   };
 
-  // Execute Batch Export ZIP (Download or Share)
+  // Execute Batch Export (JPG individuales a Galería o ZIP; descargar o compartir)
   const handleStartBatchExport = async (mode: 'download' | 'share') => {
     if (photos.length === 0) return;
     setIsExporting(true);
     setExportProgress({ current: 0, total: photos.length, currentName: '' });
 
+    const onProgress = (current: number, total: number, currentName: string) => {
+      setExportProgress({ current, total, currentName });
+    };
+
     try {
-      await exportBatchAsZip(
-        photos,
-        watermark,
-        frame,
-        (current, total, currentName) => {
-          setExportProgress({ current, total, currentName });
-        },
-        exportOptions,
-        mode
-      );
+      if ((exportOptions.deliveryFormat || 'jpg') === 'jpg') {
+        const result = await exportBatchAsJpgs(photos, watermark, frame, onProgress, exportOptions, mode);
+        if (result.outcome === 'gallery') {
+          showToast(`✓ ${result.saved} fotos guardadas en Galería › BereaSnap`);
+        } else if (result.outcome === 'download') {
+          showToast(`✓ ${result.saved} fotos descargadas`);
+        }
+      } else {
+        await exportBatchAsZip(photos, watermark, frame, onProgress, exportOptions, mode);
+      }
     } catch (err) {
       console.error('Error en exportación en lote:', err);
+      showToast('⚠ No se pudo completar la exportación');
     } finally {
       setIsExporting(false);
       setIsExportModalOpen(false);
@@ -491,6 +602,11 @@ export const App: React.FC = () => {
         })
       );
       setActivePhotoId(id);
+      const existing = photosRef.current.find((p) => p.id === id);
+      if (existing && existing.crop.aspectRatio !== 'original') {
+        // La foto nueva se reencuadra de forma inteligente dentro de la proporción/marco vigente
+        smartReframe({ ...existing, originalUrl: url, width: realWidth, height: realHeight }, existing.crop);
+      }
       showToast('✓ Fotografía sustituida conservando tus ajustes');
     };
     input.click();
@@ -543,7 +659,11 @@ export const App: React.FC = () => {
 
       {/* Main Studio Area */}
       {photos.length === 0 ? (
-        <BatchDropzone onFilesSelected={handleFilesSelected} />
+        <BatchDropzone
+          onFilesSelected={handleFilesSelected}
+          frame={frame}
+          onUpdateFrame={(f) => setFrame((prev) => ({ ...prev, ...f }))}
+        />
       ) : (
         <div className="studio-body">
           {/* Main Visual Column: Preview Stage + Persistent Smart Filmstrip */}
@@ -598,6 +718,7 @@ export const App: React.FC = () => {
             onUpdateFrame={(f) => setFrame((prev) => ({ ...prev, ...f }))}
             onApplySettingsToAll={handleApplySettingsToAll}
             onApplyCropToAll={handleApplyCropToAll}
+            onSmartCrop={handleSmartCrop}
             onSyncFrameToAll={handleSyncFrameToAll}
             onSyncWatermarkToAll={handleSyncWatermarkToAll}
             onSaveAsDefaultAppSettings={handleSaveAsDefaultAppSettings}

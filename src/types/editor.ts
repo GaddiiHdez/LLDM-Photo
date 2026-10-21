@@ -1,4 +1,5 @@
-export type AspectRatioType = 'original' | '1:1' | '4:5' | '3:4' | '9:16' | '16:9' | '3:2' | '2:3';
+// 'frame' = la proporción se adapta automáticamente a las dimensiones del marco PNG activo
+export type AspectRatioType = 'original' | 'frame' | '1:1' | '4:5' | '3:4' | '9:16' | '16:9' | '3:2' | '2:3';
 export type OrientationType = 'landscape' | 'portrait';
 
 export interface CropSettings {
@@ -105,6 +106,7 @@ export interface FrameSettings {
 export interface ExportOptions {
   qualityPreset: 'max' | 'social'; // 'max' = 0 (nativa, 0.95), 'social' = 2048px (0.85)
   filenamePrefix: string;
+  deliveryFormat: 'jpg' | 'zip'; // 'jpg' = fotos individuales directo a Galería/Descargas, 'zip' = archivo comprimido
 }
 
 export interface PhotoItem {

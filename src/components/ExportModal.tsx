@@ -1,5 +1,6 @@
 import React from 'react';
-import { Sparkles, RefreshCw, Download, Share2, X, CheckCircle2, Zap, ShieldCheck } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
+import { Sparkles, RefreshCw, Download, Share2, X, CheckCircle2, Zap, ShieldCheck, Images, FileArchive } from 'lucide-react';
 import type { ExportOptions } from '../types/editor';
 
 interface ExportModalProps {
@@ -28,6 +29,10 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   if (!isOpen) return null;
 
   const percentage = total > 0 ? Math.round((current / total) * 100) : 0;
+  const isNative = Capacitor.isNativePlatform();
+  const delivery = options.deliveryFormat || 'jpg';
+  const primaryLabel =
+    delivery === 'zip' ? 'Guardar ZIP' : isNative ? 'Guardar en Galería' : 'Descargar JPG';
 
   return (
     <div className="modal-backdrop" onClick={!isProcessing ? onClose : undefined}>
@@ -83,6 +88,46 @@ export const ExportModal: React.FC<ExportModalProps> = ({
               </div>
             </div>
 
+            {/* FORMATO DE ENTREGA */}
+            <div style={{ textAlign: 'left', marginBottom: '0.9rem' }}>
+              <label style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                Formato de Entrega
+              </label>
+              <div style={{ display: 'flex', gap: '0.45rem' }}>
+                <button
+                  type="button"
+                  onClick={() => onChangeOptions({ ...options, deliveryFormat: 'jpg' })}
+                  className={`preset-card ${delivery === 'jpg' ? 'active' : ''}`}
+                  style={{ flex: 1, padding: '0.6rem 0.65rem', textAlign: 'left', flexDirection: 'column', alignItems: 'flex-start', gap: '0.2rem' }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', width: '100%' }}>
+                    <Images size={15} style={{ color: delivery === 'jpg' ? 'var(--color-brand-light)' : 'inherit' }} />
+                    <strong style={{ fontSize: '0.78rem', flex: 1 }}>Fotos JPG</strong>
+                    {delivery === 'jpg' && <CheckCircle2 size={14} style={{ color: 'var(--color-brand-light)' }} />}
+                  </div>
+                  <span style={{ fontSize: '0.64rem', opacity: 0.75, lineHeight: 1.3 }}>
+                    {isNative ? 'Directo a tu Galería, sin descomprimir' : 'Cada foto como archivo .jpg'}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => onChangeOptions({ ...options, deliveryFormat: 'zip' })}
+                  className={`preset-card ${delivery === 'zip' ? 'active' : ''}`}
+                  style={{ flex: 1, padding: '0.6rem 0.65rem', textAlign: 'left', flexDirection: 'column', alignItems: 'flex-start', gap: '0.2rem' }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', width: '100%' }}>
+                    <FileArchive size={15} style={{ color: delivery === 'zip' ? 'var(--color-brand-light)' : 'inherit' }} />
+                    <strong style={{ fontSize: '0.78rem', flex: 1 }}>Archivo ZIP</strong>
+                    {delivery === 'zip' && <CheckCircle2 size={14} style={{ color: 'var(--color-brand-light)' }} />}
+                  </div>
+                  <span style={{ fontSize: '0.64rem', opacity: 0.75, lineHeight: 1.3 }}>
+                    Todo el lote en un solo archivo
+                  </span>
+                </button>
+              </div>
+            </div>
+
             {/* SELECTOR DE CALIDAD / TAMAÑO */}
             <div style={{ textAlign: 'left', marginBottom: '1.15rem' }}>
               <label style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'block', marginBottom: '0.4rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
@@ -133,7 +178,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                 style={{ flex: 1, justifyContent: 'center', padding: '0.65rem 0.85rem', fontSize: '0.82rem', fontWeight: 700 }}
               >
                 <Download size={15} />
-                <span>Guardar ZIP</span>
+                <span>{primaryLabel}</span>
               </button>
 
               <button

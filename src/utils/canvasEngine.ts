@@ -3,14 +3,31 @@ import type { ImageAdjustments, WatermarkSettings, FrameSettings, CropSettings, 
 /**
  * Carga una URL o Blob en un HTMLImageElement
  */
+// Caché pequeña de imágenes data: (marcos PNG y logos) para no re-decodificarlas en cada render
+const dataImageCache = new Map<string, HTMLImageElement>();
+
 export function loadImage(src: string): Promise<HTMLImageElement> {
+  const isData = src.startsWith('data:');
+  if (isData) {
+    const cached = dataImageCache.get(src);
+    if (cached) return Promise.resolve(cached);
+  }
   return new Promise((resolve, reject) => {
     const img = new Image();
     // No establecer crossOrigin en URLs locales blob: o data: para evitar fallos de seguridad en Android WebView
     if (!src.startsWith('blob:') && !src.startsWith('data:')) {
       img.crossOrigin = 'anonymous';
     }
-    img.onload = () => resolve(img);
+    img.onload = () => {
+      if (isData) {
+        if (dataImageCache.size >= 8) {
+          const firstKey = dataImageCache.keys().next().value;
+          if (firstKey !== undefined) dataImageCache.delete(firstKey);
+        }
+        dataImageCache.set(src, img);
+      }
+      resolve(img);
+    };
     img.onerror = (err) => reject(err);
     img.src = src;
   });
@@ -159,7 +176,19 @@ export async function drawProcessedPhotoToCanvas(
   const isRotated90 = Math.abs(rotationDeg % 180) === 90;
 
   // --- 1. CÁLCULO DE DIMENSIONES RE-ENCUADRADAS (CROPPED GEOMETRY SIN DEFORMACIÓN) ---
-  const targetRatio = getTargetAspectRatio(crop.aspectRatio, rawWidth, rawHeight, rotationDeg);
+  // Encuadre inteligente al marco: si la proporción es 'frame', el lienzo adopta exactamente las dimensiones del PNG
+  let frameRatio: number | null = null;
+  if (crop.aspectRatio === 'frame' && frame.style === 'custom-png' && (cachedPngFrame || frame.pngDataUrl)) {
+    try {
+      const pngForRatio = cachedPngFrame || (frame.pngDataUrl ? await loadImage(frame.pngDataUrl) : null);
+      if (pngForRatio && pngForRatio.height > 0) {
+        frameRatio = pngForRatio.width / pngForRatio.height;
+      }
+    } catch {
+      frameRatio = null;
+    }
+  }
+  const targetRatio = frameRatio ?? getTargetAspectRatio(crop.aspectRatio, rawWidth, rawHeight, rotationDeg);
   // Si la foto está rotada 90° o 270°, el rectángulo de origen en la imagen no-rotada usa el ratio inverso
   const srcTargetRatio = isRotated90 ? 1 / targetRatio : targetRatio;
   const rawRatio = rawWidth / rawHeight;
