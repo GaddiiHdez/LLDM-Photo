@@ -12,7 +12,7 @@ interface UpdateModalProps {
 export const UpdateModal: React.FC<UpdateModalProps> = ({
   isOpen,
   onClose,
-  initialInfo
+  initialInfo,
 }) => {
   const [info, setInfo] = useState<UpdateInfo | null>(initialInfo || null);
   const [isChecking, setIsChecking] = useState(false);
@@ -33,7 +33,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
         latestVersion: APP_VERSION,
         releaseName: '',
         releaseNotes: '',
-        error: 'network_error'
+        error: 'network_error',
       });
       setCheckedAtLeastOnce(true);
     } finally {
@@ -54,60 +54,162 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/80 backdrop-blur-md p-4 animate-in fade-in duration-200">
-      <div className="bg-[#18181b] border border-white/10 rounded-2xl w-full max-w-md overflow-hidden shadow-2xl flex flex-col max-h-[90vh]">
-        
+    <div
+      className="modal-backdrop"
+      onClick={onClose}
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 250,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: 'rgba(5, 8, 15, 0.82)',
+        backdropFilter: 'blur(12px)',
+        padding: '1rem',
+      }}
+    >
+      <div
+        className="card-glass"
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          width: '100%',
+          maxWidth: '440px',
+          maxHeight: '90vh',
+          borderRadius: '1.25rem',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+          backgroundColor: '#0f1422',
+          border: '1px solid rgba(255, 255, 255, 0.12)',
+          boxShadow: '0 20px 50px rgba(0, 0, 0, 0.75), 0 0 1px rgba(245, 158, 11, 0.3)',
+          color: '#ffffff',
+        }}
+      >
         {/* Header */}
-        <div className="p-4 border-b border-white/10 flex items-center justify-between bg-white/[0.02]">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-amber-500/20 to-sky-500/20 border border-amber-500/30 flex items-center justify-center shadow-inner">
-              <Sparkles className="w-5 h-5 text-amber-400" />
+        <div
+          style={{
+            padding: '1rem 1.25rem',
+            borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            background: 'rgba(255, 255, 255, 0.02)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <div
+              style={{
+                width: '2.25rem',
+                height: '2.25rem',
+                borderRadius: '0.65rem',
+                background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.2), rgba(56, 189, 248, 0.2))',
+                border: '1px solid rgba(245, 158, 11, 0.35)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Sparkles size={16} style={{ color: '#f59e0b' }} />
             </div>
             <div>
-              <h3 className="font-bold text-white text-base tracking-tight flex items-center gap-2">
-                BereaSnap
-                <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-white/10 text-stone-300">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                <span style={{ fontWeight: 800, fontSize: '1rem', letterSpacing: '-0.02em' }}>BereaSnap</span>
+                <span
+                  style={{
+                    fontSize: '0.68rem',
+                    fontFamily: 'monospace',
+                    padding: '2px 7px',
+                    borderRadius: '999px',
+                    background: 'rgba(255, 255, 255, 0.1)',
+                    color: '#e2e8f0',
+                  }}
+                >
                   v{APP_VERSION}
                 </span>
-              </h3>
-              <p className="text-[11px] text-stone-400">Estudio Fotográfico Android Offline</p>
+              </div>
+              <p style={{ margin: 0, fontSize: '0.72rem', color: '#94a3b8' }}>
+                Estudio Fotográfico Android & Desktop
+              </p>
             </div>
           </div>
+
           <button
+            type="button"
             onClick={onClose}
-            className="p-1.5 rounded-lg text-stone-400 hover:text-white hover:bg-white/10 transition-colors"
+            style={{
+              background: 'none',
+              border: 'none',
+              color: '#94a3b8',
+              cursor: 'pointer',
+              padding: '0.35rem',
+              borderRadius: '0.5rem',
+              display: 'flex',
+              alignItems: 'center',
+            }}
+            title="Cerrar"
           >
-            <X className="w-5 h-5" />
+            <X size={18} />
           </button>
         </div>
 
         {/* Content Body */}
-        <div className="p-5 flex-1 overflow-y-auto space-y-4">
-          
+        <div style={{ padding: '1.25rem', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           {info?.isAvailable ? (
-            <div className="space-y-4">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
               {/* Alert Badge */}
-              <div className="p-3.5 rounded-xl bg-gradient-to-r from-amber-500/15 to-amber-600/10 border border-amber-500/30 flex items-start gap-3">
-                <Sparkles className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
-                <div className="text-xs">
-                  <div className="font-semibold text-amber-300 text-sm">
+              <div
+                style={{
+                  padding: '0.85rem',
+                  borderRadius: '0.85rem',
+                  background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.18), rgba(217, 119, 6, 0.1))',
+                  border: '1px solid rgba(245, 158, 11, 0.35)',
+                  display: 'flex',
+                  gap: '0.75rem',
+                  alignItems: 'flex-start',
+                }}
+              >
+                <Sparkles size={18} style={{ color: '#fbbf24', flexShrink: 0, marginTop: '2px' }} />
+                <div style={{ fontSize: '0.78rem' }}>
+                  <div style={{ fontWeight: 700, color: '#fef08a', fontSize: '0.85rem' }}>
                     ¡Nueva versión disponible: v{info.latestVersion}!
                   </div>
-                  <div className="text-stone-300 mt-0.5">
-                    Se encontró una nueva compilación con mejoras de rendimiento y funciones.
+                  <div style={{ color: '#e2e8f0', marginTop: '0.2rem', lineHeight: 1.4 }}>
+                    Se encontró una nueva actualización con mejoras de rendimiento, revelado y nuevas funciones.
                   </div>
                 </div>
               </div>
 
               {/* Version Comparison Meta */}
-              <div className="grid grid-cols-2 gap-2 text-xs">
-                <div className="p-2.5 rounded-lg bg-white/5 border border-white/5">
-                  <span className="text-stone-400 block text-[10px] uppercase font-mono">Instalada</span>
-                  <span className="text-white font-mono font-medium">v{APP_VERSION}</span>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
+                <div
+                  style={{
+                    padding: '0.65rem',
+                    borderRadius: '0.65rem',
+                    background: 'rgba(255, 255, 255, 0.04)',
+                    border: '1px solid rgba(255, 255, 255, 0.06)',
+                  }}
+                >
+                  <span style={{ color: '#94a3b8', display: 'block', fontSize: '0.65rem', textTransform: 'uppercase', fontFamily: 'monospace' }}>
+                    Instalada
+                  </span>
+                  <span style={{ color: '#ffffff', fontFamily: 'monospace', fontWeight: 600, fontSize: '0.85rem' }}>
+                    v{APP_VERSION}
+                  </span>
                 </div>
-                <div className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20">
-                  <span className="text-amber-400/80 block text-[10px] uppercase font-mono">Disponible</span>
-                  <span className="text-amber-300 font-mono font-medium">
+
+                <div
+                  style={{
+                    padding: '0.65rem',
+                    borderRadius: '0.65rem',
+                    background: 'rgba(245, 158, 11, 0.1)',
+                    border: '1px solid rgba(245, 158, 11, 0.25)',
+                  }}
+                >
+                  <span style={{ color: '#f59e0b', display: 'block', fontSize: '0.65rem', textTransform: 'uppercase', fontFamily: 'monospace' }}>
+                    Disponible
+                  </span>
+                  <span style={{ color: '#fef08a', fontFamily: 'monospace', fontWeight: 600, fontSize: '0.85rem' }}>
                     v{info.latestVersion} {info.apkSize ? `(${formatSize(info.apkSize)})` : ''}
                   </span>
                 </div>
@@ -115,103 +217,190 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
 
               {/* Release Notes */}
               {info.releaseNotes && (
-                <div className="space-y-1.5">
-                  <span className="text-[11px] font-medium text-stone-300">Novedades en esta versión:</span>
-                  <div className="p-3 rounded-xl bg-black/40 border border-white/10 text-xs text-stone-300 max-h-40 overflow-y-auto font-sans leading-relaxed whitespace-pre-wrap">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                  <span style={{ fontSize: '0.72rem', fontWeight: 600, color: '#cbd5e1' }}>
+                    Novedades en esta versión:
+                  </span>
+                  <div
+                    style={{
+                      padding: '0.75rem',
+                      borderRadius: '0.75rem',
+                      background: 'rgba(0, 0, 0, 0.45)',
+                      border: '1px solid rgba(255, 255, 255, 0.08)',
+                      fontSize: '0.74rem',
+                      color: '#cbd5e1',
+                      maxHeight: '140px',
+                      overflowY: 'auto',
+                      lineHeight: 1.5,
+                      whiteSpace: 'pre-wrap',
+                      fontFamily: 'inherit',
+                    }}
+                  >
                     {info.releaseNotes}
                   </div>
                 </div>
               )}
             </div>
           ) : checkedAtLeastOnce ? (
-            <div className="py-6 text-center space-y-3">
+            <div style={{ padding: '1.5rem 0', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.65rem' }}>
               {info?.error ? (
                 <>
-                  <div className="w-12 h-12 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 flex items-center justify-center mx-auto">
-                    <AlertCircle className="w-6 h-6" />
+                  <div
+                    style={{
+                      width: '3rem',
+                      height: '3rem',
+                      borderRadius: '50%',
+                      background: 'rgba(245, 158, 11, 0.1)',
+                      border: '1px solid rgba(245, 158, 11, 0.25)',
+                      color: '#f59e0b',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <AlertCircle size={24} />
                   </div>
-                  <div className="space-y-1">
-                    <h4 className="text-sm font-semibold text-white">Modo Offline Activo</h4>
-                    <p className="text-xs text-stone-400 max-w-xs mx-auto">
+                  <div>
+                    <h4 style={{ margin: '0 0 0.25rem 0', fontSize: '0.9rem', fontWeight: 700, color: '#ffffff' }}>
+                      Modo Offline Activo
+                    </h4>
+                    <p style={{ margin: 0, fontSize: '0.74rem', color: '#94a3b8', maxWidth: '300px', lineHeight: 1.4 }}>
                       No se pudo comprobar la conexión con GitHub. BereaSnap sigue funcionando al 100% sin internet.
                     </p>
                   </div>
                 </>
               ) : (
                 <>
-                  <div className="w-12 h-12 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto">
-                    <CheckCircle2 className="w-6 h-6" />
+                  <div
+                    style={{
+                      width: '3rem',
+                      height: '3rem',
+                      borderRadius: '50%',
+                      background: 'rgba(16, 185, 129, 0.1)',
+                      border: '1px solid rgba(16, 185, 129, 0.25)',
+                      color: '#10b981',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <CheckCircle2 size={24} />
                   </div>
-                  <div className="space-y-1">
-                    <h4 className="text-sm font-semibold text-white">¡Estás al día!</h4>
-                    <p className="text-xs text-stone-400">
-                      Tienes la versión más reciente (<span className="text-stone-200 font-mono">v{APP_VERSION}</span>) instalada en tu dispositivo.
+                  <div>
+                    <h4 style={{ margin: '0 0 0.25rem 0', fontSize: '0.9rem', fontWeight: 700, color: '#ffffff' }}>
+                      ¡Estás al día!
+                    </h4>
+                    <p style={{ margin: 0, fontSize: '0.74rem', color: '#94a3b8', lineHeight: 1.4 }}>
+                      Tienes la versión más reciente (<span style={{ color: '#e2e8f0', fontFamily: 'monospace' }}>v{APP_VERSION}</span>) instalada.
                     </p>
                   </div>
                 </>
               )}
             </div>
           ) : (
-            <div className="py-4 text-center space-y-2">
-              <p className="text-xs text-stone-400">
-                Comprueba si hay una nueva versión de BereaSnap con mejoras y nuevas funciones en GitHub Releases.
+            <div style={{ padding: '1rem 0', textAlign: 'center' }}>
+              <p style={{ margin: 0, fontSize: '0.78rem', color: '#94a3b8', lineHeight: 1.45 }}>
+                Comprueba si hay una nueva versión de BereaSnap con mejoras de revelado y nuevas funciones en GitHub Releases.
               </p>
             </div>
           )}
 
-          {/* GitHub Repository link */}
-          <div className="pt-2 border-t border-white/10 flex items-center justify-between text-[11px] text-stone-400">
+          {/* Enlace al Repositorio */}
+          <div
+            style={{
+              paddingTop: '0.65rem',
+              borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              fontSize: '0.72rem',
+              color: '#94a3b8',
+            }}
+          >
             <span>Repositorio oficial</span>
             <a
               href={`https://github.com/${GITHUB_REPO}`}
               target="_blank"
               rel="noreferrer"
-              className="flex items-center gap-1 text-sky-400 hover:underline"
+              style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: '#38bdf8', textDecoration: 'none', fontWeight: 600 }}
             >
-              GitHub <ExternalLink className="w-3 h-3" />
+              GitHub <ExternalLink size={12} />
             </a>
           </div>
-
         </div>
 
         {/* Action Footer */}
-        <div className="p-4 border-t border-white/10 bg-white/[0.02] flex items-center gap-2">
+        <div
+          style={{
+            padding: '0.85rem 1.25rem',
+            borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+            background: 'rgba(255, 255, 255, 0.02)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.65rem',
+          }}
+        >
           {info?.isAvailable ? (
             <>
               <button
+                type="button"
                 onClick={onClose}
-                className="flex-1 py-2.5 px-3 rounded-xl border border-white/10 text-xs font-medium text-stone-300 hover:bg-white/5 transition-colors"
+                className="btn-secondary btn-sm"
+                style={{ flex: 1, padding: '0.65rem' }}
               >
                 Más tarde
               </button>
               <button
+                type="button"
                 onClick={handleDownload}
-                className="flex-2 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 text-stone-950 font-bold text-xs shadow-lg shadow-amber-500/20 hover:brightness-110 active:scale-95 transition-all"
+                className="btn-primary btn-sm"
+                style={{
+                  flex: 2,
+                  padding: '0.65rem',
+                  background: 'linear-gradient(135deg, #f59e0b, #d97706)',
+                  color: '#050810',
+                  fontWeight: 700,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.45rem',
+                }}
               >
-                <Download className="w-4 h-4" />
-                Descargar e Instalar APK
+                <Download size={14} />
+                <span>Descargar APK</span>
               </button>
             </>
           ) : (
             <>
               <button
+                type="button"
                 onClick={onClose}
-                className="flex-1 py-2.5 px-3 rounded-xl border border-white/10 text-xs font-medium text-stone-300 hover:bg-white/5 transition-colors"
+                className="btn-secondary btn-sm"
+                style={{ flex: 1, padding: '0.65rem' }}
               >
                 Cerrar
               </button>
               <button
+                type="button"
                 onClick={handleManualCheck}
                 disabled={isChecking}
-                className="flex-1 flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-white/10 hover:bg-white/15 border border-white/15 text-xs font-semibold text-white transition-all disabled:opacity-50"
+                className="btn-primary btn-sm"
+                style={{
+                  flex: 1,
+                  padding: '0.65rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '0.45rem',
+                  opacity: isChecking ? 0.6 : 1,
+                }}
               >
-                <RefreshCw className={`w-3.5 h-3.5 ${isChecking ? 'animate-spin text-amber-400' : ''}`} />
-                {isChecking ? 'Buscando...' : 'Buscar Actualización'}
+                <RefreshCw size={13} className={isChecking ? 'animate-spin' : ''} />
+                <span>{isChecking ? 'Buscando...' : 'Buscar Actualización'}</span>
               </button>
             </>
           )}
         </div>
-
       </div>
     </div>
   );

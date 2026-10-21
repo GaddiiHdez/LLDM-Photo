@@ -52,15 +52,31 @@ export const Header: React.FC<HeaderProps> = ({
         <button
           type="button"
           onClick={onOpenAbout}
-          className="brand-logo-btn relative"
+          className="brand-logo-btn"
           title={`BereaSnap v${APP_VERSION} — Toca para buscar actualizaciones`}
-          style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+          style={{
+            background: 'none',
+            border: 'none',
+            padding: 0,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '2.1rem',
+            height: '2.1rem',
+            minWidth: '2.1rem',
+            minHeight: '2.1rem',
+            maxWidth: '2.1rem',
+            maxHeight: '2.1rem',
+            position: 'relative',
+            flexShrink: 0,
+          }}
         >
           <img
             src="/logo-bereasnap-icon.jpg"
             alt="BereaSnap"
             className="brand-logo-img"
-            style={{ borderRadius: '0.45rem', objectFit: 'cover' }}
+            style={{ width: '100%', height: '100%', borderRadius: '0.45rem', objectFit: 'cover', display: 'block' }}
           />
           {hasUpdateBadge && (
             <span
