@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { CheckCircle2, X } from 'lucide-react';
+import { StatusBar, Style } from '@capacitor/status-bar';
+import { Capacitor } from '@capacitor/core';
 import { Header } from './components/Header';
 import { BatchDropzone } from './components/BatchDropzone';
-import { ThumbnailBar } from './components/ThumbnailBar';
 import { PreviewStage } from './components/PreviewStage';
 import { SidebarControls } from './components/SidebarControls';
 import { ExportModal } from './components/ExportModal';
@@ -101,6 +102,19 @@ export const App: React.FC = () => {
     }
   }, [theme]);
 
+  // Configuración de Barra de Estado Nativa en Android (Evita superposición de notch/reloj)
+  useEffect(() => {
+    if (Capacitor.isNativePlatform()) {
+      try {
+        StatusBar.setOverlaysWebView({ overlay: false });
+        StatusBar.setBackgroundColor({ color: '#000000' });
+        StatusBar.setStyle({ style: Style.Dark });
+      } catch (err) {
+        console.warn('Error configurando StatusBar nativo:', err);
+      }
+    }
+  }, []);
+
   const toggleTheme = () => {
     setTheme((prev) => (prev === 'light' ? 'dark' : 'light'));
   };
@@ -158,8 +172,6 @@ export const App: React.FC = () => {
       });
   }, []);
 
-  // Batch Grid Sheet State (Vista de cuadrícula para gestionar todo el carrete)
-  const [isGridOpen, setIsGridOpen] = useState<boolean>(false);
 
   // State
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
@@ -216,10 +228,12 @@ export const App: React.FC = () => {
     }
   );
 
+  // Tab Activo del Estudio One UI ('develop' | 'crop' | 'presets' | 'frame' | 'filmstrip' | null)
+  const [activeStudioTab, setActiveStudioTab] = useState<'develop' | 'crop' | 'presets' | 'frame' | 'filmstrip' | null>('develop');
+
   // Export Modal & Progress State
   const [isExportModalOpen, setIsExportModalOpen] = useState<boolean>(false);
   const [isExporting, setIsExporting] = useState<boolean>(false);
-  const [isFilmstripOpen, setIsFilmstripOpen] = useState<boolean>(false);
   const [exportProgress, setExportProgress] = useState({ current: 0, total: 0, currentName: '' });
   const [exportOptions, setExportOptions] = useState<ExportOptions>({
     qualityPreset: 'max',
@@ -632,6 +646,21 @@ export const App: React.FC = () => {
     input.click();
   };
 
+  const handleGoHome = () => {
+    if (photos.length === 0) return;
+    const confirmLeave = window.confirm('¿Deseas cerrar la sesión actual y volver al inicio?');
+    if (!confirmLeave) return;
+    photos.forEach((p) => {
+      if (p.originalUrl?.startsWith('blob:')) {
+        evictCachedImage(p.originalUrl);
+        URL.revokeObjectURL(p.originalUrl);
+      }
+    });
+    setPhotos([]);
+    setActivePhotoId('');
+    setActiveStudioTab('develop');
+  };
+
   return (
     <div className="app-container">
       {/* Unified Studio Top Bar */}
@@ -643,10 +672,11 @@ export const App: React.FC = () => {
         showOriginal={showOriginal}
         hasUpdateBadge={hasUpdateBadge}
         hasModifications={hasModifications}
+        onGoHome={handleGoHome}
         onToggleOriginal={(val) => setShowOriginal((prev) => (typeof val === 'boolean' ? val : !prev))}
         onSelectTheme={handleSelectTheme}
         onToggleTheme={toggleTheme}
-        onOpenGrid={() => setIsGridOpen(true)}
+        onOpenGrid={() => setActiveStudioTab((current) => current === 'filmstrip' ? 'develop' : 'filmstrip')}
         onOpenAbout={() => setIsUpdateModalOpen(true)}
         onSingleExport={handleSingleExport}
         onSingleShare={handleSingleShare}
@@ -660,7 +690,7 @@ export const App: React.FC = () => {
         <BatchDropzone onFilesSelected={handleFilesSelected} />
       ) : (
         <div className="studio-body">
-          {/* Main Visual Column: Preview Stage + Persistent Smart Filmstrip */}
+          {/* Main Visual Column: Preview Stage */}
           <div className="studio-main-column">
             <PreviewStage
               photo={activePhoto}
@@ -676,31 +706,6 @@ export const App: React.FC = () => {
               hasPrevPhoto={hasPrevPhoto}
               hasNextPhoto={hasNextPhoto}
             />
-
-            <div className={`filmstrip-dock-wrapper ${isFilmstripOpen ? 'drawer-open' : ''}`}>
-              <ThumbnailBar
-                photos={photos}
-                activePhotoId={activePhotoId}
-                onSelectPhoto={setActivePhotoId}
-                onDeletePhoto={handleDeletePhoto}
-                onReplacePhoto={handleReplacePhoto}
-                onMovePhoto={handleMovePhoto}
-                onAddMorePhotos={triggerAddMoreFiles}
-                onClearAll={() => {
-                  photos.forEach((p) => {
-                    if (p.originalUrl?.startsWith('blob:')) {
-                      evictCachedImage(p.originalUrl);
-                      URL.revokeObjectURL(p.originalUrl);
-                    }
-                  });
-                  setPhotos([]);
-                  setActivePhotoId('');
-                }}
-                onExportBatch={handleExportBatch}
-                isGridOpen={isGridOpen}
-                onToggleGrid={(open) => setIsGridOpen((prev) => (typeof open === 'boolean' ? open : !prev))}
-              />
-            </div>
           </div>
 
           {/* Bottom / Right Tool Deck */}
@@ -720,8 +725,15 @@ export const App: React.FC = () => {
             onSyncWatermarkToAll={handleSyncWatermarkToAll}
             onSaveAsDefaultAppSettings={handleSaveAsDefaultAppSettings}
             totalPhotos={photos.length}
-            isFilmstripOpen={isFilmstripOpen}
-            onToggleFilmstrip={() => setIsFilmstripOpen((prev) => !prev)}
+            photos={photos}
+            activePhotoId={activePhotoId}
+            onSelectPhoto={setActivePhotoId}
+            onDeletePhoto={handleDeletePhoto}
+            onReplacePhoto={handleReplacePhoto}
+            onMovePhoto={handleMovePhoto}
+            onAddMorePhotos={triggerAddMoreFiles}
+            activeTab={activeStudioTab}
+            onChangeTab={setActiveStudioTab}
           />
         </div>
       )}

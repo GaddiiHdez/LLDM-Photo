@@ -24,6 +24,8 @@ import {
   Type,
   LayoutGrid,
   Copy,
+  Trash2,
+  RefreshCw,
 } from 'lucide-react';
 import { HapticRuler } from './HapticRuler';
 import {
@@ -64,6 +66,15 @@ interface SidebarControlsProps {
   onSyncWatermarkToAll?: () => void;
   onSaveAsDefaultAppSettings: () => void;
   totalPhotos?: number;
+  photos?: PhotoItem[];
+  activePhotoId?: string;
+  onSelectPhoto?: (id: string) => void;
+  onDeletePhoto?: (id: string) => void;
+  onReplacePhoto?: (id: string) => void;
+  onMovePhoto?: (fromIndex: number, toIndex: number) => void;
+  onAddMorePhotos?: () => void;
+  activeTab?: 'develop' | 'crop' | 'presets' | 'frame' | 'filmstrip' | null;
+  onChangeTab?: (tab: 'develop' | 'crop' | 'presets' | 'frame' | 'filmstrip' | null) => void;
   isFilmstripOpen?: boolean;
   onToggleFilmstrip?: () => void;
 }
@@ -79,10 +90,25 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
   onApplyCropToAll,
   onSmartCrop,
   onSyncFrameToAll,
-  isFilmstripOpen = false,
-  onToggleFilmstrip,
+  photos = [],
+  onSelectPhoto,
+  onDeletePhoto,
+  onReplacePhoto,
+  onMovePhoto,
+  onAddMorePhotos,
+  activeTab: controlledActiveTab,
+  onChangeTab,
 }) => {
-  const [activeTab, setActiveTab] = useState<'develop' | 'crop' | 'presets' | 'frame'>('develop');
+  const [internalTab, setInternalTab] = useState<'develop' | 'crop' | 'presets' | 'frame' | 'filmstrip' | null>('develop');
+  const activeTab = controlledActiveTab !== undefined ? controlledActiveTab : internalTab;
+
+  const handleTabClick = (tab: 'develop' | 'crop' | 'presets' | 'frame' | 'filmstrip') => {
+    const nextTab = activeTab === tab ? null : tab;
+    if (controlledActiveTab === undefined) {
+      setInternalTab(nextTab);
+    }
+    onChangeTab?.(nextTab);
+  };
   const [activeLightParam, setActiveLightParam] = useState<keyof ImageAdjustments>('brightness');
   const [activeCropMode, setActiveCropMode] = useState<'straighten' | 'ratios'>('ratios');
   const [customPresets, setCustomPresets] = useState<CustomPreset[]>([]);
@@ -91,6 +117,122 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
 
   const [savedFrames, setSavedFrames] = useState<SavedPngFrame[]>([]);
   const framePngInputRef = useRef<HTMLInputElement>(null);
+
+  // Estados de Arrastre Táctil para el Carrete Integrado One UI
+  const [dragIndex, setDragIndex] = useState<number | null>(null);
+  const [dropIndex, setDropIndex] = useState<number | null>(null);
+  const [isDragging, setIsDragging] = useState<boolean>(false);
+  const filmstripScrollerRef = useRef<HTMLDivElement>(null);
+
+  const pointerDownRef = useRef<{
+    startX: number;
+    startY: number;
+    index: number;
+    timer: number | null;
+    pointerId: number;
+    hasMoved: boolean;
+  } | null>(null);
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLElement>, index: number) => {
+    if (e.button !== 0 && e.pointerType === 'mouse') return;
+    const timer = window.setTimeout(() => {
+      setIsDragging(true);
+      setDragIndex(index);
+      setDropIndex(index);
+      if (typeof navigator !== 'undefined' && navigator.vibrate) {
+        navigator.vibrate(35);
+      }
+    }, 140);
+
+    pointerDownRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      index,
+      timer,
+      pointerId: e.pointerId,
+      hasMoved: false,
+    };
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLElement>) => {
+    const downInfo = pointerDownRef.current;
+    if (!downInfo) return;
+
+    const dx = Math.abs(e.clientX - downInfo.startX);
+    const dy = Math.abs(e.clientY - downInfo.startY);
+
+    if (!isDragging) {
+      if (dx > 8 || dy > 8) {
+        if (downInfo.timer) {
+          clearTimeout(downInfo.timer);
+          downInfo.timer = null;
+        }
+        downInfo.hasMoved = true;
+      }
+      return;
+    }
+
+    e.preventDefault();
+    if (!filmstripScrollerRef.current) return;
+
+    const thumbs = Array.from(
+      filmstripScrollerRef.current.querySelectorAll('.oneui-filmstrip-thumb')
+    ) as HTMLElement[];
+
+    let closestIndex = downInfo.index;
+    let minDistance = Infinity;
+
+    thumbs.forEach((thumb, i) => {
+      const rect = thumb.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const dist = Math.abs(e.clientX - centerX);
+      if (dist < minDistance) {
+        minDistance = dist;
+        closestIndex = i;
+      }
+    });
+
+    if (closestIndex !== dropIndex) {
+      setDropIndex(closestIndex);
+      if (typeof navigator !== 'undefined' && navigator.vibrate) {
+        navigator.vibrate(15);
+      }
+    }
+  };
+
+  const handlePointerUp = (_e: React.PointerEvent<HTMLElement>, index: number) => {
+    const downInfo = pointerDownRef.current;
+    if (downInfo?.timer) {
+      clearTimeout(downInfo.timer);
+      downInfo.timer = null;
+    }
+
+    if (isDragging) {
+      if (dragIndex !== null && dropIndex !== null && dragIndex !== dropIndex && onMovePhoto) {
+        onMovePhoto(dragIndex, dropIndex);
+        if (typeof navigator !== 'undefined' && navigator.vibrate) {
+          navigator.vibrate([25, 30]);
+        }
+      }
+      setIsDragging(false);
+      setDragIndex(null);
+      setDropIndex(null);
+    } else if (!downInfo?.hasMoved && onSelectPhoto && photos?.[index]) {
+      onSelectPhoto(photos[index].id);
+    }
+
+    pointerDownRef.current = null;
+  };
+
+  const handlePointerCancel = () => {
+    if (pointerDownRef.current?.timer) {
+      clearTimeout(pointerDownRef.current.timer);
+    }
+    setIsDragging(false);
+    setDragIndex(null);
+    setDropIndex(null);
+    pointerDownRef.current = null;
+  };
 
   useEffect(() => {
     const syncStorage = () => {
@@ -227,7 +369,8 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
       {/* ============================================================
           TARJETA FLOTANTE DE CONTROL ESTILO SAMSUNG ONE UI (DECK)
          ============================================================ */}
-      <div className="oneui-floating-card card-glass">
+      {activeTab && (
+        <div className="oneui-floating-card card-glass">
         {/* TAB 1: AJUSTES DE LUZ Y COLOR (DIALES + REGLA GRADUADA ONE UI) */}
         {activeTab === 'develop' && (
           <div className="oneui-deck-inner">
@@ -662,7 +805,97 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
             )}
           </div>
         )}
+
+        {/* TAB 5: CARRETE DE SESIÓN (REORDENAMIENTO TÁCTIL ONE UI) */}
+        {activeTab === 'filmstrip' && (
+          <div className="oneui-deck-inner">
+            <div className="oneui-deck-title-row">
+              <span className="oneui-param-title">CARRETE DE SESIÓN ({photos?.length || 0})</span>
+              <div className="oneui-deck-actions-right">
+                {onAddMorePhotos && (
+                  <button
+                    type="button"
+                    onClick={onAddMorePhotos}
+                    className="oneui-sync-pill-btn"
+                    title="Añadir más fotos a la sesión"
+                  >
+                    <Plus size={11} />
+                    <span>Añadir</span>
+                  </button>
+                )}
+                {onReplacePhoto && photo && (
+                  <button
+                    type="button"
+                    onClick={() => onReplacePhoto(photo.id)}
+                    className="oneui-sync-pill-btn"
+                    title="Sustituir foto activa por otra"
+                  >
+                    <RefreshCw size={11} />
+                    <span>Sustituir</span>
+                  </button>
+                )}
+                {onDeletePhoto && photo && (
+                  <button
+                    type="button"
+                    onClick={() => onDeletePhoto(photo.id)}
+                    className="oneui-reset-tiny-btn text-danger"
+                    title="Eliminar foto activa"
+                  >
+                    <Trash2 size={11} />
+                    <span>Borrar</span>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Tira horizontal de miniaturas arrastrables con el dedo */}
+            <div
+              className="oneui-filmstrip-strip"
+              ref={filmstripScrollerRef}
+              onPointerMove={handlePointerMove}
+              onPointerCancel={handlePointerCancel}
+            >
+              {(photos || []).map((p, index) => {
+                const isActive = p.id === photo?.id;
+                const isBeingDragged = isDragging && dragIndex === index;
+                const isDropTarget = isDragging && dropIndex === index && dragIndex !== index;
+
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onPointerDown={(e) => handlePointerDown(e, index)}
+                    onPointerUp={(e) => handlePointerUp(e, index)}
+                    className={`oneui-filmstrip-thumb ${isActive ? 'active' : ''} ${
+                      isBeingDragged ? 'is-dragging' : ''
+                    } ${isDropTarget ? 'drop-target' : ''}`}
+                    title={`#${index + 1}: ${p.name} (Mantén y arrastra para reordenar)`}
+                  >
+                    <img src={p.thumbnailUrl} alt={p.name} draggable={false} />
+                    <span className="oneui-thumb-num">
+                      {isDragging && dragIndex === index ? `⇄ ${dropIndex !== null ? dropIndex + 1 : index + 1}` : index + 1}
+                    </span>
+                    {p.isRaw && <span className="oneui-thumb-raw">RAW</span>}
+                  </button>
+                );
+              })}
+
+              {onAddMorePhotos && (
+                <button
+                  type="button"
+                  onClick={onAddMorePhotos}
+                  className="oneui-filmstrip-add-tile"
+                  title="Añadir más fotos"
+                  aria-label="Añadir fotos"
+                >
+                  <Plus size={18} />
+                </button>
+              )}
+            </div>
+          </div>
+        )}
       </div>
+      )}
 
       {/* ============================================================
           BARRA DE NAVEGACIÓN INFERIOR (ONE UI DOCK)
@@ -684,7 +917,7 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
         {/* 2. Encuadre */}
         <button
           type="button"
-          onClick={() => setActiveTab('crop')}
+          onClick={() => handleTabClick('crop')}
           className={`oneui-dock-btn ${activeTab === 'crop' ? 'active' : ''}`}
           title="Encuadre, proporción y nivelación"
         >
@@ -697,7 +930,7 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
         {/* 3. Filtros */}
         <button
           type="button"
-          onClick={() => setActiveTab('presets')}
+          onClick={() => handleTabClick('presets')}
           className={`oneui-dock-btn ${activeTab === 'presets' ? 'active' : ''}`}
           title="Filtros y estilos de revelado"
         >
@@ -710,7 +943,7 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
         {/* 4. Ajustes */}
         <button
           type="button"
-          onClick={() => setActiveTab('develop')}
+          onClick={() => handleTabClick('develop')}
           className={`oneui-dock-btn ${activeTab === 'develop' ? 'active' : ''}`}
           title="Ajustes de luz, sombras y color"
         >
@@ -723,7 +956,7 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
         {/* 5. Marco (Fusión de marco y firma) */}
         <button
           type="button"
-          onClick={() => setActiveTab('frame')}
+          onClick={() => handleTabClick('frame')}
           className={`oneui-dock-btn ${activeTab === 'frame' ? 'active' : ''}`}
           title="Marco institucional y textos dinámicos"
         >
@@ -734,19 +967,17 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
         </button>
 
         {/* 6. Carrete de Sesión (Togglable) */}
-        {onToggleFilmstrip && (
-          <button
-            type="button"
-            onClick={onToggleFilmstrip}
-            className={`oneui-dock-btn ${isFilmstripOpen ? 'active' : ''}`}
-            title="Abrir carrete de fotografías"
-          >
-            <div className="oneui-dock-icon-circle">
-              <LayoutGrid size={18} />
-            </div>
-            <span className="oneui-dock-label">Carrete</span>
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={() => handleTabClick('filmstrip')}
+          className={`oneui-dock-btn ${activeTab === 'filmstrip' ? 'active' : ''}`}
+          title="Abrir carrete de fotografías y reordenar"
+        >
+          <div className="oneui-dock-icon-circle">
+            <LayoutGrid size={18} />
+          </div>
+          <span className="oneui-dock-label">Carrete</span>
+        </button>
       </nav>
     </aside>
   );

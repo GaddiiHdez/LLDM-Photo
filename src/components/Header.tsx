@@ -12,6 +12,8 @@ import {
   MoreVertical,
   RotateCcw,
   CheckCheck,
+  ChevronLeft,
+  Home,
 } from 'lucide-react';
 import type { PhotoItem } from '../types/editor';
 import { APP_VERSION } from '../version';
@@ -24,6 +26,7 @@ interface HeaderProps {
   showOriginal?: boolean;
   hasUpdateBadge?: boolean;
   hasModifications?: boolean;
+  onGoHome?: () => void;
   onToggleOriginal?: (val?: boolean) => void;
   onSelectTheme?: (theme: 'light' | 'dark') => void;
   onToggleTheme: () => void;
@@ -44,6 +47,7 @@ export const Header: React.FC<HeaderProps> = ({
   showOriginal = false,
   hasUpdateBadge = false,
   hasModifications = false,
+  onGoHome,
   onToggleOriginal,
   onToggleTheme,
   onOpenGrid,
@@ -75,6 +79,19 @@ export const Header: React.FC<HeaderProps> = ({
       <div className="header-brand">
         {totalPhotos > 0 && (
           <div className="oneui-header-left">
+            {/* Botón Volver al Inicio / Salir */}
+            {onGoHome && (
+              <button
+                type="button"
+                onClick={onGoHome}
+                className="oneui-back-home-btn"
+                title="Volver al inicio (Cerrar sesión)"
+                aria-label="Volver al inicio"
+              >
+                <ChevronLeft size={20} />
+              </button>
+            )}
+
             {/* Botón Revertir con icono sutil (Flecha atrás estilo One UI) */}
             {onRevert && (
               <button
@@ -259,6 +276,28 @@ export const Header: React.FC<HeaderProps> = ({
                     <span>Buscar actualizaciones de APK</span>
                   </div>
                 </button>
+              )}
+
+              {/* Volver al Inicio / Cerrar sesión */}
+              {totalPhotos > 0 && onGoHome && (
+                <>
+                  <div className="oneui-menu-divider" />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      onGoHome();
+                    }}
+                    className="oneui-menu-item"
+                    style={{ color: '#ef4444' }}
+                  >
+                    <Home size={15} />
+                    <div className="menu-item-text">
+                      <strong style={{ color: '#ef4444' }}>Cerrar sesión</strong>
+                      <span>Volver a la pantalla de inicio</span>
+                    </div>
+                  </button>
+                </>
               )}
             </div>
           )}

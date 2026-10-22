@@ -3714,8 +3714,39 @@ input[type="range"] {
 .oneui-header {
   background-color: #000000 !important;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
-  height: 52px;
-  padding: 0 1rem;
+  min-height: 52px;
+  height: calc(52px + env(safe-area-inset-top, 0px));
+  padding-top: env(safe-area-inset-top, 0px) !important;
+  padding-left: 0.85rem;
+  padding-right: 0.85rem;
+  box-sizing: border-box !important;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+
+.oneui-back-home-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: #ffffff;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  margin-right: 0.15rem;
+}
+
+.oneui-back-home-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.oneui-back-home-btn:active {
+  transform: scale(0.92);
 }
 
 .oneui-header.is-empty {
@@ -3924,15 +3955,14 @@ input[type="range"] {
   flex-direction: column;
   align-items: center;
   z-index: 80;
+  flex-shrink: 0;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 @media (max-width: 900px) {
   .oneui-bottom-system {
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    pointer-events: none;
+    position: relative;
+    pointer-events: auto;
   }
 }
 
@@ -4488,26 +4518,108 @@ input[type="range"] {
   letter-spacing: -0.01em;
 }
 
-/* 8. Carrete Drawer Flotante */
-.filmstrip-dock-wrapper {
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+/* 8. Carrete Integrado en Deck One UI */
+.oneui-filmstrip-strip {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  overflow-x: auto;
+  padding: 0.35rem 0.2rem 0.45rem 0.2rem;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
 }
 
-@media (max-width: 900px) {
-  .filmstrip-dock-wrapper {
-    position: fixed;
-    bottom: 235px;
-    left: 0.75rem;
-    right: 0.75rem;
-    z-index: 95;
-    opacity: 0;
-    pointer-events: none;
-    transform: translateY(12px) scale(0.96);
-  }
+.oneui-filmstrip-strip::-webkit-scrollbar {
+  display: none;
+}
 
-  .filmstrip-dock-wrapper.drawer-open {
-    opacity: 1;
-    pointer-events: auto;
-    transform: translateY(0) scale(1);
-  }
+.oneui-filmstrip-thumb {
+  position: relative;
+  width: 58px;
+  height: 58px;
+  flex-shrink: 0;
+  border-radius: 0.85rem;
+  border: 2px solid transparent;
+  padding: 0;
+  overflow: hidden;
+  background: #111;
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.oneui-filmstrip-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  pointer-events: none;
+  display: block;
+}
+
+.oneui-filmstrip-thumb.active {
+  border-color: #f59e0b;
+  box-shadow: 0 0 14px rgba(245, 158, 11, 0.45);
+  transform: scale(1.05);
+}
+
+.oneui-filmstrip-thumb.is-dragging {
+  opacity: 0.55;
+  transform: scale(1.1) rotate(2deg);
+  border-color: #38bdf8;
+  box-shadow: 0 8px 24px rgba(56, 189, 248, 0.5);
+  z-index: 10;
+}
+
+.oneui-filmstrip-thumb.drop-target {
+  border-color: #38bdf8;
+  transform: scale(1.08);
+}
+
+.oneui-thumb-num {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  background: rgba(0, 0, 0, 0.75);
+  color: #fff;
+  font-size: 0.62rem;
+  font-weight: 800;
+  padding: 1px 4px;
+  border-radius: 4px;
+  line-height: 1;
+}
+
+.oneui-thumb-raw {
+  position: absolute;
+  bottom: 3px;
+  right: 3px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 0.55rem;
+  font-weight: 900;
+  padding: 1px 3px;
+  border-radius: 3px;
+  line-height: 1;
+}
+
+.oneui-filmstrip-add-tile {
+  width: 58px;
+  height: 58px;
+  flex-shrink: 0;
+  border-radius: 0.85rem;
+  border: 2px dashed rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(255, 255, 255, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.oneui-filmstrip-add-tile:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: #f59e0b;
+  color: #f59e0b;
 }
