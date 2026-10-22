@@ -1,5 +1,6 @@
-import React, { useRef } from 'react';
-import { ImagePlus, FolderOpen } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import { ImagePlus } from 'lucide-react';
+import { APP_VERSION } from '../version';
 
 interface BatchDropzoneProps {
   onFilesSelected: (files: FileList | File[]) => void;
@@ -7,15 +8,24 @@ interface BatchDropzoneProps {
 
 export const BatchDropzone: React.FC<BatchDropzoneProps> = ({ onFilesSelected }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
   };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    setIsDragOver(false);
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       onFilesSelected(e.dataTransfer.files);
     }
@@ -28,7 +38,12 @@ export const BatchDropzone: React.FC<BatchDropzoneProps> = ({ onFilesSelected })
   };
 
   return (
-    <div className="home-launchpad" onDragOver={handleDragOver} onDrop={handleDrop}>
+    <div
+      className={`home-launchpad ${isDragOver ? 'drag-active' : ''}`}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
       <input
         ref={fileInputRef}
         type="file"
@@ -38,7 +53,8 @@ export const BatchDropzone: React.FC<BatchDropzoneProps> = ({ onFilesSelected })
         style={{ display: 'none' }}
       />
 
-      <div className="launchpad-card card-glass">
+      <div className="launchpad-card">
+        {/* Emblema Central con aura dorada */}
         <div className="launchpad-hero">
           <div className="launchpad-icon-ring">
             <img src="/logo-bereasnap-icon.jpg" alt="BereaSnap" className="launchpad-app-icon" />
@@ -48,30 +64,35 @@ export const BatchDropzone: React.FC<BatchDropzoneProps> = ({ onFilesSelected })
             Berea<span className="brand-highlight">Snap</span>
           </h2>
           <p className="launchpad-subtitle">
-            Estudio de revelado digital y edición fotográfica por lotes
+            Estudio de revelado digital y edición fotográfica
           </p>
         </div>
 
-        {/* Botón Principal Táctil Nativo */}
+        {/* Botón Principal Táctil Estilo Samsung One UI */}
         <button
           type="button"
-          className="launchpad-primary-cta"
+          className="oneui-launchpad-btn"
           onClick={() => fileInputRef.current?.click()}
         >
-          <div className="cta-icon-circle">
-            <ImagePlus size={24} />
-          </div>
-          <div className="cta-text-col">
-            <span className="cta-main-label">Importar Fotografías</span>
-            <span className="cta-sub-label">Galería, Memoria SD o Archivos RAW (.NEF, .CR2, .JPG)</span>
-          </div>
-          <FolderOpen size={18} style={{ opacity: 0.75, marginLeft: 'auto' }} />
+          <ImagePlus size={19} />
+          <span>Cargar</span>
         </button>
 
-        <div className="launchpad-formats-hint">
-          <span>Formatos admitidos: RAW (.NEF, .CR2, .ARW, .DNG) • JPG • PNG • Lotes masivos</span>
+        {/* Chips de Formatos Mínimos */}
+        <div className="launchpad-chips-row">
+          <span className="launchpad-format-chip">RAW</span>
+          <span className="launchpad-format-chip">JPG</span>
+          <span className="launchpad-format-chip">PNG</span>
         </div>
+
+        {/* Indicador sutil de arrastre */}
+        <span className="launchpad-drag-hint">o arrastra tus fotos aquí</span>
       </div>
+
+      {/* Versión discreta en el fondo */}
+      <footer className="launchpad-footer">
+        <span>BereaSnap v{APP_VERSION} • 2026</span>
+      </footer>
     </div>
   );
 };

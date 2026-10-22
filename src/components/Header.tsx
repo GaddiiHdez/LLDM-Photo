@@ -71,28 +71,9 @@ export const Header: React.FC<HeaderProps> = ({
   }, [isMenuOpen]);
 
   return (
-    <header className="app-header oneui-header">
+    <header className={`app-header oneui-header ${totalPhotos === 0 ? 'is-empty' : ''}`}>
       <div className="header-brand">
-        {totalPhotos === 0 ? (
-          <div
-            className="brand-titles"
-            onClick={onOpenAbout}
-            style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.65rem' }}
-            title="Ver información y actualizaciones"
-          >
-            <img
-              src="/logo-bereasnap-icon.jpg"
-              alt="BereaSnap"
-              className="brand-logo-img"
-              style={{ width: '2rem', height: '2rem', borderRadius: '0.45rem', objectFit: 'cover' }}
-            />
-            <h1 className="brand-title">
-              Berea<span className="brand-highlight">Snap</span>
-              <span className="badge-pro">PRO</span>
-              <span className="badge-version">v{APP_VERSION}</span>
-            </h1>
-          </div>
-        ) : (
+        {totalPhotos > 0 && (
           <div className="oneui-header-left">
             {/* Botón Revertir con icono sutil (Flecha atrás estilo One UI) */}
             {onRevert && (
