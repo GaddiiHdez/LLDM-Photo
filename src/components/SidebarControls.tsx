@@ -539,7 +539,7 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
                     className={`seg-btn ${activeCropParam === 'straighten' ? 'active' : ''}`}
                   >
                     <Compass size={12} />
-                    <span>Nivelar {photo.crop?.straighten ? `${photo.crop.straighten > 0 ? '+' : ''}${photo.crop.straighten}°` : '0°'}</span>
+                    <span>Nivelar {photo.crop?.straighten ? `${photo.crop.straighten > 0 ? '+' : ''}${Number(photo.crop.straighten.toFixed(1))}°` : '0°'}</span>
                   </button>
                   <button
                     type="button"
@@ -619,7 +619,7 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
                 type="range"
                 min={activeCropParam === 'zoom' ? 1.0 : -15}
                 max={activeCropParam === 'zoom' ? 2.5 : 15}
-                step={activeCropParam === 'zoom' ? 0.05 : 0.5}
+                step={activeCropParam === 'zoom' ? 0.01 : 0.1}
                 value={
                   activeCropParam === 'zoom'
                     ? (photo.crop?.zoom || 1)

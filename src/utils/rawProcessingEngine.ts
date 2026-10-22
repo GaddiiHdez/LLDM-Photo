@@ -41,6 +41,9 @@ export interface RawSensorData {
 
   // Balance de color y temperatura (Kelvin Ratio)
   colorTempRatio: number;       // > 0 cálido/ámbar (tungsteno), < 0 frío (azul/fluorescente)
+
+  // Miniatura ligera pre-generada para el carrete y cuadrícula (evita renderizar 24MP en cada <img> del DOM)
+  thumbnailDataUrl?: string;
 }
 
 /**
@@ -56,8 +59,10 @@ export async function analyzeImageHistogram(
     const width = img.naturalWidth || img.width || 4000;
     const height = img.naturalHeight || img.height || 3000;
 
-    const sampleW = 160;
-    const sampleH = 120;
+    const thumbMax = 180;
+    const thumbScale = Math.min(1, thumbMax / Math.max(width, height));
+    const sampleW = Math.max(48, Math.round(width * thumbScale));
+    const sampleH = Math.max(48, Math.round(height * thumbScale));
     const canvas = document.createElement('canvas');
     canvas.width = sampleW;
     canvas.height = sampleH;
@@ -94,6 +99,7 @@ export async function analyzeImageHistogram(
     }
 
     ctx.drawImage(img, 0, 0, sampleW, sampleH);
+    const thumbnailDataUrl = canvas.toDataURL('image/jpeg', 0.78);
     const { data } = ctx.getImageData(0, 0, sampleW, sampleH);
     const numPixels = sampleW * sampleH;
 
@@ -222,6 +228,7 @@ export async function analyzeImageHistogram(
       p90Saturation,
       highSatRatio,
       colorTempRatio,
+      thumbnailDataUrl,
     };
   } catch (err) {
     console.warn('[Histogram Engine] Error analizando imagen:', err);

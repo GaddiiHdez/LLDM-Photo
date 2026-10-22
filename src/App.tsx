@@ -21,6 +21,7 @@ import type {
 } from './types/editor';
 
 import { exportSinglePhoto, exportBatchAsZip, exportBatchAsJpgs } from './utils/batchExporter';
+import { evictCachedImage } from './utils/canvasEngine';
 import { getDrawableImageUrl } from './utils/rawDecoder';
 import { analyzeImageHistogram, computeAdaptiveChurchEnhancement } from './utils/rawProcessingEngine';
 import { getDefaultAppSettings, saveDefaultAppSettings, getSavedPngFrames } from './utils/frameStorage';
@@ -259,7 +260,7 @@ export const App: React.FC = () => {
           name: file.name,
           sizeFormatted: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
           originalUrl: url,
-          thumbnailUrl: url,
+          thumbnailUrl: sensorData?.thumbnailDataUrl || url,
           width: realWidth,
           height: realHeight,
           isRaw,
@@ -498,6 +499,7 @@ export const App: React.FC = () => {
     const currentIndex = photos.findIndex((p) => p.id === id);
     const target = photos[currentIndex];
     if (target?.originalUrl?.startsWith('blob:')) {
+      evictCachedImage(target.originalUrl);
       URL.revokeObjectURL(target.originalUrl);
     }
     const filtered = photos.filter((p) => p.id !== id);
@@ -534,6 +536,7 @@ export const App: React.FC = () => {
         prev.map((p) => {
           if (p.id !== id) return p;
           if (p.originalUrl?.startsWith('blob:')) {
+            evictCachedImage(p.originalUrl);
             URL.revokeObjectURL(p.originalUrl);
           }
           return {
@@ -542,7 +545,7 @@ export const App: React.FC = () => {
             name: file.name,
             sizeFormatted: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
             originalUrl: url,
-            thumbnailUrl: url,
+            thumbnailUrl: sensorData?.thumbnailDataUrl || url,
             width: realWidth,
             height: realHeight,
             isRaw,
@@ -642,6 +645,7 @@ export const App: React.FC = () => {
               onClearAll={() => {
                 photos.forEach((p) => {
                   if (p.originalUrl?.startsWith('blob:')) {
+                    evictCachedImage(p.originalUrl);
                     URL.revokeObjectURL(p.originalUrl);
                   }
                 });

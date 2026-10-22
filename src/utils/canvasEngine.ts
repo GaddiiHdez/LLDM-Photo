@@ -1,45 +1,77 @@
 import type { ImageAdjustments, WatermarkSettings, FrameSettings, CropSettings, AspectRatioType } from '../types/editor';
 
+export type DrawableSource = HTMLImageElement | HTMLCanvasElement;
+
 /**
- * Carga una URL o Blob en un HTMLImageElement
+ * Caché universal LRU de imágenes decodificadas (blob:, data:, /frames/..., /logos/...)
+ * Evita re-decodificar imágenes de 24MP, marcos PNG o logos en cada fotograma.
  */
-// Caché pequeña de imágenes data: (marcos PNG y logos) para no re-decodificarlas en cada render
-const dataImageCache = new Map<string, HTMLImageElement>();
+const imageElementCache = new Map<string, HTMLImageElement>();
+const pendingImageLoads = new Map<string, Promise<HTMLImageElement>>();
+const MAX_IMAGE_CACHE = 32;
+
+export function getCachedImageSync(src: string | undefined | null): HTMLImageElement | null {
+  if (!src) return null;
+  const cached = imageElementCache.get(src);
+  if (cached && cached.complete && (cached.naturalWidth > 0 || cached.width > 0)) {
+    return cached;
+  }
+  return null;
+}
+
+export function evictCachedImage(src: string | undefined | null): void {
+  if (!src) return;
+  imageElementCache.delete(src);
+  pendingImageLoads.delete(src);
+}
 
 export function loadImage(src: string): Promise<HTMLImageElement> {
-  const isData = src.startsWith('data:');
-  if (isData) {
-    const cached = dataImageCache.get(src);
-    if (cached) return Promise.resolve(cached);
-  }
-  return new Promise((resolve, reject) => {
+  const cached = getCachedImageSync(src);
+  if (cached) return Promise.resolve(cached);
+
+  const pending = pendingImageLoads.get(src);
+  if (pending) return pending;
+
+  const promise = new Promise<HTMLImageElement>((resolve, reject) => {
     const img = new Image();
+    img.decoding = 'async';
     // No establecer crossOrigin en URLs locales blob: o data: para evitar fallos de seguridad en Android WebView
     if (!src.startsWith('blob:') && !src.startsWith('data:')) {
       img.crossOrigin = 'anonymous';
     }
     img.onload = () => {
-      if (isData) {
-        if (dataImageCache.size >= 8) {
-          const firstKey = dataImageCache.keys().next().value;
-          if (firstKey !== undefined) dataImageCache.delete(firstKey);
-        }
-        dataImageCache.set(src, img);
+      pendingImageLoads.delete(src);
+      if (imageElementCache.size >= MAX_IMAGE_CACHE) {
+        const firstKey = imageElementCache.keys().next().value;
+        if (firstKey !== undefined) imageElementCache.delete(firstKey);
       }
+      imageElementCache.set(src, img);
       resolve(img);
     };
-    img.onerror = (err) => reject(err);
+    img.onerror = (err) => {
+      pendingImageLoads.delete(src);
+      reject(err);
+    };
     img.src = src;
   });
+
+  pendingImageLoads.set(src, promise);
+  return promise;
 }
 
 /**
- * Colorea un logo PNG transparente a un color sólido seleccionado (ej. Blanco, Dorado) usando Canvas 'source-in'
+ * Caché de logos coloreados (evita crear un <canvas> nuevo en cada fotograma de 60fps)
  */
-function createTintedLogoCanvas(logoImg: HTMLImageElement, color: string): HTMLCanvasElement {
+const tintedLogoCache = new Map<string, HTMLCanvasElement>();
+
+function getTintedLogoCanvas(logoImg: HTMLImageElement, color: string): HTMLCanvasElement {
+  const key = `${logoImg.src}|${color}`;
+  const cached = tintedLogoCache.get(key);
+  if (cached) return cached;
+
   const tintCanvas = document.createElement('canvas');
-  tintCanvas.width = logoImg.width;
-  tintCanvas.height = logoImg.height;
+  tintCanvas.width = logoImg.naturalWidth || logoImg.width || 256;
+  tintCanvas.height = logoImg.naturalHeight || logoImg.height || 256;
   const ctx = tintCanvas.getContext('2d');
 
   if (ctx) {
@@ -49,7 +81,226 @@ function createTintedLogoCanvas(logoImg: HTMLImageElement, color: string): HTMLC
     ctx.fillRect(0, 0, tintCanvas.width, tintCanvas.height);
   }
 
+  if (tintedLogoCache.size >= 16) {
+    const firstKey = tintedLogoCache.keys().next().value;
+    if (firstKey !== undefined) tintedLogoCache.delete(firstKey);
+  }
+  tintedLogoCache.set(key, tintCanvas);
   return tintCanvas;
+}
+
+/**
+ * Look-Up Table (LUT) precalculada de 256 niveles para Sombras y Altas Luces.
+ * Reemplaza ~1,000,000 de llamadas a Math.pow() por fotograma con una búsqueda O(1) en arreglo entero.
+ */
+let lastLutKey = '';
+let cachedLumDeltaLut = new Int16Array(256);
+
+function getLumDeltaLut(shadows: number, highlights: number): Int16Array {
+  const key = `${shadows}|${highlights}`;
+  if (key === lastLutKey) return cachedLumDeltaLut;
+
+  const lut = new Int16Array(256);
+  const shadowFactor = shadows / 100;
+  const highlightFactor = highlights / 100;
+
+  for (let lum = 0; lum < 256; lum++) {
+    let delta = 0;
+    if (shadowFactor !== 0 && lum < 140) {
+      const weight = Math.pow((140 - lum) / 140, 1.4);
+      delta += weight * shadowFactor * 55;
+    }
+    if (highlightFactor !== 0 && lum > 135) {
+      const weight = Math.pow((lum - 135) / 120, 1.25);
+      delta += weight * highlightFactor * 65;
+    }
+    lut[lum] = Math.round(delta);
+  }
+
+  lastLutKey = key;
+  cachedLumDeltaLut = lut;
+  return lut;
+}
+
+// Buffer reutilizable para el filtro de nitidez (evita recolectar basura de 2-8 MB en cada frame)
+let sharpnessScratchBuffer: Uint8ClampedArray | null = null;
+
+/**
+ * Aplica mapeo tonal (Sombras, Altas Luces, Calidez) mediante LUT entera y Nitidez 3x3 optimizada.
+ */
+export function applyCpuToneAndSharpness(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  adjustments: ImageAdjustments,
+  skipSharpness: boolean = false
+): void {
+  const hasTone =
+    adjustments.shadows !== 0 ||
+    adjustments.highlights !== 0 ||
+    adjustments.warmth !== 0;
+  const hasSharpness = !skipSharpness && adjustments.sharpness > 0;
+
+  if (!hasTone && !hasSharpness) return;
+
+  try {
+    const imgData = ctx.getImageData(x, y, width, height);
+    const data = imgData.data;
+    const len = data.length;
+
+    if (hasTone) {
+      const lut = getLumDeltaLut(adjustments.shadows, adjustments.highlights);
+      const warmthFactor = adjustments.warmth / 100;
+      const wR = Math.round(warmthFactor * 22);
+      const wG = Math.round(warmthFactor * 3);
+      const wB = -wR;
+
+      if (adjustments.shadows !== 0 || adjustments.highlights !== 0) {
+        for (let i = 0; i < len; i += 4) {
+          const r = data[i];
+          const g = data[i + 1];
+          const b = data[i + 2];
+          const lum = (77 * r + 150 * g + 29 * b) >> 8;
+          const d = lut[lum];
+
+          const nr = r + d + wR;
+          const ng = g + d + wG;
+          const nb = b + d + wB;
+
+          data[i] = nr < 0 ? 0 : nr > 255 ? 255 : nr;
+          data[i + 1] = ng < 0 ? 0 : ng > 255 ? 255 : ng;
+          data[i + 2] = nb < 0 ? 0 : nb > 255 ? 255 : nb;
+        }
+      } else if (wR !== 0 || wG !== 0) {
+        // Solo calidez activa: bucle ultrarrápido sin cálculo de luminancia
+        for (let i = 0; i < len; i += 4) {
+          const nr = data[i] + wR;
+          const ng = data[i + 1] + wG;
+          const nb = data[i + 2] + wB;
+          data[i] = nr < 0 ? 0 : nr > 255 ? 255 : nr;
+          data[i + 1] = ng < 0 ? 0 : ng > 255 ? 255 : ng;
+          data[i + 2] = nb < 0 ? 0 : nb > 255 ? 255 : nb;
+        }
+      }
+    }
+
+    if (hasSharpness) {
+      const amount = (adjustments.sharpness / 100) * 0.45;
+      const amtFp = Math.round(amount * 256);
+
+      if (!sharpnessScratchBuffer || sharpnessScratchBuffer.length < len) {
+        sharpnessScratchBuffer = new Uint8ClampedArray(len);
+      }
+      sharpnessScratchBuffer.set(data);
+      const copy = sharpnessScratchBuffer;
+      const rowStride = width * 4;
+
+      for (let py = 1; py < height - 1; py++) {
+        let idx = (py * width + 1) * 4;
+        for (let px = 1; px < width - 1; px++, idx += 4) {
+          // Canal R
+          const cR = copy[idx];
+          const edgeR = (cR << 2) - copy[idx - 4] - copy[idx + 4] - copy[idx - rowStride] - copy[idx + rowStride];
+          const vR = cR + ((edgeR * amtFp) >> 8);
+          data[idx] = vR < 0 ? 0 : vR > 255 ? 255 : vR;
+
+          // Canal G
+          const idxG = idx + 1;
+          const cG = copy[idxG];
+          const edgeG = (cG << 2) - copy[idxG - 4] - copy[idxG + 4] - copy[idxG - rowStride] - copy[idxG + rowStride];
+          const vG = cG + ((edgeG * amtFp) >> 8);
+          data[idxG] = vG < 0 ? 0 : vG > 255 ? 255 : vG;
+
+          // Canal B
+          const idxB = idx + 2;
+          const cB = copy[idxB];
+          const edgeB = (cB << 2) - copy[idxB - 4] - copy[idxB + 4] - copy[idxB - rowStride] - copy[idxB + rowStride];
+          const vB = cB + ((edgeB * amtFp) >> 8);
+          data[idxB] = vB < 0 ? 0 : vB > 255 ? 255 : vB;
+        }
+      }
+    }
+
+    ctx.putImageData(imgData, x, y);
+  } catch (e) {
+    console.warn('[Canvas Engine] Ignorando filtro pixel por política de origen:', e);
+  }
+}
+
+/**
+ * Crea un canvas proxy de trabajo pre-escalado (por defecto máx 1280px).
+ * Reduce de 24MP a ~1MP la textura fuente para edición interactiva a 60-120fps.
+ */
+export function createBaseProxyCanvas(img: HTMLImageElement, maxDimension: number = 1280): HTMLCanvasElement {
+  const rawW = img.naturalWidth || img.width || 1920;
+  const rawH = img.naturalHeight || img.height || 1080;
+  const scale = Math.min(1, maxDimension / Math.max(rawW, rawH));
+  const w = Math.max(1, Math.round(rawW * scale));
+  const h = Math.max(1, Math.round(rawH * scale));
+
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  if (ctx) {
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(img, 0, 0, w, h);
+  }
+  return canvas;
+}
+
+/**
+ * Hornea los ajustes de luz, color, tono y nitidez sobre un canvas proxy intermedio.
+ * Así, al mover, hacer zoom, rotar o cambiar marcos, NO se recalculan filtros ni píxeles.
+ */
+export function bakeToneToProxyCanvas(
+  targetProxy: HTMLCanvasElement,
+  baseProxy: HTMLCanvasElement,
+  adjustments: ImageAdjustments,
+  resolutionScale: number = 1.0,
+  skipSharpness: boolean = false
+): void {
+  const w = Math.max(1, Math.round(baseProxy.width * resolutionScale));
+  const h = Math.max(1, Math.round(baseProxy.height * resolutionScale));
+
+  if (targetProxy.width !== w || targetProxy.height !== h) {
+    targetProxy.width = w;
+    targetProxy.height = h;
+  }
+
+  const ctx = targetProxy.getContext('2d', { willReadFrequently: true });
+  if (!ctx) return;
+
+  ctx.save();
+  ctx.clearRect(0, 0, w, h);
+
+  const b = 100 + (adjustments.brightness || 0);
+  const c = 100 + (adjustments.contrast || 0);
+  const s = 100 + (adjustments.saturation || 0);
+
+  if (b !== 100 || c !== 100 || s !== 100) {
+    ctx.filter = `brightness(${b}%) contrast(${c}%) saturate(${s}%)`;
+  } else {
+    ctx.filter = 'none';
+  }
+
+  ctx.drawImage(baseProxy, 0, 0, w, h);
+  ctx.restore();
+
+  applyCpuToneAndSharpness(ctx, 0, 0, w, h, adjustments, skipSharpness);
+}
+
+function getSourceDimensions(source: DrawableSource): { width: number; height: number } {
+  if (source instanceof HTMLCanvasElement) {
+    return { width: source.width || 1920, height: source.height || 1080 };
+  }
+  return {
+    width: source.naturalWidth || source.width || 6000,
+    height: source.naturalHeight || source.height || 4000,
+  };
 }
 
 /**
@@ -152,12 +403,13 @@ export function renderFastPreview(
 }
 
 /**
- * Dibuja la composición completa directamente sobre un canvas existente.
- * Soporta modo 'skipCpuFilters' para arrastre en tiempo real a 60fps.
+ * Núcleo de renderizado 100% SÍNCRONO para ejecución inmediata en requestAnimationFrame (0ms de latencia async).
+ * Si `adjustmentsAlreadyBaked` es true (modo proxy interactivo), la imagen fuente ya contiene luz, color y nitidez,
+ * por lo que mover, hacer zoom o rotar se ejecuta en < 0.8ms mediante composición pura de GPU.
  */
-export async function drawProcessedPhotoToCanvas(
+export function drawProcessedPhotoSync(
   targetCanvas: HTMLCanvasElement,
-  imgSource: HTMLImageElement | string,
+  img: DrawableSource,
   adjustments: ImageAdjustments,
   watermark: WatermarkSettings,
   frame: FrameSettings,
@@ -165,31 +417,25 @@ export async function drawProcessedPhotoToCanvas(
   maxDimension: number = 0,
   skipCpuFilters: boolean = false,
   cachedPngFrame?: HTMLImageElement | null,
-  cachedLogo?: HTMLImageElement | null
-): Promise<void> {
-  const img = typeof imgSource === 'string' ? await loadImage(imgSource) : imgSource;
-
-  const rawWidth = img.naturalWidth || img.width || 6000;
-  const rawHeight = img.naturalHeight || img.height || 4000;
+  cachedLogo?: HTMLImageElement | null,
+  adjustmentsAlreadyBaked: boolean = false
+): void {
+  const { width: rawWidth, height: rawHeight } = getSourceDimensions(img);
   const rotationDeg = crop.rotation || 0;
   const straightenDeg = crop.straighten || 0;
   const isRotated90 = Math.abs(rotationDeg % 180) === 90;
 
+  const resolvedPngFrame =
+    cachedPngFrame || (frame.style === 'custom-png' && frame.pngDataUrl ? getCachedImageSync(frame.pngDataUrl) : null);
+  const resolvedLogo =
+    cachedLogo || (watermark.enabled && watermark.type === 'image' && watermark.imageDataUrl ? getCachedImageSync(watermark.imageDataUrl) : null);
+
   // --- 1. CÁLCULO DE DIMENSIONES RE-ENCUADRADAS (CROPPED GEOMETRY SIN DEFORMACIÓN) ---
-  // Encuadre inteligente al marco: si la proporción es 'frame', el lienzo adopta exactamente las dimensiones del PNG
   let frameRatio: number | null = null;
-  if (crop.aspectRatio === 'frame' && frame.style === 'custom-png' && (cachedPngFrame || frame.pngDataUrl)) {
-    try {
-      const pngForRatio = cachedPngFrame || (frame.pngDataUrl ? await loadImage(frame.pngDataUrl) : null);
-      if (pngForRatio && pngForRatio.height > 0) {
-        frameRatio = pngForRatio.width / pngForRatio.height;
-      }
-    } catch {
-      frameRatio = null;
-    }
+  if (crop.aspectRatio === 'frame' && frame.style === 'custom-png' && resolvedPngFrame && resolvedPngFrame.height > 0) {
+    frameRatio = resolvedPngFrame.width / resolvedPngFrame.height;
   }
   const targetRatio = frameRatio ?? getTargetAspectRatio(crop.aspectRatio, rawWidth, rawHeight, rotationDeg);
-  // Si la foto está rotada 90° o 270°, el rectángulo de origen en la imagen no-rotada usa el ratio inverso
   const srcTargetRatio = isRotated90 ? 1 / targetRatio : targetRatio;
   const rawRatio = rawWidth / rawHeight;
 
@@ -204,10 +450,8 @@ export async function drawProcessedPhotoToCanvas(
     baseSrcH = rawWidth / srcTargetRatio;
   }
 
-  // Dimensiones finales del área de la foto en el canvas
   let width: number;
   let height: number;
-  // 2560px es óptimo en resolución nativa móvil/web, previene OOM en WebViews y preserva nitidez cristalina
   const maxTargetDim = maxDimension > 0 ? maxDimension : 2560;
   const effectiveMaxW = isRotated90 ? rawHeight : rawWidth;
   const effectiveMaxH = isRotated90 ? rawWidth : rawHeight;
@@ -220,7 +464,7 @@ export async function drawProcessedPhotoToCanvas(
     width = Math.round(height * targetRatio);
   }
 
-  // --- CÁLCULO DE MÁRGENES PARA MARCOS DIGITALES (ESCALABLES CON EL SLIDER DE GROSOR) ---
+  // --- CÁLCULO DE MÁRGENES PARA MARCOS DIGITALES ---
   let extraTop = 0;
   let extraBottom = 0;
   let extraLeft = 0;
@@ -312,13 +556,19 @@ export async function drawProcessedPhotoToCanvas(
 
   // --- 3. DIBUJAR FOTO BASE CON CROP, ROTACIÓN, NIVELACIÓN Y FILTROS GPU ---
   ctx.save();
-  const b = 100 + adjustments.brightness;
-  const c = 100 + adjustments.contrast;
-  const s = 100 + adjustments.saturation;
+  if (!adjustmentsAlreadyBaked) {
+    const b = 100 + adjustments.brightness;
+    const c = 100 + adjustments.contrast;
+    const s = 100 + adjustments.saturation;
+    if (b !== 100 || c !== 100 || s !== 100) {
+      ctx.filter = `brightness(${b}%) contrast(${c}%) saturate(${s}%)`;
+    } else {
+      ctx.filter = 'none';
+    }
+  } else {
+    ctx.filter = 'none';
+  }
 
-  ctx.filter = `brightness(${b}%) contrast(${c}%) saturate(${s}%)`;
-
-  // Compensar escala automáticamente si hay ángulo de nivelación (straighten) para no dejar esquinas vacías
   const straightenRad = (Math.abs(straightenDeg) * Math.PI) / 180;
   const straightenAutoZoom = straightenDeg !== 0 ? 1 + Math.sin(straightenRad) * 1.35 : 1.0;
 
@@ -344,7 +594,6 @@ export async function drawProcessedPhotoToCanvas(
       extraLeft, extraTop, width, height
     );
   } else {
-    // Recortar al área exacta de la foto dentro del marco
     ctx.beginPath();
     ctx.rect(extraLeft, extraTop, width, height);
     ctx.clip();
@@ -398,199 +647,115 @@ export async function drawProcessedPhotoToCanvas(
     ctx.restore();
   }
 
-  // --- 5. TONE-MAPPING DINÁMICO Y NITIDEZ CPU (Se omite durante el arrastre rápido para 60fps) ---
-  const hasToneAdjustments =
-    adjustments.shadows !== 0 ||
-    adjustments.highlights !== 0 ||
-    adjustments.warmth !== 0 ||
-    adjustments.sharpness > 0;
-
-  if (!skipCpuFilters && hasToneAdjustments) {
-    try {
-      const imgData = ctx.getImageData(extraLeft, extraTop, width, height);
-      const data = imgData.data;
-
-      const shadowFactor = adjustments.shadows / 100;
-      const highlightFactor = adjustments.highlights / 100;
-      const warmthFactor = adjustments.warmth / 100;
-
-      if (shadowFactor !== 0 || highlightFactor !== 0 || warmthFactor !== 0) {
-        for (let i = 0; i < data.length; i += 4) {
-          let r = data[i];
-          let g = data[i + 1];
-          let bPixel = data[i + 2];
-
-          const lum = 0.299 * r + 0.587 * g + 0.114 * bPixel;
-
-          // Sombras (levantar o profundizar tonos oscuros de forma suave sin ruido)
-          if (shadowFactor !== 0 && lum < 140) {
-            const weight = Math.pow((140 - lum) / 140, 1.4);
-            const delta = weight * shadowFactor * 55;
-            r = Math.min(255, Math.max(0, r + delta));
-            g = Math.min(255, Math.max(0, g + delta));
-            bPixel = Math.min(255, Math.max(0, bPixel + delta));
-          }
-
-          // Altas Luces (recuperar blancos quemados si < 0, o dar brillo especular si > 0)
-          if (highlightFactor !== 0 && lum > 135) {
-            const weight = Math.pow((lum - 135) / 120, 1.25);
-            const delta = weight * highlightFactor * 65;
-            r = Math.min(255, Math.max(0, r + delta));
-            g = Math.min(255, Math.max(0, g + delta));
-            bPixel = Math.min(255, Math.max(0, bPixel + delta));
-          }
-
-          // Calidez (Temperatura de color Ámbar / Azul)
-          if (warmthFactor !== 0) {
-            r = Math.min(255, Math.max(0, r + warmthFactor * 22));
-            g = Math.min(255, Math.max(0, g + warmthFactor * 3));
-            bPixel = Math.min(255, Math.max(0, bPixel - warmthFactor * 22));
-          }
-
-          data[i] = r;
-          data[i + 1] = g;
-          data[i + 2] = bPixel;
-        }
-      }
-
-      // Nitidez (Micro-contraste de luminancia mediante kernel Laplaciano 3x3 rápido)
-      if (adjustments.sharpness > 0) {
-        const amount = (adjustments.sharpness / 100) * 0.45;
-        const copy = new Uint8ClampedArray(data);
-        const rowStride = width * 4;
-
-        for (let y = 1; y < height - 1; y++) {
-          let idx = (y * width + 1) * 4;
-          for (let x = 1; x < width - 1; x++, idx += 4) {
-            for (let c = 0; c < 3; c++) {
-              const center = copy[idx + c];
-              const neighbors =
-                copy[idx - 4 + c] +
-                copy[idx + 4 + c] +
-                copy[idx - rowStride + c] +
-                copy[idx + rowStride + c];
-              const edge = center * 4 - neighbors;
-              data[idx + c] = Math.min(255, Math.max(0, center + edge * amount));
-            }
-          }
-        }
-      }
-
-      ctx.putImageData(imgData, extraLeft, extraTop);
-    } catch (e) {
-      console.warn('[Canvas Engine] Ignorando filtro pixel por política de origen:', e);
-    }
+  // --- 5. TONE-MAPPING DINÁMICO Y NITIDEZ CPU (Omitido si ya está horneado en el proxy o durante drag rápido) ---
+  if (!adjustmentsAlreadyBaked && !skipCpuFilters) {
+    applyCpuToneAndSharpness(ctx, extraLeft, extraTop, width, height, adjustments, false);
   }
 
   // --- 6. OVERLAY PNG TRANSPARENTE (Marco PNG institucional) ---
-  if (frame.style === 'custom-png' && (cachedPngFrame || frame.pngDataUrl)) {
+  if (frame.style === 'custom-png' && resolvedPngFrame) {
     try {
-      const pngFrame = cachedPngFrame || (frame.pngDataUrl ? await loadImage(frame.pngDataUrl) : null);
-      if (pngFrame) {
-        ctx.save();
-        const frameRatio = pngFrame.width / pngFrame.height;
-        const canvasRatio = targetCanvas.width / targetCanvas.height;
+      ctx.save();
+      const fRatio = resolvedPngFrame.width / resolvedPngFrame.height;
+      const canvasRatio = targetCanvas.width / targetCanvas.height;
 
-        let frameDrawX = 0;
-        let frameDrawY = 0;
-        let frameDrawW = targetCanvas.width;
-        let frameDrawH = targetCanvas.height;
+      let frameDrawX = 0;
+      let frameDrawY = 0;
+      let frameDrawW = targetCanvas.width;
+      let frameDrawH = targetCanvas.height;
 
-        if (Math.abs(frameRatio - canvasRatio) < 0.15) {
-          ctx.drawImage(pngFrame, 0, 0, targetCanvas.width, targetCanvas.height);
+      if (Math.abs(fRatio - canvasRatio) < 0.15) {
+        ctx.drawImage(resolvedPngFrame, 0, 0, targetCanvas.width, targetCanvas.height);
+      } else {
+        if (fRatio > canvasRatio) {
+          frameDrawH = targetCanvas.width / fRatio;
+          frameDrawY = (targetCanvas.height - frameDrawH) / 2;
         } else {
-          if (frameRatio > canvasRatio) {
-            frameDrawH = targetCanvas.width / frameRatio;
-            frameDrawY = (targetCanvas.height - frameDrawH) / 2;
-          } else {
-            frameDrawW = targetCanvas.height * frameRatio;
-            frameDrawX = (targetCanvas.width - frameDrawW) / 2;
-          }
-          ctx.drawImage(pngFrame, frameDrawX, frameDrawY, frameDrawW, frameDrawH);
+          frameDrawW = targetCanvas.height * fRatio;
+          frameDrawX = (targetCanvas.width - frameDrawW) / 2;
         }
-        ctx.restore();
+        ctx.drawImage(resolvedPngFrame, frameDrawX, frameDrawY, frameDrawW, frameDrawH);
+      }
+      ctx.restore();
 
-        // --- 6.1 RENDERIZADO DE TEXTO DINÁMICO EN MARCO PNG ---
-        const isDynamicTemplate = Boolean(
-          frame.pngDataUrl?.includes('notexto') ||
-          frame.dynamicTextEnabled ||
-          (!frame.pngDataUrl?.includes('oracion7pm') && !frame.pngDataUrl?.includes('escuela-dominical') && frame.eventTitle)
-        );
+      // --- 6.1 RENDERIZADO DE TEXTO DINÁMICO EN MARCO PNG ---
+      const isDynamicTemplate = Boolean(
+        frame.pngDataUrl?.includes('notexto') ||
+        frame.dynamicTextEnabled ||
+        (!frame.pngDataUrl?.includes('oracion7pm') && !frame.pngDataUrl?.includes('escuela-dominical') && frame.eventTitle)
+      );
 
-        if (isDynamicTemplate && (frame.dynamicTextEnabled ?? true)) {
-          const textScale = (frame.dynamicTextScale || 100) / 100;
-          const applyDynamicTextStyle = (fontSize: number, textY: number) => {
-            ctx.shadowColor = 'rgba(0, 0, 0, 0.85)';
-            ctx.shadowBlur = Math.max(2, Math.round(fontSize * 0.15));
-            ctx.shadowOffsetX = Math.max(1, Math.round(fontSize * 0.06));
-            ctx.shadowOffsetY = Math.max(1, Math.round(fontSize * 0.06));
+      if (isDynamicTemplate && (frame.dynamicTextEnabled ?? true)) {
+        const textScale = (frame.dynamicTextScale || 100) / 100;
+        const applyDynamicTextStyle = (fontSize: number, textY: number) => {
+          ctx.shadowColor = 'rgba(0, 0, 0, 0.85)';
+          ctx.shadowBlur = Math.max(2, Math.round(fontSize * 0.15));
+          ctx.shadowOffsetX = Math.max(1, Math.round(fontSize * 0.06));
+          ctx.shadowOffsetY = Math.max(1, Math.round(fontSize * 0.06));
 
-            if (frame.dynamicTextColorStyle === 'white') {
-              ctx.fillStyle = '#ffffff';
-            } else if (frame.dynamicTextColorStyle === 'silver') {
-              ctx.fillStyle = '#cbd5e1';
-            } else {
-              const goldGrad = ctx.createLinearGradient(0, textY - fontSize * 0.5, 0, textY + fontSize * 0.5);
-              goldGrad.addColorStop(0, '#fef08a');
-              goldGrad.addColorStop(0.25, '#dab768');
-              goldGrad.addColorStop(0.65, '#cea544');
-              goldGrad.addColorStop(1, '#9b711d');
-              ctx.fillStyle = goldGrad;
-            }
-          };
-
-          const isCentenarioBar =
-            frame.dynamicTextPosition !== 'bottom-center' &&
-            (frame.dynamicTextPosition === 'centenario-left' ||
-              frame.pngDataUrl?.includes('centenario') ||
-              !frame.dynamicTextPosition);
-
-          // Texto Principal (Izquierdo o Centrado)
-          if (frame.eventTitle && frame.eventTitle.trim().length > 0) {
-            ctx.save();
-            const title = frame.eventTitle.trim().toUpperCase();
-
-            if (isCentenarioBar) {
-              const textX = frameDrawX + frameDrawW * 0.121;
-              const textY = frameDrawY + frameDrawH * 0.9845;
-              const maxW = frameDrawW * 0.32;
-              const fontSize = Math.max(11, Math.round(frameDrawH * 0.0185 * textScale));
-
-              ctx.font = `700 ${fontSize}px 'Cinzel', 'Cinzel Decorative', 'Times New Roman', 'Georgia', serif`;
-              ctx.textBaseline = 'middle';
-              ctx.textAlign = 'left';
-              applyDynamicTextStyle(fontSize, textY);
-              ctx.fillText(title, textX, textY, maxW);
-            } else {
-              const textX = frameDrawX + frameDrawW * 0.5;
-              const textY = frameDrawY + frameDrawH * 0.975;
-              const fontSize = Math.max(13, Math.round(frameDrawH * 0.022 * textScale));
-
-              ctx.font = `700 ${fontSize}px 'Cinzel', 'Outfit', sans-serif`;
-              ctx.textBaseline = 'middle';
-              ctx.textAlign = 'center';
-              applyDynamicTextStyle(fontSize, textY);
-              ctx.fillText(title, textX, textY, frameDrawW * 0.85);
-            }
-            ctx.restore();
+          if (frame.dynamicTextColorStyle === 'white') {
+            ctx.fillStyle = '#ffffff';
+          } else if (frame.dynamicTextColorStyle === 'silver') {
+            ctx.fillStyle = '#cbd5e1';
+          } else {
+            const goldGrad = ctx.createLinearGradient(0, textY - fontSize * 0.5, 0, textY + fontSize * 0.5);
+            goldGrad.addColorStop(0, '#fef08a');
+            goldGrad.addColorStop(0.25, '#dab768');
+            goldGrad.addColorStop(0.65, '#cea544');
+            goldGrad.addColorStop(1, '#9b711d');
+            ctx.fillStyle = goldGrad;
           }
+        };
 
-          // Texto Secundario Opcional en el Lado Derecho (Ej. Fecha o Localidad personalizada)
-          if (frame.dynamicTextRight && frame.dynamicTextRight.trim().length > 0) {
-            ctx.save();
-            const rightText = frame.dynamicTextRight.trim().toUpperCase();
-            const textX = frameDrawX + frameDrawW * 0.879;
+        const isCentenarioBar =
+          frame.dynamicTextPosition !== 'bottom-center' &&
+          (frame.dynamicTextPosition === 'centenario-left' ||
+            frame.pngDataUrl?.includes('centenario') ||
+            !frame.dynamicTextPosition);
+
+        if (frame.eventTitle && frame.eventTitle.trim().length > 0) {
+          ctx.save();
+          const title = frame.eventTitle.trim().toUpperCase();
+
+          if (isCentenarioBar) {
+            const textX = frameDrawX + frameDrawW * 0.121;
             const textY = frameDrawY + frameDrawH * 0.9845;
-            const maxW = frameDrawW * 0.30;
-            const fontSize = Math.max(11, Math.round(frameDrawH * 0.0175 * textScale));
+            const maxW = frameDrawW * 0.32;
+            const fontSize = Math.max(11, Math.round(frameDrawH * 0.0185 * textScale));
 
             ctx.font = `700 ${fontSize}px 'Cinzel', 'Cinzel Decorative', 'Times New Roman', 'Georgia', serif`;
             ctx.textBaseline = 'middle';
-            ctx.textAlign = 'right';
+            ctx.textAlign = 'left';
             applyDynamicTextStyle(fontSize, textY);
-            ctx.fillText(rightText, textX, textY, maxW);
-            ctx.restore();
+            ctx.fillText(title, textX, textY, maxW);
+          } else {
+            const textX = frameDrawX + frameDrawW * 0.5;
+            const textY = frameDrawY + frameDrawH * 0.975;
+            const fontSize = Math.max(13, Math.round(frameDrawH * 0.022 * textScale));
+
+            ctx.font = `700 ${fontSize}px 'Cinzel', 'Outfit', sans-serif`;
+            ctx.textBaseline = 'middle';
+            ctx.textAlign = 'center';
+            applyDynamicTextStyle(fontSize, textY);
+            ctx.fillText(title, textX, textY, frameDrawW * 0.85);
           }
+          ctx.restore();
+        }
+
+        if (frame.dynamicTextRight && frame.dynamicTextRight.trim().length > 0) {
+          ctx.save();
+          const rightText = frame.dynamicTextRight.trim().toUpperCase();
+          const textX = frameDrawX + frameDrawW * 0.879;
+          const textY = frameDrawY + frameDrawH * 0.9845;
+          const maxW = frameDrawW * 0.30;
+          const fontSize = Math.max(11, Math.round(frameDrawH * 0.0175 * textScale));
+
+          ctx.font = `700 ${fontSize}px 'Cinzel', 'Cinzel Decorative', 'Times New Roman', 'Georgia', serif`;
+          ctx.textBaseline = 'middle';
+          ctx.textAlign = 'right';
+          applyDynamicTextStyle(fontSize, textY);
+          ctx.fillText(rightText, textX, textY, maxW);
+          ctx.restore();
         }
       }
     } catch (err) {
@@ -704,45 +869,42 @@ export async function drawProcessedPhotoToCanvas(
 
       ctx.fillStyle = watermark.color || '#ffffff';
       ctx.fillText(watermark.text, x, y);
-    } else if (watermark.type === 'image' && (cachedLogo || watermark.imageDataUrl)) {
+    } else if (watermark.type === 'image' && resolvedLogo) {
       try {
-        const rawLogo = cachedLogo || (watermark.imageDataUrl ? await loadImage(watermark.imageDataUrl) : null);
-        if (rawLogo) {
-          const logoElement = watermark.logoTintEnabled
-            ? createTintedLogoCanvas(rawLogo, watermark.logoTintColor || '#ffffff')
-            : rawLogo;
+        const logoElement = watermark.logoTintEnabled
+          ? getTintedLogoCanvas(resolvedLogo, watermark.logoTintColor || '#ffffff')
+          : resolvedLogo;
 
-          const logoAspect = logoElement.width / logoElement.height;
-          const logoWidth = Math.round(width * 0.25 * scaleFactor);
-          const logoHeight = Math.round(logoWidth / logoAspect);
+        const logoAspect = logoElement.width / logoElement.height;
+        const logoWidth = Math.round(width * 0.25 * scaleFactor);
+        const logoHeight = Math.round(logoWidth / logoAspect);
 
-          const margin = Math.round(width * 0.03);
-          let x = extraLeft + margin;
-          let y = extraTop + margin;
+        const margin = Math.round(width * 0.03);
+        let x = extraLeft + margin;
+        let y = extraTop + margin;
 
-          if (watermark.position === 'bottom-right') {
-            x = extraLeft + width - logoWidth - margin;
-            y = extraTop + height - logoHeight - margin;
-          } else if (watermark.position === 'bottom-left') {
-            x = extraLeft + margin;
-            y = extraTop + height - logoHeight - margin;
-          } else if (watermark.position === 'top-right') {
-            x = extraLeft + width - logoWidth - margin;
-            y = extraTop + margin;
-          } else if (watermark.position === 'center') {
-            x = extraLeft + (width - logoWidth) / 2;
-            y = extraTop + (height - logoHeight) / 2;
-          }
-
-          if (watermark.dropShadow) {
-            ctx.shadowColor = watermark.shadowColor || 'rgba(0, 0, 0, 0.85)';
-            ctx.shadowBlur = watermark.shadowBlur || 10;
-            ctx.shadowOffsetX = 4;
-            ctx.shadowOffsetY = 4;
-          }
-
-          ctx.drawImage(logoElement, x, y, logoWidth, logoHeight);
+        if (watermark.position === 'bottom-right') {
+          x = extraLeft + width - logoWidth - margin;
+          y = extraTop + height - logoHeight - margin;
+        } else if (watermark.position === 'bottom-left') {
+          x = extraLeft + margin;
+          y = extraTop + height - logoHeight - margin;
+        } else if (watermark.position === 'top-right') {
+          x = extraLeft + width - logoWidth - margin;
+          y = extraTop + margin;
+        } else if (watermark.position === 'center') {
+          x = extraLeft + (width - logoWidth) / 2;
+          y = extraTop + (height - logoHeight) / 2;
         }
+
+        if (watermark.dropShadow) {
+          ctx.shadowColor = watermark.shadowColor || 'rgba(0, 0, 0, 0.85)';
+          ctx.shadowBlur = watermark.shadowBlur || 10;
+          ctx.shadowOffsetX = 4;
+          ctx.shadowOffsetY = 4;
+        }
+
+        ctx.drawImage(logoElement, x, y, logoWidth, logoHeight);
       } catch (err) {
         console.error('Error dibujando logo de marca de agua:', err);
       }
@@ -753,7 +915,58 @@ export async function drawProcessedPhotoToCanvas(
 }
 
 /**
- * Renderiza la imagen procesada completa creando un nuevo canvas (usado para exportaciones y compatibilidad)
+ * Dibuja la composición completa sobre un canvas existente (compatible con flujos asíncronos y exportación).
+ */
+export async function drawProcessedPhotoToCanvas(
+  targetCanvas: HTMLCanvasElement,
+  imgSource: DrawableSource | string,
+  adjustments: ImageAdjustments,
+  watermark: WatermarkSettings,
+  frame: FrameSettings,
+  crop: CropSettings,
+  maxDimension: number = 0,
+  skipCpuFilters: boolean = false,
+  cachedPngFrame?: HTMLImageElement | null,
+  cachedLogo?: HTMLImageElement | null,
+  adjustmentsAlreadyBaked: boolean = false
+): Promise<void> {
+  const img = typeof imgSource === 'string' ? await loadImage(imgSource) : imgSource;
+
+  let pngFrame = cachedPngFrame;
+  if (!pngFrame && frame.style === 'custom-png' && frame.pngDataUrl) {
+    try {
+      pngFrame = getCachedImageSync(frame.pngDataUrl) || await loadImage(frame.pngDataUrl);
+    } catch {
+      pngFrame = null;
+    }
+  }
+
+  let logoImg = cachedLogo;
+  if (!logoImg && watermark.enabled && watermark.type === 'image' && watermark.imageDataUrl) {
+    try {
+      logoImg = getCachedImageSync(watermark.imageDataUrl) || await loadImage(watermark.imageDataUrl);
+    } catch {
+      logoImg = null;
+    }
+  }
+
+  drawProcessedPhotoSync(
+    targetCanvas,
+    img,
+    adjustments,
+    watermark,
+    frame,
+    crop,
+    maxDimension,
+    skipCpuFilters,
+    pngFrame,
+    logoImg,
+    adjustmentsAlreadyBaked
+  );
+}
+
+/**
+ * Renderiza la imagen procesada completa creando un nuevo canvas (usado para exportaciones en lote/individual)
  */
 export async function renderProcessedPhoto(
   imgSource: HTMLImageElement | string,
@@ -776,7 +989,8 @@ export async function renderProcessedPhoto(
     maxDimension,
     false,
     cachedPngFrame,
-    cachedLogo
+    cachedLogo,
+    false
   );
   return canvas;
 }

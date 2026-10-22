@@ -26,7 +26,7 @@ interface ThumbnailBarProps {
   onToggleGrid?: (open?: boolean) => void;
 }
 
-export const ThumbnailBar: React.FC<ThumbnailBarProps> = ({
+const ThumbnailBarComponent: React.FC<ThumbnailBarProps> = ({
   photos,
   activePhotoId,
   onSelectPhoto,
@@ -266,6 +266,7 @@ export const ThumbnailBar: React.FC<ThumbnailBarProps> = ({
                   src={photo.thumbnailUrl}
                   alt={photo.name}
                   className="filmstrip-thumb-img"
+                  decoding="async"
                   draggable={false}
                 />
                 <span className="filmstrip-thumb-index">
@@ -424,7 +425,7 @@ export const ThumbnailBar: React.FC<ThumbnailBarProps> = ({
                     }}
                   >
                     <div className="batch-grid-img-wrap">
-                      <img src={photo.thumbnailUrl} alt={photo.name} draggable={false} />
+                      <img src={photo.thumbnailUrl} alt={photo.name} decoding="async" draggable={false} />
                       <span className="batch-grid-badge">#{index + 1}</span>
                       {photo.isRaw && <span className="batch-grid-raw">RAW</span>}
                       {isSelected && (
@@ -464,3 +465,24 @@ export const ThumbnailBar: React.FC<ThumbnailBarProps> = ({
     </>
   );
 };
+
+export const ThumbnailBar = React.memo(ThumbnailBarComponent, (prev, next) => {
+  if (
+    prev.activePhotoId !== next.activePhotoId ||
+    prev.isGridOpen !== next.isGridOpen ||
+    prev.isCollapsed !== next.isCollapsed ||
+    prev.photos.length !== next.photos.length
+  ) {
+    return false;
+  }
+  for (let i = 0; i < prev.photos.length; i++) {
+    if (
+      prev.photos[i].id !== next.photos[i].id ||
+      prev.photos[i].thumbnailUrl !== next.photos[i].thumbnailUrl ||
+      prev.photos[i].name !== next.photos[i].name
+    ) {
+      return false;
+    }
+  }
+  return true;
+});
