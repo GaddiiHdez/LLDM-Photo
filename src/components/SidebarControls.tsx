@@ -26,7 +26,6 @@ import {
   Copy,
   Trash2,
   RefreshCw,
-  Camera,
   Calendar,
 } from 'lucide-react';
 import { formatFrameDate } from '../utils/eventClassifier';
@@ -370,59 +369,60 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
   return (
     <aside className="oneui-bottom-system">
       {/* ============================================================
-          TARJETA FLOTANTE DE CONTROL ESTILO SAMSUNG ONE UI (DECK)
+          PANEL DE CONTROL ESTILO SAMSUNG ONE UI (BOTTOM SHEET)
          ============================================================ */}
       {activeTab && (
         <div className="oneui-floating-card card-glass">
-        {/* TAB 1: AJUSTES DE LUZ Y COLOR (DIALES + REGLA GRADUADA ONE UI) */}
-        {activeTab === 'develop' && (
-          <div className="oneui-deck-inner">
-            {/* Píldora de Parámetros de Disparo de Cámara (EXIF) */}
-            {photo.metadata?.cameraModel && (
-              <div className="oneui-exif-subtle-bar">
-                <Camera size={11} style={{ color: '#f59e0b' }} />
-                <span>
-                  {[
-                    photo.metadata.cameraModel,
-                    photo.metadata.focalLength,
-                    photo.metadata.fNumber ? `f/${photo.metadata.fNumber}` : null,
-                    photo.metadata.exposureTime,
-                    photo.metadata.iso ? `ISO ${photo.metadata.iso}` : null,
-                  ]
-                    .filter(Boolean)
-                    .join('  •  ')}
-                </span>
-              </div>
-            )}
+          {/* Manija táctil One UI para cerrar/deslizar */}
+          <div
+            className="oneui-sheet-handle-row"
+            onClick={() => onChangeTab?.(null)}
+            title="Tocar para cerrar panel"
+          >
+            <div className="oneui-sheet-handle" />
+          </div>
 
-            {/* Título centrado del parámetro activo (ej. "BALANCE DE LUZ" / "EXPOSICIÓN") */}
-            <div className="oneui-deck-title-row">
-              <span className="oneui-param-title">{activeParamConfig.label.toUpperCase()}</span>
-              <div className="oneui-deck-actions-right">
-                {activeValue !== 0 && (
-                  <button
-                    type="button"
-                    onClick={() => handleSliderChange(activeLightParam, 0)}
-                    className="oneui-reset-tiny-btn"
-                    title="Restablecer este parámetro a 0"
-                  >
-                    <RotateCcw size={11} />
-                    <span>0</span>
-                  </button>
-                )}
-                {onApplySettingsToAll && (
-                  <button
-                    type="button"
-                    onClick={onApplySettingsToAll}
-                    className="oneui-sync-pill-btn"
-                    title="Copiar estos ajustes de luz a todas las fotos"
-                  >
-                    <Copy size={11} />
-                    <span>A todas</span>
-                  </button>
-                )}
+          {/* TAB 1: AJUSTES DE LUZ Y COLOR (DIALES + REGLA GRADUADA ONE UI) */}
+          {activeTab === 'develop' && (
+            <div className="oneui-deck-inner">
+              {/* Título centrado del parámetro activo con datos EXIF en línea */}
+              <div className="oneui-deck-title-row">
+                <div className="oneui-param-title-group">
+                  <span className="oneui-param-title">{activeParamConfig.label.toUpperCase()}</span>
+                  {photo.metadata?.cameraModel && (
+                    <span className="oneui-param-meta-tag">
+                      {photo.metadata.cameraModel}
+                      {photo.metadata.focalLength ? ` • ${photo.metadata.focalLength}` : ''}
+                      {photo.metadata.fNumber ? ` • f/${photo.metadata.fNumber}` : ''}
+                      {photo.metadata.iso ? ` • ISO ${photo.metadata.iso}` : ''}
+                    </span>
+                  )}
+                </div>
+                <div className="oneui-deck-actions-right">
+                  {activeValue !== 0 && (
+                    <button
+                      type="button"
+                      onClick={() => handleSliderChange(activeLightParam, 0)}
+                      className="oneui-reset-tiny-btn"
+                      title="Restablecer este parámetro a 0"
+                    >
+                      <RotateCcw size={11} />
+                      <span>0</span>
+                    </button>
+                  )}
+                  {onApplySettingsToAll && (
+                    <button
+                      type="button"
+                      onClick={onApplySettingsToAll}
+                      className="oneui-sync-pill-btn"
+                      title="Copiar estos ajustes de luz a todas las fotos"
+                    >
+                      <Copy size={11} />
+                      <span>A todas</span>
+                    </button>
+                  )}
+                </div>
               </div>
-            </div>
 
             {/* Fila Horizontal de Diales Circulares estilo Samsung One UI */}
             <div className="oneui-dials-strip">
@@ -722,31 +722,41 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
               style={{ display: 'none' }}
             />
 
+            {/* Encabezado compacto: Título + Metadatos de captura + Sync Lote */}
             <div className="oneui-deck-title-row">
-              <span className="oneui-param-title">MARCO INSTITUCIONAL</span>
+              <div className="oneui-param-title-group">
+                <span className="oneui-param-title">MARCO INSTITUCIONAL</span>
+                {photo?.metadata?.timeFormatted && (
+                  <span className="oneui-param-meta-tag">
+                    {photo.metadata.timeFormatted}
+                    {photo.metadata.cameraModel ? ` • ${photo.metadata.cameraModel}` : ''}
+                  </span>
+                )}
+              </div>
               {onSyncFrameToAll && (
                 <button
                   type="button"
                   onClick={onSyncFrameToAll}
-                  className="oneui-reset-tiny-btn"
+                  className="oneui-sync-pill-btn"
                   title="Sincronizar marco con todas las fotos del lote"
                 >
                   <CheckCheck size={11} />
-                  <span>Sync Lote</span>
+                  <span>Sync lote</span>
                 </button>
               )}
             </div>
 
-            {/* Fila 1: Selección Limpia de Marco */}
+            {/* Fila 1: Selector horizontal compacto de marcos */}
             <div className="oneui-frame-cards-row">
               {/* Opción Sin Marco */}
               <button
                 type="button"
                 onClick={() => onUpdateFrame({ style: 'none' })}
                 className={`oneui-frame-card ${frame.style === 'none' ? 'active' : ''}`}
+                title="Sin marco institucional"
               >
                 <div className="frame-card-thumb none">
-                  <Ban size={20} />
+                  <Ban size={15} />
                 </div>
                 <span>Sin marco</span>
               </button>
@@ -760,6 +770,7 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
                     type="button"
                     onClick={() => handleSelectSavedFrame(f)}
                     className={`oneui-frame-card ${isActive ? 'active' : ''}`}
+                    title={f.name}
                   >
                     <div className="frame-card-thumb">
                       <img src={f.pngDataUrl} alt={f.name} />
@@ -770,8 +781,9 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
                         type="button"
                         onClick={(e) => handleDeleteSavedFrame(f.id, e)}
                         className="frame-card-del-btn"
+                        title="Eliminar este marco"
                       >
-                        <X size={10} />
+                        <X size={9} />
                       </button>
                     )}
                   </button>
@@ -786,100 +798,51 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
                 title="Subir marco en formato PNG transparente"
               >
                 <div className="frame-card-thumb add">
-                  <Plus size={20} />
+                  <Plus size={15} />
                 </div>
                 <span>Subir PNG</span>
               </button>
             </div>
 
-            {/* Fila 2: Personalización del Título y Fecha Dinámicos en el Marco */}
+            {/* Fila 2: Editor Dinámico Compacto (Dos campos en UNA sola fila) */}
             {frame.style === 'custom-png' && (
-              <div className="oneui-frame-custom-row">
-                {/* Metadatos de Disparo EXIF */}
-                {photo?.metadata && (photo.metadata.cameraModel || photo.metadata.dateTimeOriginal) && (
-                  <div className="oneui-exif-pill" title="Datos de captura extraídos de la fotografía">
-                    <Camera size={11} style={{ color: '#f59e0b' }} />
-                    <span>
-                      {[
-                        photo.metadata.cameraModel || photo.metadata.cameraMake,
-                        photo.metadata.focalLength,
-                        photo.metadata.fNumber ? `f/${photo.metadata.fNumber}` : null,
-                        photo.metadata.exposureTime,
-                        photo.metadata.iso ? `ISO ${photo.metadata.iso}` : null,
-                        photo.metadata.timeFormatted,
-                      ]
-                        .filter(Boolean)
-                        .join(' • ')}
-                    </span>
+              <div className="oneui-frame-editor-section">
+                <div className="oneui-frame-dual-inputs">
+                  {/* Campo Izquierdo: Evento */}
+                  <div className="oneui-dual-input-box" title="Título del evento (Lado izquierdo del marco)">
+                    <Type size={12} style={{ color: '#f59e0b', flexShrink: 0 }} />
+                    <input
+                      type="text"
+                      value={frame.eventTitle || ''}
+                      onChange={(e) => onUpdateFrame({ eventTitle: e.target.value, dynamicTextEnabled: true })}
+                      placeholder="Evento"
+                      maxLength={40}
+                      className="oneui-mini-input"
+                    />
                   </div>
-                )}
 
-                {/* Input 1: Título del Evento (Lado izquierdo del marco Centenario) */}
-                <div className="oneui-frame-input-wrap">
-                  <Type size={14} style={{ color: '#f59e0b' }} />
-                  <input
-                    type="text"
-                    value={frame.eventTitle || ''}
-                    onChange={(e) => onUpdateFrame({ eventTitle: e.target.value, dynamicTextEnabled: true })}
-                    placeholder="Título del evento (ej. Escuela Dominical)"
-                    maxLength={42}
-                    className="oneui-deck-input"
-                  />
+                  {/* Campo Derecho: Fecha */}
+                  <div className="oneui-dual-input-box" title="Fecha del evento (Lado derecho del marco)">
+                    <Calendar size={12} style={{ color: '#38bdf8', flexShrink: 0 }} />
+                    <input
+                      type="text"
+                      value={frame.dynamicTextRight || frame.eventDate || ''}
+                      onChange={(e) =>
+                        onUpdateFrame({
+                          dynamicTextRight: e.target.value,
+                          eventDate: e.target.value,
+                          dynamicTextEnabled: true,
+                        })
+                      }
+                      placeholder="Fecha (ej. 22 de Octubre, 2026)"
+                      maxLength={40}
+                      className="oneui-mini-input"
+                    />
+                  </div>
                 </div>
 
-                <div className="oneui-chips-row">
-                  {['Escuela Dominical', 'Oración 7pm', 'Culto Especial', 'Estudio Bíblico', 'Oración 5am'].map((ev) => {
-                    const isEvActive = (frame.eventTitle || '').trim().toLowerCase() === ev.toLowerCase();
-                    return (
-                      <button
-                        key={ev}
-                        type="button"
-                        onClick={() => onUpdateFrame({ eventTitle: ev, dynamicTextEnabled: true })}
-                        className={`oneui-chip-btn ${isEvActive ? 'active' : ''}`}
-                      >
-                        {ev}
-                      </button>
-                    );
-                  })}
-                </div>
-
-                {/* Input 2: Fecha del Evento (Lado derecho del marco Centenario) */}
-                <div className="oneui-frame-input-wrap">
-                  <Calendar size={14} style={{ color: '#38bdf8' }} />
-                  <input
-                    type="text"
-                    value={frame.dynamicTextRight || frame.eventDate || ''}
-                    onChange={(e) =>
-                      onUpdateFrame({
-                        dynamicTextRight: e.target.value,
-                        eventDate: e.target.value,
-                        dynamicTextEnabled: true,
-                      })
-                    }
-                    placeholder="Fecha del evento (ej. 22 de Octubre, 2026)"
-                    maxLength={42}
-                    className="oneui-deck-input"
-                  />
-                </div>
-
-                <div className="oneui-chips-row">
-                  {/* Botón rápido "Hoy" */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const todayStr = formatFrameDate(new Date());
-                      onUpdateFrame({
-                        dynamicTextRight: todayStr,
-                        eventDate: todayStr,
-                        dynamicTextEnabled: true,
-                      });
-                    }}
-                    className="oneui-chip-btn"
-                  >
-                    Hoy
-                  </button>
-
-                  {/* Botón rápido "Auto EXIF" */}
+                {/* Fila 3: Chips de acceso rápido en UNA sola línea deslizante */}
+                <div className="oneui-chips-row compact">
                   {photo?.metadata?.dateFormatted && (
                     <button
                       type="button"
@@ -893,13 +856,43 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
                           dynamicTextEnabled: true,
                         });
                       }}
-                      className="oneui-chip-btn text-amber-400"
-                      title="Restablecer evento y fecha desde los metadatos EXIF de esta foto"
+                      className="oneui-chip-btn auto-exif"
+                      title={`Detectado: ${photo.metadata.detectedEvent} • ${photo.metadata.dateFormatted}`}
                     >
-                      <Sparkles size={11} style={{ display: 'inline', marginRight: 3 }} />
-                      EXIF ({photo.metadata.dateFormatted})
+                      <Sparkles size={10} />
+                      <span>Auto EXIF</span>
                     </button>
                   )}
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const todayStr = formatFrameDate(new Date());
+                      onUpdateFrame({
+                        dynamicTextRight: todayStr,
+                        eventDate: todayStr,
+                        dynamicTextEnabled: true,
+                      });
+                    }}
+                    className="oneui-chip-btn"
+                    title="Usar fecha de hoy"
+                  >
+                    Hoy
+                  </button>
+
+                  {['Escuela Dominical', 'Oración 7pm', 'Culto Especial', 'Estudio Bíblico', 'Oración 5am'].map((ev) => {
+                    const isEvActive = (frame.eventTitle || '').trim().toLowerCase() === ev.toLowerCase();
+                    return (
+                      <button
+                        key={ev}
+                        type="button"
+                        onClick={() => onUpdateFrame({ eventTitle: ev, dynamicTextEnabled: true })}
+                        className={`oneui-chip-btn ${isEvActive ? 'active' : ''}`}
+                      >
+                        {ev}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}
