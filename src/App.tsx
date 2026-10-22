@@ -26,6 +26,8 @@ import { evictCachedImage } from './utils/canvasEngine';
 import { getDrawableImageUrl } from './utils/rawDecoder';
 import { analyzeImageHistogram, computeAdaptiveChurchEnhancement } from './utils/rawProcessingEngine';
 import { getDefaultAppSettings, saveDefaultAppSettings, getSavedPngFrames } from './utils/frameStorage';
+import { extractPhotoMetadata } from './utils/exifParser';
+import { classifyChurchEvent } from './utils/eventClassifier';
 import {
   computeSmartCropOffsets,
   getFrameAspectRatio,
@@ -244,7 +246,7 @@ export const App: React.FC = () => {
   // Referencia siempre actualizada del lote (para efectos asíncronos sin cierres obsoletos)
   const photosRef = useRef<PhotoItem[]>([]);
 
-  // Handle uploaded files (Soporta archivos RAW .NEF, .CR2, .ARW, dimensiones reales e histograma adaptativo)
+  // Handle uploaded files (Soporta archivos RAW .NEF, .CR2, .ARW, dimensiones reales, metadatos EXIF e histograma adaptativo)
   const handleFilesSelected = async (files: FileList | File[]) => {
     const fileArray = Array.from(files);
 
@@ -258,6 +260,14 @@ export const App: React.FC = () => {
         let realWidth = 4000;
         let realHeight = 3000;
 
+        // 1. Extracción de metadatos EXIF y clasificación de evento eclesiástico
+        const metadata = await extractPhotoMetadata(file);
+        const classification = classifyChurchEvent(metadata.dateTimeOriginal);
+        metadata.detectedEvent = classification.eventTitle;
+        metadata.dateFormatted = classification.formattedDate;
+        metadata.fullDateString = classification.fullDateString;
+
+        // 2. Análisis de histograma del sensor y revelado adaptativo
         const sensorData = await analyzeImageHistogram(url, isRaw);
         if (sensorData) {
           realWidth = sensorData.width;
@@ -289,9 +299,27 @@ export const App: React.FC = () => {
             flipV: false,
           },
           preset: 'auto-church',
+          metadata,
         };
       })
     );
+
+    // Auto-completar título y fecha del marco según el evento EXIF detectado
+    if (newPhotos.length > 0) {
+      const firstMeta = newPhotos[0].metadata;
+      if (firstMeta?.detectedEvent && firstMeta?.dateFormatted) {
+        setFrame((prev) => ({
+          ...prev,
+          eventTitle: firstMeta.detectedEvent!,
+          dynamicTextRight: firstMeta.dateFormatted!,
+          eventDate: firstMeta.dateFormatted!,
+          dynamicTextEnabled: true,
+        }));
+
+        const cameraInfo = firstMeta.cameraModel ? ` • ${firstMeta.cameraModel}` : '';
+        showToast(`📸 ${firstMeta.detectedEvent} • ${firstMeta.dateFormatted}${cameraInfo}`);
+      }
+    }
 
     setPhotos((prev) => [...prev, ...newPhotos]);
     if (!activePhotoId && newPhotos.length > 0) {
@@ -580,6 +608,12 @@ export const App: React.FC = () => {
       let realWidth = 4000;
       let realHeight = 3000;
 
+      const metadata = await extractPhotoMetadata(file);
+      const classification = classifyChurchEvent(metadata.dateTimeOriginal);
+      metadata.detectedEvent = classification.eventTitle;
+      metadata.dateFormatted = classification.formattedDate;
+      metadata.fullDateString = classification.fullDateString;
+
       const sensorData = await analyzeImageHistogram(url, isRaw);
       if (sensorData) {
         realWidth = sensorData.width;
@@ -603,6 +637,7 @@ export const App: React.FC = () => {
             width: realWidth,
             height: realHeight,
             isRaw,
+            metadata,
             crop: {
               ...p.crop,
               orientation: realWidth >= realHeight ? 'landscape' : 'portrait',

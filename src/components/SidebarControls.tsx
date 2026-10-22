@@ -26,7 +26,10 @@ import {
   Copy,
   Trash2,
   RefreshCw,
+  Camera,
+  Calendar,
 } from 'lucide-react';
+import { formatFrameDate } from '../utils/eventClassifier';
 import { HapticRuler } from './HapticRuler';
 import {
   getCustomPresets,
@@ -374,6 +377,24 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
         {/* TAB 1: AJUSTES DE LUZ Y COLOR (DIALES + REGLA GRADUADA ONE UI) */}
         {activeTab === 'develop' && (
           <div className="oneui-deck-inner">
+            {/* Píldora de Parámetros de Disparo de Cámara (EXIF) */}
+            {photo.metadata?.cameraModel && (
+              <div className="oneui-exif-subtle-bar">
+                <Camera size={11} style={{ color: '#f59e0b' }} />
+                <span>
+                  {[
+                    photo.metadata.cameraModel,
+                    photo.metadata.focalLength,
+                    photo.metadata.fNumber ? `f/${photo.metadata.fNumber}` : null,
+                    photo.metadata.exposureTime,
+                    photo.metadata.iso ? `ISO ${photo.metadata.iso}` : null,
+                  ]
+                    .filter(Boolean)
+                    .join('  •  ')}
+                </span>
+              </div>
+            )}
+
             {/* Título centrado del parámetro activo (ej. "BALANCE DE LUZ" / "EXPOSICIÓN") */}
             <div className="oneui-deck-title-row">
               <span className="oneui-param-title">{activeParamConfig.label.toUpperCase()}</span>
@@ -771,9 +792,29 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
               </button>
             </div>
 
-            {/* Fila 2: Personalización del Título Dinámico en el Marco */}
+            {/* Fila 2: Personalización del Título y Fecha Dinámicos en el Marco */}
             {frame.style === 'custom-png' && (
               <div className="oneui-frame-custom-row">
+                {/* Metadatos de Disparo EXIF */}
+                {photo?.metadata && (photo.metadata.cameraModel || photo.metadata.dateTimeOriginal) && (
+                  <div className="oneui-exif-pill" title="Datos de captura extraídos de la fotografía">
+                    <Camera size={11} style={{ color: '#f59e0b' }} />
+                    <span>
+                      {[
+                        photo.metadata.cameraModel || photo.metadata.cameraMake,
+                        photo.metadata.focalLength,
+                        photo.metadata.fNumber ? `f/${photo.metadata.fNumber}` : null,
+                        photo.metadata.exposureTime,
+                        photo.metadata.iso ? `ISO ${photo.metadata.iso}` : null,
+                        photo.metadata.timeFormatted,
+                      ]
+                        .filter(Boolean)
+                        .join(' • ')}
+                    </span>
+                  </div>
+                )}
+
+                {/* Input 1: Título del Evento (Lado izquierdo del marco Centenario) */}
                 <div className="oneui-frame-input-wrap">
                   <Type size={14} style={{ color: '#f59e0b' }} />
                   <input
@@ -787,7 +828,7 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
                 </div>
 
                 <div className="oneui-chips-row">
-                  {['Escuela Dominical', 'Oración 7pm', 'Culto Especial', 'Estudio Bíblico'].map((ev) => {
+                  {['Escuela Dominical', 'Oración 7pm', 'Culto Especial', 'Estudio Bíblico', 'Oración 5am'].map((ev) => {
                     const isEvActive = (frame.eventTitle || '').trim().toLowerCase() === ev.toLowerCase();
                     return (
                       <button
@@ -800,6 +841,65 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
                       </button>
                     );
                   })}
+                </div>
+
+                {/* Input 2: Fecha del Evento (Lado derecho del marco Centenario) */}
+                <div className="oneui-frame-input-wrap">
+                  <Calendar size={14} style={{ color: '#38bdf8' }} />
+                  <input
+                    type="text"
+                    value={frame.dynamicTextRight || frame.eventDate || ''}
+                    onChange={(e) =>
+                      onUpdateFrame({
+                        dynamicTextRight: e.target.value,
+                        eventDate: e.target.value,
+                        dynamicTextEnabled: true,
+                      })
+                    }
+                    placeholder="Fecha del evento (ej. 22 de Octubre, 2026)"
+                    maxLength={42}
+                    className="oneui-deck-input"
+                  />
+                </div>
+
+                <div className="oneui-chips-row">
+                  {/* Botón rápido "Hoy" */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const todayStr = formatFrameDate(new Date());
+                      onUpdateFrame({
+                        dynamicTextRight: todayStr,
+                        eventDate: todayStr,
+                        dynamicTextEnabled: true,
+                      });
+                    }}
+                    className="oneui-chip-btn"
+                  >
+                    Hoy
+                  </button>
+
+                  {/* Botón rápido "Auto EXIF" */}
+                  {photo?.metadata?.dateFormatted && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const ev = photo.metadata?.detectedEvent || 'Escuela Dominical';
+                        const dt = photo.metadata?.dateFormatted || '';
+                        onUpdateFrame({
+                          eventTitle: ev,
+                          dynamicTextRight: dt,
+                          eventDate: dt,
+                          dynamicTextEnabled: true,
+                        });
+                      }}
+                      className="oneui-chip-btn text-amber-400"
+                      title="Restablecer evento y fecha desde los metadatos EXIF de esta foto"
+                    >
+                      <Sparkles size={11} style={{ display: 'inline', marginRight: 3 }} />
+                      EXIF ({photo.metadata.dateFormatted})
+                    </button>
+                  )}
                 </div>
               </div>
             )}

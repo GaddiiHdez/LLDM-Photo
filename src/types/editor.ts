@@ -109,6 +109,21 @@ export interface ExportOptions {
   deliveryFormat: 'jpg' | 'zip'; // 'jpg' = fotos individuales directo a Galería/Descargas, 'zip' = archivo comprimido
 }
 
+export interface PhotoMetadata {
+  dateTimeOriginal?: Date;
+  dateFormatted?: string;
+  timeFormatted?: string;
+  fullDateString?: string;
+  cameraMake?: string;
+  cameraModel?: string;
+  lensModel?: string;
+  iso?: number;
+  fNumber?: number;
+  exposureTime?: string;
+  focalLength?: string;
+  detectedEvent?: string;
+}
+
 export interface PhotoItem {
   id: string;
   file: File;
@@ -123,4 +138,5 @@ export interface PhotoItem {
   adjustments: ImageAdjustments;
   crop: CropSettings;
   preset: PresetType;
+  metadata?: PhotoMetadata;
 }

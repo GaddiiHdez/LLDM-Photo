@@ -742,9 +742,10 @@ export function drawProcessedPhotoSync(
           ctx.restore();
         }
 
-        if (frame.dynamicTextRight && frame.dynamicTextRight.trim().length > 0) {
+        const rightSourceText = frame.dynamicTextRight || frame.eventDate || '';
+        if (rightSourceText.trim().length > 0) {
           ctx.save();
-          const rightText = frame.dynamicTextRight.trim().toUpperCase();
+          const rightText = rightSourceText.trim().toUpperCase();
           const textX = frameDrawX + frameDrawW * 0.879;
           const textY = frameDrawY + frameDrawH * 0.9845;
           const maxW = frameDrawW * 0.30;
