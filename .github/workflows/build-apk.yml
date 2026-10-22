@@ -95,17 +95,17 @@ jobs:
           tag_name: v${{ env.APP_VER }}
           name: BereaSnap v${{ env.APP_VER }} (Compilación ${{ github.run_number }})
           body: |
-            ## 📱 BereaSnap para Android v${{ env.APP_VER }} (100% Offline)
-            
-            ¡La nueva versión de **BereaSnap** está lista para instalar!
-            
-            ### ✨ Novedades:
-            - **Sistema de Actualización In-App**: Notificación y descarga directa de actualizaciones desde la propia app.
-            - **Deck de Herramientas Cero-Scroll**: Arquitectura de 2 filas horizontales fijas sin scroll vertical.
-            - **Carrete Filmstrip Inteligente**: Sustitución de fotos en caliente manteniendo ajustes, borrado instantáneo y vista de cuadrícula.
-            - **Lienzo Maximizado & Gestos**: Swipe táctil con 1 dedo para navegación rápida y pellizco fluido (Pinch-to-zoom) a 60 FPS.
-            - **Motor RAW 14-Bit**: Revelado fotográfico offline para cámaras Nikon (.NEF), Canon (.CR2), Sony (.ARW) y Adobe DNG.
-            - **Marcos Dinámicos Centenario**: Tipografía Cinzel en oro imperial con chips para cultos y oraciones.
+            ## 📱 BereaSnap v${{ env.APP_VER }} - Rediseño Samsung One UI & AMOLED Puro
+
+            ¡La actualización mayor **v${{ env.APP_VER }}** de BereaSnap está lista para instalar!
+
+            ### ✨ Novedades Principales:
+            - 🖤 **Fondo Negro Puro AMOLED (#000000)**: Canvas y paneles diseñados con contraste total y máximo ahorro de batería para pantallas OLED/AMOLED.
+            - 🎛️ **Diales Circulares One UI**: Selección de brillo, contraste, sombras, altas luces, calidez y saturación en diales táctiles con valor central en dial activo.
+            - 📏 **Regla Graduada Táctica (Haptic Ruler)**: Deslizador analógico a 120 FPS con aguja de referencia central y marcas milimétricas.
+            - 🖼️ **Marco y Firma Unificados**: Sección de identidad combinada con el marco oficial Centenario dinámico de máxima calidad.
+            - 🧭 **Barra Superior One UI**: Botón "Revertir" dinámico cuando hay cambios, contador de foto activa y menú de tres puntos (⋮).
+            - ⚡ **Dock Flotante Persistente**: Cambio instantáneo entre Auto, Encuadre, Filtros, Ajustes, Marco y Carrete.
             
             ### 📥 Instrucciones de Instalación:
             1. Descarga el archivo `BereaSnap-v${{ env.APP_VER }}.apk` en tu dispositivo Android.

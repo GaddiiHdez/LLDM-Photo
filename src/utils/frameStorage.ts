@@ -32,24 +32,6 @@ export const BUILTIN_FRAMES: SavedPngFrame[] = [
     isDynamic: true,
     defaultEventTitle: 'Escuela Dominical',
   },
-  {
-    id: 'official-frame-centenario-oracion7pm',
-    name: 'Centenario (Oración 7pm)',
-    pngDataUrl: '/frames/marco-centenario-V2_oracion7pm.png',
-    createdAt: 'Oficial',
-    isDefault: false,
-    isOfficial: true,
-    isDynamic: false,
-  },
-  {
-    id: 'official-frame-escuela-dominical',
-    name: 'Centenario (Esc. Dominical)',
-    pngDataUrl: '/frames/marco-escuela-dominical.png',
-    createdAt: 'Oficial',
-    isDefault: false,
-    isOfficial: true,
-    isDynamic: false,
-  },
 ];
 
 // Caché en memoria sincronizada con IndexedDB + migración desde localStorage

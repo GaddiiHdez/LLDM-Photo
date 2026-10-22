@@ -25,7 +25,6 @@ import { evictCachedImage } from './utils/canvasEngine';
 import { getDrawableImageUrl } from './utils/rawDecoder';
 import { analyzeImageHistogram, computeAdaptiveChurchEnhancement } from './utils/rawProcessingEngine';
 import { getDefaultAppSettings, saveDefaultAppSettings, getSavedPngFrames } from './utils/frameStorage';
-import { getSavedLogos } from './utils/logoStorage';
 import {
   computeSmartCropOffsets,
   getFrameAspectRatio,
@@ -77,8 +76,6 @@ export const App: React.FC = () => {
   const savedPngFrames = getSavedPngFrames();
   const defaultPngFrame = savedPngFrames.find((f) => f.isDefault) || savedPngFrames[0];
 
-  const savedLogos = getSavedLogos();
-  const defaultLogo = savedLogos.find((l) => l.isDefault) || savedLogos.find((l) => l.id === 'official-logo-lineal') || savedLogos[0];
 
   // Theme State: 'dark' (Grafito Oscuro por defecto para Cuarto Oscuro Fotográfico) o 'light'
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
@@ -168,13 +165,13 @@ export const App: React.FC = () => {
   const [photos, setPhotos] = useState<PhotoItem[]>([]);
   const [activePhotoId, setActivePhotoId] = useState<string>('');
 
-  // Watermark State (Carga default guardado o inicial)
+  // Watermark State (Por defecto desactivada)
   const [watermark, setWatermark] = useState<WatermarkSettings>(
     savedDefaults?.watermark || {
-      enabled: true,
+      enabled: false,
       type: 'image',
       text: 'BereaSnap',
-      imageDataUrl: defaultLogo ? defaultLogo.imageDataUrl : '/logo-bereasnap-watermark.svg',
+      imageDataUrl: '',
       position: 'bottom-right',
       opacity: 0.75,
       size: 24,
@@ -222,6 +219,7 @@ export const App: React.FC = () => {
   // Export Modal & Progress State
   const [isExportModalOpen, setIsExportModalOpen] = useState<boolean>(false);
   const [isExporting, setIsExporting] = useState<boolean>(false);
+  const [isFilmstripOpen, setIsFilmstripOpen] = useState<boolean>(false);
   const [exportProgress, setExportProgress] = useState({ current: 0, total: 0, currentName: '' });
   const [exportOptions, setExportOptions] = useState<ExportOptions>({
     qualityPreset: 'max',
@@ -414,6 +412,48 @@ export const App: React.FC = () => {
     showToast(`✓ Foto #${fromIndex + 1} movida a la posición #${toIndex + 1}`);
   };
 
+  // Determina si la foto activa tiene cambios respecto al estado original
+  const hasModifications = Boolean(
+    activePhoto &&
+      (Object.values(activePhoto.adjustments).some((v) => v !== 0) ||
+        (activePhoto.crop?.zoom || 1) !== 1 ||
+        (activePhoto.crop?.rotation || 0) !== 0 ||
+        (activePhoto.crop?.straighten || 0) !== 0 ||
+        (activePhoto.crop?.offsetX || 0) !== 0 ||
+        (activePhoto.crop?.offsetY || 0) !== 0 ||
+        (activePhoto.crop?.aspectRatio || 'original') !== 'original' ||
+        frame.style !== 'none')
+  );
+
+  // Revertir foto activa a estado original/neutro
+  const handleRevertActivePhoto = () => {
+    if (!activePhoto) return;
+    setPhotos((prev) =>
+      prev.map((p) =>
+        p.id === activePhoto.id
+          ? {
+              ...p,
+              adjustments: { ...PRESET_ADJUSTMENTS['auto-church'] },
+              preset: 'auto-church',
+              crop: {
+                aspectRatio: 'original',
+                orientation: p.width >= p.height ? 'landscape' : 'portrait',
+                offsetX: 0,
+                offsetY: 0,
+                zoom: 1.0,
+                rotation: 0,
+                straighten: 0,
+                flipH: false,
+                flipV: false,
+              },
+            }
+          : p
+      )
+    );
+    setFrame((prev) => ({ ...prev, style: 'none' }));
+    showToast('✓ Fotografía restaurada a valores iniciales');
+  };
+
   // Photo Navigation (< y >)
   const currentPhotoIndex = photos.findIndex((p) => p.id === activePhotoId);
   const hasPrevPhoto = currentPhotoIndex > 0;
@@ -602,6 +642,7 @@ export const App: React.FC = () => {
         theme={theme}
         showOriginal={showOriginal}
         hasUpdateBadge={hasUpdateBadge}
+        hasModifications={hasModifications}
         onToggleOriginal={(val) => setShowOriginal((prev) => (typeof val === 'boolean' ? val : !prev))}
         onSelectTheme={handleSelectTheme}
         onToggleTheme={toggleTheme}
@@ -610,6 +651,8 @@ export const App: React.FC = () => {
         onSingleExport={handleSingleExport}
         onSingleShare={handleSingleShare}
         onExportBatch={handleExportBatch}
+        onRevert={handleRevertActivePhoto}
+        onApplySettingsToAll={handleApplySettingsToAll}
       />
 
       {/* Main Studio Area */}
@@ -634,28 +677,30 @@ export const App: React.FC = () => {
               hasNextPhoto={hasNextPhoto}
             />
 
-            <ThumbnailBar
-              photos={photos}
-              activePhotoId={activePhotoId}
-              onSelectPhoto={setActivePhotoId}
-              onDeletePhoto={handleDeletePhoto}
-              onReplacePhoto={handleReplacePhoto}
-              onMovePhoto={handleMovePhoto}
-              onAddMorePhotos={triggerAddMoreFiles}
-              onClearAll={() => {
-                photos.forEach((p) => {
-                  if (p.originalUrl?.startsWith('blob:')) {
-                    evictCachedImage(p.originalUrl);
-                    URL.revokeObjectURL(p.originalUrl);
-                  }
-                });
-                setPhotos([]);
-                setActivePhotoId('');
-              }}
-              onExportBatch={handleExportBatch}
-              isGridOpen={isGridOpen}
-              onToggleGrid={(open) => setIsGridOpen((prev) => (typeof open === 'boolean' ? open : !prev))}
-            />
+            <div className={`filmstrip-dock-wrapper ${isFilmstripOpen ? 'drawer-open' : ''}`}>
+              <ThumbnailBar
+                photos={photos}
+                activePhotoId={activePhotoId}
+                onSelectPhoto={setActivePhotoId}
+                onDeletePhoto={handleDeletePhoto}
+                onReplacePhoto={handleReplacePhoto}
+                onMovePhoto={handleMovePhoto}
+                onAddMorePhotos={triggerAddMoreFiles}
+                onClearAll={() => {
+                  photos.forEach((p) => {
+                    if (p.originalUrl?.startsWith('blob:')) {
+                      evictCachedImage(p.originalUrl);
+                      URL.revokeObjectURL(p.originalUrl);
+                    }
+                  });
+                  setPhotos([]);
+                  setActivePhotoId('');
+                }}
+                onExportBatch={handleExportBatch}
+                isGridOpen={isGridOpen}
+                onToggleGrid={(open) => setIsGridOpen((prev) => (typeof open === 'boolean' ? open : !prev))}
+              />
+            </div>
           </div>
 
           {/* Bottom / Right Tool Deck */}
@@ -675,6 +720,8 @@ export const App: React.FC = () => {
             onSyncWatermarkToAll={handleSyncWatermarkToAll}
             onSaveAsDefaultAppSettings={handleSaveAsDefaultAppSettings}
             totalPhotos={photos.length}
+            isFilmstripOpen={isFilmstripOpen}
+            onToggleFilmstrip={() => setIsFilmstripOpen((prev) => !prev)}
           />
         </div>
       )}

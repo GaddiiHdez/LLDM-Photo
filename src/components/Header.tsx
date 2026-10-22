@@ -1,6 +1,5 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
-  Download,
   Sun,
   Moon,
   Share2,
@@ -10,6 +9,9 @@ import {
   LayoutGrid,
   Info,
   Sparkles,
+  MoreVertical,
+  RotateCcw,
+  CheckCheck,
 } from 'lucide-react';
 import type { PhotoItem } from '../types/editor';
 import { APP_VERSION } from '../version';
@@ -21,6 +23,7 @@ interface HeaderProps {
   theme: 'light' | 'dark';
   showOriginal?: boolean;
   hasUpdateBadge?: boolean;
+  hasModifications?: boolean;
   onToggleOriginal?: (val?: boolean) => void;
   onSelectTheme?: (theme: 'light' | 'dark') => void;
   onToggleTheme: () => void;
@@ -29,6 +32,8 @@ interface HeaderProps {
   onSingleExport?: () => void;
   onSingleShare?: () => void;
   onExportBatch: () => void;
+  onRevert?: () => void;
+  onApplySettingsToAll?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -38,6 +43,7 @@ export const Header: React.FC<HeaderProps> = ({
   theme,
   showOriginal = false,
   hasUpdateBadge = false,
+  hasModifications = false,
   onToggleOriginal,
   onToggleTheme,
   onOpenGrid,
@@ -45,214 +51,237 @@ export const Header: React.FC<HeaderProps> = ({
   onSingleExport,
   onSingleShare,
   onExportBatch,
+  onRevert,
+  onApplySettingsToAll,
 }) => {
-  return (
-    <header className="app-header">
-      <div className="header-brand">
-        <button
-          type="button"
-          onClick={onOpenAbout}
-          className="brand-logo-btn"
-          title={`BereaSnap v${APP_VERSION} — Toca para buscar actualizaciones`}
-          style={{
-            background: 'none',
-            border: 'none',
-            padding: 0,
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: '2.1rem',
-            height: '2.1rem',
-            minWidth: '2.1rem',
-            minHeight: '2.1rem',
-            maxWidth: '2.1rem',
-            maxHeight: '2.1rem',
-            position: 'relative',
-            flexShrink: 0,
-          }}
-        >
-          <img
-            src="/logo-bereasnap-icon.jpg"
-            alt="BereaSnap"
-            className="brand-logo-img"
-            style={{ width: '100%', height: '100%', borderRadius: '0.45rem', objectFit: 'cover', display: 'block' }}
-          />
-          {hasUpdateBadge && (
-            <span
-              style={{
-                position: 'absolute',
-                top: '-2px',
-                right: '-2px',
-                width: '9px',
-                height: '9px',
-                borderRadius: '50%',
-                backgroundColor: '#f59e0b',
-                boxShadow: '0 0 8px #f59e0b',
-              }}
-            />
-          )}
-        </button>
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
+  // Cerrar menú al hacer clic fuera
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setIsMenuOpen(false);
+      }
+    };
+    if (isMenuOpen) {
+      document.addEventListener('mousedown', handleOutsideClick);
+    }
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, [isMenuOpen]);
+
+  return (
+    <header className="app-header oneui-header">
+      <div className="header-brand">
         {totalPhotos === 0 ? (
           <div
             className="brand-titles"
             onClick={onOpenAbout}
-            style={{ cursor: 'pointer' }}
+            style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.65rem' }}
             title="Ver información y actualizaciones"
           >
+            <img
+              src="/logo-bereasnap-icon.jpg"
+              alt="BereaSnap"
+              className="brand-logo-img"
+              style={{ width: '2rem', height: '2rem', borderRadius: '0.45rem', objectFit: 'cover' }}
+            />
             <h1 className="brand-title">
               Berea<span className="brand-highlight">Snap</span>
               <span className="badge-pro">PRO</span>
-              <span
-                style={{
-                  fontSize: '0.65rem',
-                  fontWeight: 600,
-                  fontFamily: 'monospace',
-                  padding: '1px 6px',
-                  borderRadius: '999px',
-                  backgroundColor: 'rgba(255,255,255,0.08)',
-                  color: 'var(--color-text-muted)',
-                  marginLeft: '4px',
-                }}
-              >
-                v{APP_VERSION}
-              </span>
+              <span className="badge-version">v{APP_VERSION}</span>
             </h1>
           </div>
         ) : (
-          <div className="studio-header-meta">
+          <div className="oneui-header-left">
+            {/* Botón Revertir con icono sutil (Flecha atrás estilo One UI) */}
+            {onRevert && (
+              <button
+                type="button"
+                onClick={onRevert}
+                disabled={!hasModifications}
+                className={`oneui-revert-btn ${hasModifications ? 'active' : ''}`}
+                title="Revertir todos los cambios de esta fotografía"
+              >
+                <RotateCcw size={16} />
+                <span className="oneui-btn-text">Revertir</span>
+              </button>
+            )}
+
+            {/* Contador de foto activa (Tocar abre cuadrícula de sesión) */}
             <button
               type="button"
               onClick={onOpenGrid}
-              className="studio-counter-pill interactive"
-              title="Ver cuadrícula de todas las fotos de la sesión"
+              className="oneui-counter-pill"
+              title="Ver cuadrícula de sesión"
             >
-              <LayoutGrid size={12} style={{ color: 'var(--color-accent)' }} />
+              <LayoutGrid size={13} style={{ color: 'var(--color-accent)' }} />
               <span>
                 {currentPhotoIndex + 1}/{totalPhotos}
               </span>
+              {activePhoto?.isRaw && <span className="badge-raw-tiny">RAW</span>}
             </button>
-            {activePhoto?.isRaw && <span className="badge-raw">RAW</span>}
-            {activePhoto && (
-              <span className="header-filename-desktop" title={activePhoto.name}>
-                {activePhoto.name}
-              </span>
-            )}
           </div>
         )}
       </div>
 
-      <div className="header-actions">
+      <div className="header-actions oneui-header-right">
+        {totalPhotos > 0 && (
+          <>
+            {/* Botón Ojo: Comparar Original (Estilo One UI) */}
+            {onToggleOriginal && (
+              <button
+                type="button"
+                onClick={() => onToggleOriginal()}
+                className={`oneui-icon-btn ${showOriginal ? 'active' : ''}`}
+                title="Mantener o pulsar para comparar con original"
+              >
+                {showOriginal ? <EyeOff size={17} /> : <Eye size={17} />}
+              </button>
+            )}
+
+            {/* Botón Guardar Foto Actual (Texto blanco limpio estilo One UI) */}
+            {onSingleExport && (
+              <button
+                type="button"
+                onClick={onSingleExport}
+                className="oneui-save-action-btn"
+                title="Guardar fotografía en Galería"
+              >
+                <span>Guardar</span>
+              </button>
+            )}
+
+            {/* Botón Compartir Rápido en Móvil */}
+            {onSingleShare && (
+              <button
+                type="button"
+                onClick={onSingleShare}
+                className="oneui-icon-btn desktop-only-btn"
+                title="Compartir foto procesada"
+              >
+                <Share2 size={17} />
+              </button>
+            )}
+          </>
+        )}
+
         {/* Notificación de Actualización si hay disponible */}
         {hasUpdateBadge && (
           <button
             type="button"
             onClick={onOpenAbout}
-            className="header-update-badge-btn"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-              padding: '4px 8px',
-              borderRadius: '999px',
-              backgroundColor: 'rgba(245, 158, 11, 0.15)',
-              border: '1px solid rgba(245, 158, 11, 0.4)',
-              color: '#fbbf24',
-              fontSize: '0.7rem',
-              fontWeight: 700,
-              cursor: 'pointer',
-              animation: 'pulse 2s infinite',
-            }}
+            className="oneui-update-dot-btn"
             title="¡Nueva actualización disponible! Toca para instalar"
           >
-            <Sparkles size={12} />
-            <span>Actualizar</span>
+            <Sparkles size={14} style={{ color: '#fbbf24' }} />
           </button>
         )}
 
-        {totalPhotos > 0 && (
-          <>
-            {/* Botón Comparar Antes / Después */}
-            {onToggleOriginal && (
-              <button
-                type="button"
-                onClick={() => onToggleOriginal()}
-                className={`header-icon-btn ${showOriginal ? 'active-compare' : ''}`}
-                title="Comparar con Original (Atajo: tecla B)"
-              >
-                {showOriginal ? <EyeOff size={15} /> : <Eye size={15} />}
-                <span className="btn-label-desktop">Original</span>
-              </button>
-            )}
-
-            {/* Compartir Foto Actual (1 Toque en Android / Móvil) */}
-            {onSingleShare && (
-              <button
-                type="button"
-                onClick={onSingleShare}
-                className="header-icon-btn"
-                title="Compartir esta foto (WhatsApp, Telegram, Redes)"
-              >
-                <Share2 size={15} style={{ color: 'var(--color-brand-light)' }} />
-                <span className="btn-label-desktop">Compartir</span>
-              </button>
-            )}
-
-            {/* Guardar Foto Actual */}
-            {onSingleExport && (
-              <button
-                type="button"
-                onClick={onSingleExport}
-                className="header-icon-btn"
-                title="Guardar esta fotografía procesada"
-              >
-                <Download size={15} />
-                <span className="btn-label-desktop">Guardar</span>
-              </button>
-            )}
-
-            {/* Exportar Lote Completo */}
-            <button
-              type="button"
-              onClick={onExportBatch}
-              className="btn-primary header-btn"
-              title="Exportar o compartir lote completo"
-            >
-              <FolderArchive size={14} />
-              <span className="btn-label-desktop">Exportar ({totalPhotos})</span>
-              <span className="btn-label-mobile">Lote ({totalPhotos})</span>
-            </button>
-          </>
-        )}
-
-        {/* Botón Acerca de / Versión */}
-        {onOpenAbout && (
+        {/* Menú de 3 Puntos estilo One UI (⋮) */}
+        <div className="oneui-menu-wrap" ref={menuRef}>
           <button
             type="button"
-            onClick={onOpenAbout}
-            className="header-icon-btn"
-            title={`BereaSnap v${APP_VERSION} — Buscar Actualizaciones`}
-            aria-label="Acerca de BereaSnap"
+            onClick={() => setIsMenuOpen((prev) => !prev)}
+            className={`oneui-icon-btn ${isMenuOpen ? 'active' : ''}`}
+            title="Más opciones"
+            aria-label="Más opciones"
           >
-            <Info size={15} />
+            <MoreVertical size={18} />
           </button>
-        )}
 
-        {/* Botón Compacto de Tema (Grafito Oscuro / Blanco Galería) */}
-        <button
-          type="button"
-          onClick={onToggleTheme}
-          className="header-icon-btn theme-single-btn"
-          title={theme === 'dark' ? 'Cambiar a Tema Blanco Galería' : 'Cambiar a Tema Grafito Oscuro'}
-          aria-label="Cambiar tema visual"
-        >
-          {theme === 'dark' ? (
-            <Sun size={15} className="theme-icon-sun" />
-          ) : (
-            <Moon size={15} className="theme-icon-moon" />
+          {isMenuOpen && (
+            <div className="oneui-popover-menu card-glass">
+              {totalPhotos > 0 && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      onExportBatch();
+                    }}
+                    className="oneui-menu-item primary"
+                  >
+                    <FolderArchive size={15} style={{ color: 'var(--color-brand-light)' }} />
+                    <div className="menu-item-text">
+                      <strong>Exportar lote completo</strong>
+                      <span>Procesar las {totalPhotos} fotos a JPG</span>
+                    </div>
+                  </button>
+
+                  {onApplySettingsToAll && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsMenuOpen(false);
+                        onApplySettingsToAll();
+                      }}
+                      className="oneui-menu-item"
+                    >
+                      <CheckCheck size={15} style={{ color: '#34d399' }} />
+                      <div className="menu-item-text">
+                        <strong>Sincronizar lote</strong>
+                        <span>Copiar ajustes actuales a todas</span>
+                      </div>
+                    </button>
+                  )}
+
+                  {onSingleShare && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsMenuOpen(false);
+                        onSingleShare();
+                      }}
+                      className="oneui-menu-item"
+                    >
+                      <Share2 size={15} />
+                      <div className="menu-item-text">
+                        <strong>Compartir fotografía</strong>
+                        <span>WhatsApp, Telegram o Redes</span>
+                      </div>
+                    </button>
+                  )}
+
+                  <div className="oneui-menu-divider" />
+                </>
+              )}
+
+              {/* Conmutador de Tema Visual */}
+              <button
+                type="button"
+                onClick={() => {
+                  onToggleTheme();
+                }}
+                className="oneui-menu-item"
+              >
+                {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
+                <div className="menu-item-text">
+                  <strong>Tema: {theme === 'dark' ? 'Negro AMOLED' : 'Blanco Galería'}</strong>
+                  <span>{theme === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a negro puro'}</span>
+                </div>
+              </button>
+
+              {/* Información y Versión */}
+              {onOpenAbout && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    onOpenAbout();
+                  }}
+                  className="oneui-menu-item"
+                >
+                  <Info size={15} />
+                  <div className="menu-item-text">
+                    <strong>BereaSnap v{APP_VERSION}</strong>
+                    <span>Buscar actualizaciones de APK</span>
+                  </div>
+                </button>
+              )}
+            </div>
           )}
-        </button>
+        </div>
       </div>
     </header>
   );

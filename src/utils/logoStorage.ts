@@ -11,24 +11,7 @@ export interface SavedLogo {
 
 const STORAGE_KEY_LOGOS = 'bereasnap_saved_logos_catalog';
 
-export const BUILTIN_LOGOS: SavedLogo[] = [
-  {
-    id: 'bereasnap-logo-gold',
-    name: 'BereaSnap Emblema Oficial',
-    imageDataUrl: '/logo-bereasnap.svg',
-    createdAt: 'Oficial',
-    isDefault: false,
-    isOfficial: true,
-  },
-  {
-    id: 'bereasnap-logo-lineal',
-    name: 'BereaSnap Firma Horizontal',
-    imageDataUrl: '/logo-bereasnap-watermark.svg',
-    createdAt: 'Oficial',
-    isDefault: true,
-    isOfficial: true,
-  },
-];
+export const BUILTIN_LOGOS: SavedLogo[] = [];
 
 let memoryLogos: SavedLogo[] | null = null;
 

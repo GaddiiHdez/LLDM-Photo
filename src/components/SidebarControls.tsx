@@ -1,13 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
-  SlidersHorizontal,
   Sparkles,
-  Image as ImageIcon,
   Frame as FrameIcon,
-  Upload,
   RotateCcw,
   Crop,
-  Maximize2,
   Star,
   Wand2,
   SunMedium,
@@ -17,14 +13,6 @@ import {
   Thermometer,
   Moon,
   Plus,
-  Square,
-  ZoomIn,
-  Target,
-  Type,
-  Eye,
-  Ban,
-  Landmark,
-  Newspaper,
   Sun,
   Focus,
   RotateCw,
@@ -32,7 +20,12 @@ import {
   Compass,
   Check,
   X,
+  Ban,
+  Type,
+  LayoutGrid,
+  Copy,
 } from 'lucide-react';
+import { HapticRuler } from './HapticRuler';
 import {
   getCustomPresets,
   saveCustomPreset,
@@ -48,20 +41,12 @@ import type {
   PresetType,
   AspectRatioType,
 } from '../types/editor';
-
 import {
   getSavedPngFrames,
   savePngFrame,
   deleteSavedPngFrame,
 } from '../utils/frameStorage';
 import type { SavedPngFrame } from '../utils/frameStorage';
-
-import {
-  getSavedLogos,
-  saveLogo,
-  deleteSavedLogo,
-} from '../utils/logoStorage';
-import type { SavedLogo } from '../utils/logoStorage';
 
 interface SidebarControlsProps {
   photo: PhotoItem;
@@ -79,42 +64,37 @@ interface SidebarControlsProps {
   onSyncWatermarkToAll?: () => void;
   onSaveAsDefaultAppSettings: () => void;
   totalPhotos?: number;
+  isFilmstripOpen?: boolean;
+  onToggleFilmstrip?: () => void;
 }
 
 export const SidebarControls: React.FC<SidebarControlsProps> = ({
   photo,
-  watermark,
   frame,
   onUpdateAdjustments,
   onUpdateCrop,
   onApplyPreset,
-  onUpdateWatermark,
   onUpdateFrame,
   onApplySettingsToAll,
   onApplyCropToAll,
   onSmartCrop,
   onSyncFrameToAll,
-  onSyncWatermarkToAll,
+  isFilmstripOpen = false,
+  onToggleFilmstrip,
 }) => {
-  const [activeTab, setActiveTab] = useState<'presets' | 'develop' | 'crop' | 'watermark' | 'frame'>('develop');
-  const [frameSubMode, setFrameSubMode] = useState<'style' | 'text'>('style');
+  const [activeTab, setActiveTab] = useState<'develop' | 'crop' | 'presets' | 'frame'>('develop');
   const [activeLightParam, setActiveLightParam] = useState<keyof ImageAdjustments>('brightness');
+  const [activeCropMode, setActiveCropMode] = useState<'straighten' | 'ratios'>('ratios');
   const [customPresets, setCustomPresets] = useState<CustomPreset[]>([]);
   const [showSavePresetInput, setShowSavePresetInput] = useState<boolean>(false);
   const [newPresetName, setNewPresetName] = useState<string>('');
-  const [activeCropParam, setActiveCropParam] = useState<'straighten' | 'zoom'>('straighten');
-  const [activeWmParam, setActiveWmParam] = useState<'opacity' | 'size'>('opacity');
 
   const [savedFrames, setSavedFrames] = useState<SavedPngFrame[]>([]);
-  const [savedLogos, setSavedLogos] = useState<SavedLogo[]>([]);
-
-  const logoInputRef = useRef<HTMLInputElement>(null);
   const framePngInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const syncStorage = () => {
       setSavedFrames(getSavedPngFrames());
-      setSavedLogos(getSavedLogos());
       setCustomPresets(getCustomPresets());
     };
     syncStorage();
@@ -135,19 +115,18 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
   const lightParams: {
     key: keyof ImageAdjustments;
     label: string;
-    shortLabel: string;
     icon: React.FC<{ size?: number; className?: string }>;
     min: number;
     max: number;
     step: number;
   }[] = [
-    { key: 'brightness', label: 'Exposición', shortLabel: 'Exposición', icon: SunMedium, min: -100, max: 100, step: 1 },
-    { key: 'contrast', label: 'Contraste', shortLabel: 'Contraste', icon: Contrast, min: -100, max: 100, step: 1 },
-    { key: 'highlights', label: 'Altas Luces', shortLabel: 'Altas Luces', icon: Sun, min: -100, max: 100, step: 1 },
-    { key: 'shadows', label: 'Sombras', shortLabel: 'Sombras', icon: Moon, min: -100, max: 100, step: 1 },
-    { key: 'saturation', label: 'Saturación', shortLabel: 'Saturación', icon: Droplets, min: -100, max: 100, step: 1 },
-    { key: 'warmth', label: 'Calidez', shortLabel: 'Calidez', icon: Thermometer, min: -100, max: 100, step: 1 },
-    { key: 'sharpness', label: 'Nitidez', shortLabel: 'Nitidez', icon: Focus, min: 0, max: 100, step: 1 },
+    { key: 'brightness', label: 'Exposición', icon: SunMedium, min: -100, max: 100, step: 1 },
+    { key: 'contrast', label: 'Contraste', icon: Contrast, min: -100, max: 100, step: 1 },
+    { key: 'highlights', label: 'Altas Luces', icon: Sun, min: -100, max: 100, step: 1 },
+    { key: 'shadows', label: 'Sombras', icon: Moon, min: -100, max: 100, step: 1 },
+    { key: 'saturation', label: 'Saturación', icon: Droplets, min: -100, max: 100, step: 1 },
+    { key: 'warmth', label: 'Calidez', icon: Thermometer, min: -100, max: 100, step: 1 },
+    { key: 'sharpness', label: 'Nitidez', icon: Focus, min: 0, max: 100, step: 1 },
   ];
 
   const handleSliderChange = (key: keyof ImageAdjustments, value: number) => {
@@ -162,43 +141,6 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
       ...photo.crop,
       [key]: value,
     });
-  };
-
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      const name = file.name.replace(/\.[^/.]+$/, '');
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target?.result) {
-          const dataUrl = event.target.result as string;
-          const updated = saveLogo(name || 'Logo', dataUrl, true);
-          setSavedLogos(updated);
-          onUpdateWatermark({
-            type: 'image',
-            imageDataUrl: dataUrl,
-            enabled: true,
-          });
-        }
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleSelectSavedLogo = (l: SavedLogo) => {
-    const isLineal = l.id === 'official-logo-lineal' || l.name.toLowerCase().includes('lineal');
-    onUpdateWatermark({
-      type: 'image',
-      imageDataUrl: l.imageDataUrl,
-      enabled: true,
-      ...(isLineal ? { opacity: 0.75 } : {}),
-    });
-  };
-
-  const handleDeleteSavedLogo = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    const updated = deleteSavedLogo(id);
-    setSavedLogos(updated);
   };
 
   const handleFramePngUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -265,139 +207,336 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
 
   const hasPngFrame = frame.style === 'custom-png' && Boolean(frame.pngDataUrl);
 
-  const ratioList: { id: AspectRatioType; label: string; w: number; h: number }[] = [
-    ...(hasPngFrame ? [{ id: 'frame' as AspectRatioType, label: 'Ajuste Marco', w: 17, h: 12 }] : []),
-    { id: 'original', label: 'Libre', w: 18, h: 14 },
-    { id: '1:1', label: '1:1', w: 15, h: 15 },
-    { id: '4:5', label: '4:5 IG', w: 13, h: 16 },
-    { id: '9:16', label: '9:16 Story', w: 10, h: 17 },
-    { id: '16:9', label: '16:9 Cine', w: 18, h: 10 },
-    { id: '3:2', label: '3:2 Foto', w: 17, h: 12 },
-    { id: '2:3', label: '2:3 Retrato', w: 12, h: 17 },
-    { id: '3:4', label: '3:4 Clásico', w: 13, h: 17 },
+  const ratioList: { id: AspectRatioType; label: string }[] = [
+    { id: 'original', label: 'Original' },
+    ...(hasPngFrame ? [{ id: 'frame' as AspectRatioType, label: 'Marco' }] : []),
+    { id: '1:1', label: '1:1' },
+    { id: '4:5', label: '4:5' },
+    { id: '9:16', label: '9:16' },
+    { id: '16:9', label: '16:9' },
+    { id: '3:2', label: '3:2' },
+    { id: '2:3', label: '2:3' },
+    { id: '3:4', label: '3:4' },
   ];
 
-  const hasAnyAdjustment = Object.values(photo.adjustments).some((v) => v !== 0);
+  const activeParamConfig = lightParams.find((p) => p.key === activeLightParam) || lightParams[0];
+  const activeValue = photo.adjustments[activeLightParam] ?? 0;
 
   return (
-    <aside className="sidebar-controls card-glass">
-      {/* CONTENIDO DEL PANEL DE HERRAMIENTAS (ESTRICTO 2 FILAS EN MÓVIL — CERO SCROLL VERTICAL) */}
-      <div className="sidebar-content">
-        {/* ============================================================
-            TAB 1: FILTROS Y PRESETS (CARRUSEL HORIZONTAL VISUAL)
-           ============================================================ */}
+    <aside className="oneui-bottom-system">
+      {/* ============================================================
+          TARJETA FLOTANTE DE CONTROL ESTILO SAMSUNG ONE UI (DECK)
+         ============================================================ */}
+      <div className="oneui-floating-card card-glass">
+        {/* TAB 1: AJUSTES DE LUZ Y COLOR (DIALES + REGLA GRADUADA ONE UI) */}
+        {activeTab === 'develop' && (
+          <div className="oneui-deck-inner">
+            {/* Título centrado del parámetro activo (ej. "BALANCE DE LUZ" / "EXPOSICIÓN") */}
+            <div className="oneui-deck-title-row">
+              <span className="oneui-param-title">{activeParamConfig.label.toUpperCase()}</span>
+              <div className="oneui-deck-actions-right">
+                {activeValue !== 0 && (
+                  <button
+                    type="button"
+                    onClick={() => handleSliderChange(activeLightParam, 0)}
+                    className="oneui-reset-tiny-btn"
+                    title="Restablecer este parámetro a 0"
+                  >
+                    <RotateCcw size={11} />
+                    <span>0</span>
+                  </button>
+                )}
+                {onApplySettingsToAll && (
+                  <button
+                    type="button"
+                    onClick={onApplySettingsToAll}
+                    className="oneui-sync-pill-btn"
+                    title="Copiar estos ajustes de luz a todas las fotos"
+                  >
+                    <Copy size={11} />
+                    <span>A todas</span>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Fila Horizontal de Diales Circulares estilo Samsung One UI */}
+            <div className="oneui-dials-strip">
+              {/* Botón Píldora "Auto" a la izquierda */}
+              <button
+                type="button"
+                onClick={() => onApplyPreset('auto-church')}
+                className={`oneui-auto-pill ${photo.preset === 'auto-church' ? 'active' : ''}`}
+                title="Auto-exposición y balance inteligente"
+              >
+                <span>Auto</span>
+              </button>
+
+              {/* Diales Circulares */}
+              {lightParams.map((p) => {
+                const Icon = p.icon;
+                const isSelected = activeLightParam === p.key;
+                const val = photo.adjustments[p.key] ?? 0;
+                const isModified = val !== 0;
+
+                return (
+                  <button
+                    key={p.key}
+                    type="button"
+                    onClick={() => setActiveLightParam(p.key)}
+                    onDoubleClick={() => handleSliderChange(p.key, 0)}
+                    className={`oneui-dial-item ${isSelected ? 'active' : ''}`}
+                    title={`${p.label}: ${val > 0 ? `+${val}` : val}`}
+                  >
+                    {isSelected ? (
+                      /* Dial Activo Expandido con valor numérico en el centro */
+                      <div className="oneui-active-dial-circle">
+                        <div
+                          className="oneui-dial-pie"
+                          style={{
+                            background: val !== 0
+                              ? `conic-gradient(#f59e0b ${Math.abs(val) * 1.8}deg, rgba(255,255,255,0.1) 0deg)`
+                              : 'rgba(255,255,255,0.1)',
+                          }}
+                        />
+                        <span className="oneui-dial-num">{val > 0 ? `+${val}` : val}</span>
+                      </div>
+                    ) : (
+                      /* Dial Inactivo con Icono sutil */
+                      <div className={`oneui-dial-circle ${isModified ? 'modified' : ''}`}>
+                        <Icon size={16} />
+                        {isModified && <span className="oneui-mod-dot" />}
+                      </div>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Regla Graduada Táctil con Aguja Central (Haptic Ruler Slider) */}
+            <div className="oneui-ruler-container">
+              <HapticRuler
+                value={activeValue}
+                min={activeParamConfig.min}
+                max={activeParamConfig.max}
+                step={activeParamConfig.step}
+                onChange={(val) => handleSliderChange(activeLightParam, val)}
+                accentColor="#f59e0b"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* TAB 2: ENCUADRE, HORIZONTE Y PROPORCIÓN (ESTILO ONE UI) */}
+        {activeTab === 'crop' && (
+          <div className="oneui-deck-inner">
+            {/* Título de Encuadre o Nivelación */}
+            <div className="oneui-deck-title-row">
+              <span className="oneui-param-title">
+                {activeCropMode === 'straighten'
+                  ? `ENDEREZAR ${photo.crop?.straighten ? `${photo.crop.straighten > 0 ? '+' : ''}${Number(photo.crop.straighten.toFixed(1))}°` : '0°'}`
+                  : 'PROPORCIÓN DE ENCUADRE'}
+              </span>
+
+              <div className="oneui-deck-actions-right">
+                <button
+                  type="button"
+                  onClick={() => {
+                    onUpdateCrop({
+                      ...photo.crop,
+                      offsetX: 0,
+                      offsetY: 0,
+                      zoom: 1.0,
+                      rotation: 0,
+                      straighten: 0,
+                      flipH: false,
+                      flipV: false,
+                    });
+                  }}
+                  className="oneui-reset-tiny-btn"
+                  title="Restablecer encuadre"
+                >
+                  <RotateCcw size={11} />
+                  <span>Reset</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Fila de Herramientas Geométricas (Girar 90°, Espejo, Auto-crop, Enderezar) */}
+            <div className="oneui-geom-actions-row">
+              <button
+                type="button"
+                onClick={() => setActiveCropMode(activeCropMode === 'straighten' ? 'ratios' : 'straighten')}
+                className={`oneui-geom-circle-btn ${activeCropMode === 'straighten' ? 'active' : ''}`}
+                title="Nivelar horizonte con regla"
+              >
+                <Compass size={17} />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleCropChange('rotation', ((photo.crop?.rotation || 0) + 90) % 360)}
+                className={`oneui-geom-circle-btn ${photo.crop?.rotation ? 'active' : ''}`}
+                title="Girar 90° a la derecha"
+              >
+                <RotateCw size={17} />
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleCropChange('flipH', !photo.crop?.flipH)}
+                className={`oneui-geom-circle-btn ${photo.crop?.flipH ? 'active' : ''}`}
+                title="Voltear en espejo horizontal"
+              >
+                <FlipHorizontal2 size={17} />
+              </button>
+
+              {onSmartCrop && (
+                <button
+                  type="button"
+                  onClick={onSmartCrop}
+                  className="oneui-geom-circle-btn accent"
+                  title="Reencuadre inteligente centrado en rostros"
+                >
+                  <Wand2 size={16} />
+                </button>
+              )}
+
+              {onApplyCropToAll && (
+                <button
+                  type="button"
+                  onClick={onApplyCropToAll}
+                  className="oneui-geom-circle-btn"
+                  title="Sincronizar encuadre con todo el lote"
+                >
+                  <CheckCheck size={16} />
+                </button>
+              )}
+            </div>
+
+            {/* Regla de Nivelación de Horizonte si está activo Enderezar */}
+            {activeCropMode === 'straighten' ? (
+              <div className="oneui-ruler-container">
+                <HapticRuler
+                  value={photo.crop?.straighten || 0}
+                  min={-15}
+                  max={15}
+                  step={0.1}
+                  onChange={(val) => handleCropChange('straighten', val)}
+                  accentColor="#38bdf8"
+                />
+              </div>
+            ) : (
+              /* Carrusel Horizontal de Proporciones estilo One UI (Texto limpio con punto) */
+              <div className="oneui-ratios-carousel">
+                {ratioList.map((r) => {
+                  const isSelected = (photo.crop?.aspectRatio || 'original') === r.id;
+                  return (
+                    <button
+                      key={r.id}
+                      type="button"
+                      onClick={() => handleCropChange('aspectRatio', r.id)}
+                      className={`oneui-ratio-text-btn ${isSelected ? 'active' : ''}`}
+                    >
+                      <span>{r.label}</span>
+                      {isSelected && <span className="oneui-ratio-active-dot" />}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* TAB 3: FILTROS Y ESTILOS DE REVELADO */}
         {activeTab === 'presets' && (
-          <div className="tool-deck-panel">
-            {/* FILA 1: Barra superior de acciones de Presets */}
-            <div className="deck-top-row">
+          <div className="oneui-deck-inner">
+            <div className="oneui-deck-title-row">
+              <span className="oneui-param-title">FILTROS DE ESTUDIO</span>
               {showSavePresetInput ? (
-                <div className="inline-save-preset-row">
+                <div className="oneui-inline-save">
                   <input
                     type="text"
                     value={newPresetName}
                     onChange={(e) => setNewPresetName(e.target.value)}
-                    placeholder="Nombre de tu filtro..."
-                    className="deck-compact-input"
+                    placeholder="Nombre del filtro..."
+                    className="oneui-deck-input"
                     autoFocus
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') handleSaveCustomPreset();
-                    }}
+                    onKeyDown={(e) => e.key === 'Enter' && handleSaveCustomPreset()}
                   />
-                  <button type="button" onClick={handleSaveCustomPreset} className="deck-mini-btn primary">
+                  <button type="button" onClick={handleSaveCustomPreset} className="oneui-mini-action-btn primary">
                     <Check size={12} />
-                    <span>Guardar</span>
                   </button>
-                  <button type="button" onClick={() => setShowSavePresetInput(false)} className="deck-mini-btn">
+                  <button type="button" onClick={() => setShowSavePresetInput(false)} className="oneui-mini-action-btn">
                     <X size={12} />
                   </button>
                 </div>
               ) : (
-                <>
-                  <div className="deck-row-left">
-                    <Sparkles size={13} style={{ color: 'var(--color-accent)' }} />
-                    <span className="deck-row-title">ESTILOS DE REVELADO</span>
-                  </div>
-                  <div className="deck-row-actions">
-                    <button
-                      type="button"
-                      onClick={() => setShowSavePresetInput(true)}
-                      className="deck-mini-btn accent"
-                      title="Guardar tus ajustes actuales como un nuevo filtro"
-                    >
-                      <Plus size={12} />
-                      <span>Guardar Filtro</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => onApplyPreset('custom')}
-                      className="deck-mini-btn"
-                      title="Quitar filtro y volver a valores neutros"
-                    >
-                      <RotateCcw size={11} />
-                      <span>Neutro</span>
-                    </button>
-                    <button
-                      type="button"
-                      onClick={onApplySettingsToAll}
-                      className="deck-mini-btn sync"
-                      title="Aplicar este estilo a todas las fotos del lote"
-                    >
-                      <CheckCheck size={12} />
-                      <span>Sync Lote</span>
-                    </button>
-                  </div>
-                </>
+                <div className="oneui-deck-actions-right">
+                  <button
+                    type="button"
+                    onClick={() => setShowSavePresetInput(true)}
+                    className="oneui-reset-tiny-btn"
+                    title="Guardar ajustes actuales como un nuevo filtro"
+                  >
+                    <Plus size={11} />
+                    <span>Guardar</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => onApplyPreset('custom')}
+                    className="oneui-reset-tiny-btn"
+                    title="Restablecer filtros"
+                  >
+                    <RotateCcw size={11} />
+                    <span>Neutro</span>
+                  </button>
+                </div>
               )}
             </div>
 
-            {/* FILA 2: Carrusel horizontal de tarjetas de filtros */}
-            <div className="deck-horizontal-strip presets-strip">
-              {/* Presets de Fábrica */}
+            {/* Carrusel Horizontal de Presets */}
+            <div className="oneui-presets-strip">
               {presetsList.map((p) => {
-                const IconComponent = p.icon;
+                const Icon = p.icon;
                 const isActive = photo.preset === p.id;
                 return (
                   <button
                     key={p.id}
                     type="button"
                     onClick={() => onApplyPreset(p.id)}
-                    className={`filter-strip-card ${isActive ? 'active' : ''}`}
+                    className={`oneui-preset-card ${isActive ? 'active' : ''}`}
                   >
-                    <div className={`filter-strip-icon ${isActive ? 'active' : ''}`}>
-                      <IconComponent size={16} />
+                    <div className="oneui-preset-icon-wrap">
+                      <Icon size={17} />
                     </div>
-                    <div className="filter-strip-text">
-                      <strong>{p.label}</strong>
-                      <span>{p.shortDesc}</span>
-                    </div>
+                    <strong>{p.label}</strong>
+                    <span>{p.shortDesc}</span>
                   </button>
                 );
               })}
 
-              {/* Presets Personalizados del Usuario */}
+              {/* Presets Guardados por el Usuario */}
               {customPresets.map((cp) => {
                 const isActive = photo.preset === cp.id;
                 return (
                   <div
                     key={cp.id}
                     onClick={() => onApplyPreset(cp.id, cp.adjustments)}
-                    className={`filter-strip-card custom ${isActive ? 'active' : ''}`}
+                    className={`oneui-preset-card custom ${isActive ? 'active' : ''}`}
                   >
-                    <div className={`filter-strip-icon custom ${isActive ? 'active' : ''}`}>
-                      <Star size={14} fill={isActive ? '#fff' : '#f59e0b'} color={isActive ? '#fff' : '#f59e0b'} />
+                    <div className="oneui-preset-icon-wrap">
+                      <Star size={15} fill={isActive ? '#fff' : '#f59e0b'} color={isActive ? '#fff' : '#f59e0b'} />
                     </div>
-                    <div className="filter-strip-text">
-                      <strong>{cp.name}</strong>
-                      <span>Personalizado</span>
-                    </div>
+                    <strong>{cp.name}</strong>
+                    <span>Personal</span>
                     <button
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation();
                         setCustomPresets(deleteCustomPreset(cp.id));
                       }}
-                      className="filter-strip-del"
-                      title="Eliminar filtro"
+                      className="oneui-preset-del"
                     >
                       <X size={10} />
                     </button>
@@ -408,758 +547,207 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
           </div>
         )}
 
-        {/* ============================================================
-            TAB 2: AJUSTES DE LUZ Y COLOR (SLIDER COMPACTO + DIALES)
-           ============================================================ */}
-        {activeTab === 'develop' && (
-          <div className="tool-deck-panel">
-            {(() => {
-              const activeParamConfig = lightParams.find((p) => p.key === activeLightParam) || lightParams[0];
-              const ActiveIcon = activeParamConfig.icon;
-              const activeValue = photo.adjustments[activeLightParam] ?? 0;
-
-              return (
-                <>
-                  {/* FILA 1: Slider Maestro Ultracompacto + Botones Rápidos en Línea */}
-                  <div className="deck-slider-box">
-                    <div className="deck-slider-top">
-                      <div className="deck-param-indicator">
-                        <ActiveIcon size={14} className="active-param-icon" />
-                        <span className="deck-param-title">{activeParamConfig.label.toUpperCase()}</span>
-                        <span className={`deck-value-pill ${activeValue !== 0 ? 'modified' : ''}`}>
-                          {activeValue > 0 ? `+${activeValue}` : activeValue}
-                        </span>
-                      </div>
-
-                      <div className="deck-row-actions">
-                        <button
-                          type="button"
-                          onClick={() => onApplyPreset('auto-church')}
-                          className="deck-mini-btn"
-                          title="Optimización automática de tono e iluminación"
-                        >
-                          <Wand2 size={11} style={{ color: '#38bdf8' }} />
-                          <span>Auto</span>
-                        </button>
-
-                        {activeValue !== 0 && (
-                          <button
-                            type="button"
-                            onClick={() => handleSliderChange(activeLightParam, 0)}
-                            className="deck-mini-btn"
-                            title="Poner este control en 0"
-                          >
-                            <RotateCcw size={11} />
-                            <span>0</span>
-                          </button>
-                        )}
-
-                        {hasAnyAdjustment && (
-                          <button
-                            type="button"
-                            onClick={() => onApplyPreset('custom')}
-                            className="deck-mini-btn"
-                            title="Restablecer todos los ajustes de luz y color"
-                          >
-                            <RotateCcw size={11} />
-                            <span>Todo</span>
-                          </button>
-                        )}
-
-                        <button
-                          type="button"
-                          onClick={onApplySettingsToAll}
-                          className="deck-mini-btn sync"
-                          title="Sincronizar ajustes con todas las fotos"
-                        >
-                          <CheckCheck size={12} />
-                          <span>Sync</span>
-                        </button>
-                      </div>
-                    </div>
-
-                    <input
-                      type="range"
-                      min={activeParamConfig.min}
-                      max={activeParamConfig.max}
-                      step={activeParamConfig.step}
-                      value={activeValue}
-                      onChange={(e) => handleSliderChange(activeLightParam, Number(e.target.value))}
-                      onDoubleClick={() => handleSliderChange(activeLightParam, 0)}
-                      className="master-range-slider slim"
-                      aria-label={activeParamConfig.label}
-                    />
-                  </div>
-
-                  {/* FILA 2: Cinta Horizontal de Parámetros con Indicador Numérico */}
-                  <div className="deck-horizontal-strip dials-strip">
-                    {lightParams.map((p) => {
-                      const Icon = p.icon;
-                      const isSelected = activeLightParam === p.key;
-                      const val = photo.adjustments[p.key] ?? 0;
-                      const isModified = val !== 0;
-
-                      return (
-                        <button
-                          key={p.key}
-                          type="button"
-                          onClick={() => setActiveLightParam(p.key)}
-                          onDoubleClick={() => handleSliderChange(p.key, 0)}
-                          className={`dial-pill ${isSelected ? 'active' : ''}`}
-                        >
-                          <div className={`dial-circle ${isSelected ? 'active' : ''} ${isModified ? 'modified' : ''}`}>
-                            <Icon size={16} />
-                            {isModified && (
-                              <span className="dial-val-badge">{val > 0 ? `+${val}` : val}</span>
-                            )}
-                          </div>
-                          <span className="dial-label">{p.shortLabel}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </>
-              );
-            })()}
-          </div>
-        )}
-
-        {/* ============================================================
-            TAB 3: ENCUADRE, HORIZONTE Y PROPORCIÓN (2 FILAS SIN SCROLL)
-           ============================================================ */}
-        {activeTab === 'crop' && (
-          <div className="tool-deck-panel">
-            {/* FILA 1: Nivelar Horizonte / Zoom + Acciones Geométricas Instantáneas */}
-            <div className="deck-slider-box">
-              <div className="deck-slider-top">
-                <div className="deck-Inline-Segmented">
-                  <button
-                    type="button"
-                    onClick={() => setActiveCropParam('straighten')}
-                    className={`seg-btn ${activeCropParam === 'straighten' ? 'active' : ''}`}
-                  >
-                    <Compass size={12} />
-                    <span>Nivelar {photo.crop?.straighten ? `${photo.crop.straighten > 0 ? '+' : ''}${Number(photo.crop.straighten.toFixed(1))}°` : '0°'}</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setActiveCropParam('zoom')}
-                    className={`seg-btn ${activeCropParam === 'zoom' ? 'active' : ''}`}
-                  >
-                    <ZoomIn size={12} />
-                    <span>Zoom {Math.round((photo.crop?.zoom || 1) * 100)}%</span>
-                  </button>
-                </div>
-
-                <div className="deck-row-actions">
-                  <button
-                    type="button"
-                    onClick={onSmartCrop}
-                    className="deck-mini-btn accent"
-                    title="Reencuadrar esta foto de forma inteligente: conserva rostros y sujeto principal"
-                  >
-                    <Wand2 size={11} style={{ color: '#38bdf8' }} />
-                    <span>Auto</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleCropChange('rotation', ((photo.crop?.rotation || 0) + 90) % 360)}
-                    className={`deck-mini-btn ${photo.crop?.rotation ? 'active' : ''}`}
-                    title="Girar 90° a la derecha"
-                  >
-                    <RotateCw size={11} />
-                    <span>90°</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleCropChange('flipH', !photo.crop?.flipH)}
-                    className={`deck-mini-btn ${photo.crop?.flipH ? 'active' : ''}`}
-                    title="Voltear en espejo horizontal"
-                  >
-                    <FlipHorizontal2 size={11} />
-                    <span>Espejo</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onUpdateCrop({
-                        ...photo.crop,
-                        offsetX: 0,
-                        offsetY: 0,
-                        zoom: 1.0,
-                        rotation: 0,
-                        straighten: 0,
-                        flipH: false,
-                        flipV: false,
-                      });
-                    }}
-                    className="deck-mini-btn"
-                    title="Restablecer encuadre completo"
-                  >
-                    <Target size={11} />
-                    <span>Reset</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={onApplyCropToAll || onApplySettingsToAll}
-                    className="deck-mini-btn sync"
-                    title="Sincronizar este encuadre y proporción con todo el lote"
-                  >
-                    <CheckCheck size={11} />
-                    <span>Sync</span>
-                  </button>
-                </div>
-              </div>
-
-              <input
-                type="range"
-                min={activeCropParam === 'zoom' ? 1.0 : -15}
-                max={activeCropParam === 'zoom' ? 2.5 : 15}
-                step={activeCropParam === 'zoom' ? 0.01 : 0.1}
-                value={
-                  activeCropParam === 'zoom'
-                    ? (photo.crop?.zoom || 1)
-                    : (photo.crop?.straighten || 0)
-                }
-                onChange={(e) => handleCropChange(activeCropParam, Number(e.target.value))}
-                onDoubleClick={() => handleCropChange(activeCropParam, activeCropParam === 'zoom' ? 1.0 : 0)}
-                className="master-range-slider slim"
-                aria-label={activeCropParam === 'zoom' ? 'Zoom' : 'Nivelar horizonte'}
-              />
-            </div>
-
-            {/* FILA 2: Cinta Horizontal de Proporciones (Aspect Ratios) */}
-            <div className="deck-horizontal-strip ratios-strip">
-              {ratioList.map((r) => {
-                const isSelected = (photo.crop?.aspectRatio || 'original') === r.id;
-                return (
-                  <button
-                    key={r.id}
-                    type="button"
-                    onClick={() => handleCropChange('aspectRatio', r.id)}
-                    className={`dial-pill ${isSelected ? 'active' : ''}`}
-                  >
-                    <div className={`dial-circle ratio-box ${isSelected ? 'active' : ''}`}>
-                      <span
-                        className="ratio-shape-preview"
-                        style={{ width: `${r.w}px`, height: `${r.h}px` }}
-                      />
-                    </div>
-                    <span className="dial-label">{r.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
-        {/* ============================================================
-            TAB 4: FIRMA Y MARCA DE AGUA (TODO INTEGRADO EN 2 FILAS)
-           ============================================================ */}
-        {activeTab === 'watermark' && (
-          <div className="tool-deck-panel">
-            {/* FILA 1: Estado, Tipo, Posición Esquinas y Slider Opacidad/Tamaño */}
-            <div className="deck-slider-box">
-              <div className="deck-slider-top">
-                <div className="deck-row-left" style={{ gap: '0.3rem' }}>
-                  <button
-                    type="button"
-                    onClick={() => onUpdateWatermark({ enabled: !watermark.enabled })}
-                    className={`deck-toggle-chip ${watermark.enabled ? 'on' : 'off'}`}
-                  >
-                    {watermark.enabled ? '✓ Activa' : 'Off'}
-                  </button>
-
-                  {watermark.enabled && (
-                    <div className="deck-Inline-Segmented">
-                      <button
-                        type="button"
-                        onClick={() => onUpdateWatermark({ type: 'image' })}
-                        className={`seg-btn ${watermark.type === 'image' ? 'active' : ''}`}
-                      >
-                        <ImageIcon size={11} />
-                        <span>Logo</span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => onUpdateWatermark({ type: 'text' })}
-                        className={`seg-btn ${watermark.type === 'text' ? 'active' : ''}`}
-                      >
-                        <Type size={11} />
-                        <span>Texto</span>
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                {watermark.enabled && (
-                  <div className="deck-pos-group">
-                    {[
-                      { id: 'top-left', label: '↖' },
-                      { id: 'top-right', label: '↗' },
-                      { id: 'center', label: '•' },
-                      { id: 'bottom-left', label: '↙' },
-                      { id: 'bottom-right', label: '↘' },
-                    ].map((pos) => (
-                      <button
-                        key={pos.id}
-                        type="button"
-                        onClick={() => onUpdateWatermark({ position: pos.id as any })}
-                        className={`pos-dot-btn ${watermark.position === pos.id ? 'active' : ''}`}
-                        title={`Posición: ${pos.id}`}
-                      >
-                        {pos.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                <div className="deck-row-actions">
-                  <button
-                    type="button"
-                    onClick={onSyncWatermarkToAll || onApplySettingsToAll}
-                    className="deck-mini-btn sync"
-                    title="Sincronizar firma con todas las fotos"
-                  >
-                    <CheckCheck size={11} />
-                    <span>Sync</span>
-                  </button>
-                </div>
-              </div>
-
-              {watermark.enabled && (
-                <div className="deck-inline-slider-row">
-                  <button
-                    type="button"
-                    onClick={() => setActiveWmParam((prev) => (prev === 'opacity' ? 'size' : 'opacity'))}
-                    className="deck-param-switch-pill"
-                    title="Toca para alternar entre Opacidad y Tamaño"
-                  >
-                    {activeWmParam === 'opacity' ? <Eye size={11} /> : <Maximize2 size={11} />}
-                    <span>
-                      {activeWmParam === 'opacity'
-                        ? `Opacidad ${Math.round(watermark.opacity * 100)}%`
-                        : `Tamaño ${watermark.size}%`}
-                    </span>
-                  </button>
-
-                  <input
-                    type="range"
-                    min={activeWmParam === 'opacity' ? 0.1 : 10}
-                    max={activeWmParam === 'opacity' ? 1.0 : 60}
-                    step={activeWmParam === 'opacity' ? 0.05 : 1}
-                    value={activeWmParam === 'opacity' ? watermark.opacity : watermark.size}
-                    onChange={(e) => {
-                      if (activeWmParam === 'opacity') onUpdateWatermark({ opacity: Number(e.target.value) });
-                      if (activeWmParam === 'size') onUpdateWatermark({ size: Number(e.target.value) });
-                    }}
-                    className="master-range-slider slim"
-                  />
-                </div>
-              )}
-            </div>
-
-            {/* FILA 2: Selector de Logos PNG o Editor de Texto de Firma */}
-            {watermark.enabled && watermark.type === 'image' && (
-              <div className="deck-horizontal-strip logos-strip">
-                <input
-                  ref={logoInputRef}
-                  type="file"
-                  accept="image/png,image/svg+xml"
-                  onChange={handleLogoUpload}
-                  style={{ display: 'none' }}
-                />
-                <button
-                  type="button"
-                  onClick={() => logoInputRef.current?.click()}
-                  className="compact-asset-tile upload"
-                  title="Subir nuevo logo PNG"
-                >
-                  <Upload size={14} />
-                  <span>+ Logo</span>
-                </button>
-
-                {savedLogos.map((l) => {
-                  const isSelected = watermark.imageDataUrl === l.imageDataUrl;
-                  return (
-                    <div
-                      key={l.id}
-                      onClick={() => handleSelectSavedLogo(l)}
-                      className={`compact-asset-tile ${isSelected ? 'active' : ''}`}
-                      title={l.name}
-                    >
-                      <img src={l.imageDataUrl} alt={l.name} className="compact-asset-img" />
-                      <span className="compact-asset-name">{l.isOfficial ? 'Oficial' : l.name.slice(0, 8)}</span>
-                      {!l.isOfficial && (
-                        <button
-                          type="button"
-                          onClick={(e) => handleDeleteSavedLogo(l.id, e)}
-                          className="compact-asset-del"
-                        >
-                          ✕
-                        </button>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
-            {watermark.enabled && watermark.type === 'text' && (
-              <div className="deck-text-signature-row">
-                <div className="deck-text-input-line">
-                  <input
-                    type="text"
-                    value={watermark.text || ''}
-                    onChange={(e) => onUpdateWatermark({ text: e.target.value })}
-                    placeholder="Texto de firma..."
-                    className="deck-compact-input"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => onUpdateWatermark({ color: '#ffffff' })}
-                    className={`color-pill-btn ${watermark.color === '#ffffff' ? 'active' : ''}`}
-                    style={{ background: '#ffffff', width: '1.35rem', height: '1.35rem', flexShrink: 0 }}
-                    title="Blanco"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => onUpdateWatermark({ color: '#d4af37' })}
-                    className={`color-pill-btn ${watermark.color === '#d4af37' ? 'active' : ''}`}
-                    style={{ background: '#d4af37', width: '1.35rem', height: '1.35rem', flexShrink: 0 }}
-                    title="Oro"
-                  />
-                </div>
-                <div className="deck-horizontal-strip chips-strip">
-                  {['BereaSnap Oficial', 'Berea Prensa & Crónica', 'Berea Fotografía'].map((pt) => (
-                    <button
-                      key={pt}
-                      type="button"
-                      onClick={() => onUpdateWatermark({ text: pt })}
-                      className={`quick-chip-btn ${watermark.text === pt ? 'active' : ''}`}
-                    >
-                      {pt}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ============================================================
-            TAB 5: MARCOS INSTITUCIONALES Y DINÁMICOS (2 FILAS SIN SCROLL)
-           ============================================================ */}
+        {/* TAB 4: MARCO INSTITUCIONAL DINÁMICO (FUSIÓN MARCO Y FIRMA) */}
         {activeTab === 'frame' && (
-          <div className="tool-deck-panel">
+          <div className="oneui-deck-inner">
             <input
               ref={framePngInputRef}
               type="file"
-              accept="image/png"
+              accept="image/png,image/webp"
               onChange={handleFramePngUpload}
               style={{ display: 'none' }}
             />
 
-            {/* MODO PLANTILLA DE MARCO */}
-            {(frame.style === 'none' || frameSubMode === 'style') && (
-              <>
-                {/* FILA 1: Controles Contextuales del Marco Activo */}
-                <div className="deck-slider-box">
-                  <div className="deck-slider-top">
-                    <div className="deck-row-left">
-                      <FrameIcon size={13} style={{ color: 'var(--color-accent)' }} />
-                      <span className="deck-row-title">
-                        {frame.style === 'none' ? 'ELIGE UN MARCO' : 'MARCO ACTIVO'}
-                      </span>
+            <div className="oneui-deck-title-row">
+              <span className="oneui-param-title">MARCO INSTITUCIONAL</span>
+              {onSyncFrameToAll && (
+                <button
+                  type="button"
+                  onClick={onSyncFrameToAll}
+                  className="oneui-reset-tiny-btn"
+                  title="Sincronizar marco con todas las fotos del lote"
+                >
+                  <CheckCheck size={11} />
+                  <span>Sync Lote</span>
+                </button>
+              )}
+            </div>
+
+            {/* Fila 1: Selección Limpia de Marco */}
+            <div className="oneui-frame-cards-row">
+              {/* Opción Sin Marco */}
+              <button
+                type="button"
+                onClick={() => onUpdateFrame({ style: 'none' })}
+                className={`oneui-frame-card ${frame.style === 'none' ? 'active' : ''}`}
+              >
+                <div className="frame-card-thumb none">
+                  <Ban size={20} />
+                </div>
+                <span>Sin marco</span>
+              </button>
+
+              {/* Marco Oficial Centenario Dinámico */}
+              {savedFrames.map((f) => {
+                const isActive = frame.style === 'custom-png' && frame.pngDataUrl === f.pngDataUrl;
+                return (
+                  <button
+                    key={f.id}
+                    type="button"
+                    onClick={() => handleSelectSavedFrame(f)}
+                    className={`oneui-frame-card ${isActive ? 'active' : ''}`}
+                  >
+                    <div className="frame-card-thumb">
+                      <img src={f.pngDataUrl} alt={f.name} />
                     </div>
-
-                    <div className="deck-row-actions">
-                      {frame.style !== 'none' && (
-                        <button
-                          type="button"
-                          onClick={() => setFrameSubMode('text')}
-                          className="deck-mini-btn accent"
-                          title="Personalizar título del evento, fecha o tamaño de letra"
-                        >
-                          <Type size={11} />
-                          <span>Texto: {(frame.eventTitle || 'Editar').slice(0, 14)}</span>
-                        </button>
-                      )}
-
-                      {frame.style === 'custom-png' && (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              onUpdateFrame({
-                                dynamicTextColorStyle: frame.dynamicTextColorStyle === 'white' ? 'gold' : 'white',
-                              })
-                            }
-                            className="deck-mini-btn"
-                            title="Alternar color de letra entre Oro Imperial y Blanco"
-                          >
-                            <span
-                              className="color-dot"
-                              style={{
-                                width: 9,
-                                height: 9,
-                                borderRadius: '50%',
-                                background: frame.dynamicTextColorStyle === 'white' ? '#fff' : '#fbbf24',
-                              }}
-                            />
-                            <span>{frame.dynamicTextColorStyle === 'white' ? 'Blanco' : 'Oro'}</span>
-                          </button>
-                        </>
-                      )}
-
-                      {(frame.style === 'fine-gallery' || frame.style === 'editorial') && (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            onUpdateFrame(
-                              frame.borderColor === '#ffffff'
-                                ? { borderColor: '#0a0f1d', textColor: '#ffffff' }
-                                : { borderColor: '#ffffff', textColor: '#0f172a' }
-                            )
-                          }
-                          className="deck-mini-btn"
-                        >
-                          <span>{frame.borderColor === '#ffffff' ? 'Fondo Blanco' : 'Fondo Oscuro'}</span>
-                        </button>
-                      )}
-
+                    <span>{f.name}</span>
+                    {!f.isOfficial && (
                       <button
                         type="button"
-                        onClick={onSyncFrameToAll || onApplySettingsToAll}
-                        className="deck-mini-btn sync"
-                        title="Sincronizar marco en todas las fotos del lote"
+                        onClick={(e) => handleDeleteSavedFrame(f.id, e)}
+                        className="frame-card-del-btn"
                       >
-                        <CheckCheck size={11} />
-                        <span>Sync</span>
+                        <X size={10} />
                       </button>
-                    </div>
-                  </div>
-
-                  {/* Slider contextual: Escala de texto en PNG o Grosor de borde en Marcos Digitales */}
-                  {frame.style === 'custom-png' && (
-                    <div className="deck-inline-slider-row">
-                      <span className="deck-inline-label">Letra {frame.dynamicTextScale || 100}%</span>
-                      <input
-                        type="range"
-                        min="75"
-                        max="135"
-                        step="5"
-                        value={frame.dynamicTextScale || 100}
-                        onChange={(e) => onUpdateFrame({ dynamicTextScale: Number(e.target.value) })}
-                        onDoubleClick={() => onUpdateFrame({ dynamicTextScale: 100 })}
-                        className="master-range-slider slim"
-                      />
-                    </div>
-                  )}
-
-                  {frame.style !== 'none' && frame.style !== 'custom-png' && (
-                    <div className="deck-inline-slider-row">
-                      <span className="deck-inline-label">Borde {frame.borderTop || 24}px</span>
-                      <input
-                        type="range"
-                        min="8"
-                        max="70"
-                        step="2"
-                        value={frame.borderTop || 24}
-                        onChange={(e) => {
-                          const val = Number(e.target.value);
-                          onUpdateFrame({ borderTop: val, borderBottom: val, borderLeft: val, borderRight: val });
-                        }}
-                        className="master-range-slider slim"
-                      />
-                    </div>
-                  )}
-                </div>
-
-                {/* FILA 2: Carrusel Unificado de Marcos (Sin Marco + Subir PNG + Marcos PNG + Marcos Digitales) */}
-                <div className="deck-horizontal-strip logos-strip">
-                  {/* 1. Sin Marco */}
-                  <button
-                    type="button"
-                    onClick={() => onUpdateFrame({ style: 'none' })}
-                    className={`compact-asset-tile ${frame.style === 'none' ? 'active' : ''}`}
-                  >
-                    <Ban size={16} />
-                    <span className="compact-asset-name">Ninguno</span>
+                    )}
                   </button>
+                );
+              })}
 
-                  {/* 2. Subir PNG */}
-                  <button
-                    type="button"
-                    onClick={() => framePngInputRef.current?.click()}
-                    className="compact-asset-tile upload"
-                    title="Importar marco PNG transparente desde tu teléfono"
-                  >
-                    <Upload size={14} />
-                    <span className="compact-asset-name">+ PNG</span>
-                  </button>
-
-                  {/* 3. Marcos PNG Oficiales y Guardados */}
-                  {savedFrames.map((f) => {
-                    const isSelected = frame.style === 'custom-png' && frame.pngDataUrl === f.pngDataUrl;
-                    return (
-                      <div
-                        key={f.id}
-                        onClick={() => handleSelectSavedFrame(f)}
-                        className={`compact-asset-tile ${isSelected ? 'active' : ''}`}
-                        title={f.name}
-                      >
-                        <img src={f.pngDataUrl} alt={f.name} className="compact-asset-img" />
-                        <span className="compact-asset-name">{f.name.replace('Centenario ', 'Cent. ').slice(0, 10)}</span>
-                        {f.isDynamic && <span className="param-modified-dot" />}
-                        {!f.id.includes('official') && (
-                          <button
-                            type="button"
-                            onClick={(e) => handleDeleteSavedFrame(f.id, e)}
-                            className="compact-asset-del"
-                          >
-                            ✕
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })}
-
-                  {/* 4. Marcos Digitales Clásicos */}
-                  {[
-                    { id: 'fine-gallery', label: 'Galería', icon: Landmark },
-                    { id: 'editorial', label: 'Editorial', icon: Newspaper },
-                    { id: 'gold-accent', label: 'Filo Oro', icon: Sparkles },
-                    { id: 'polaroid-card', label: 'Polaroid', icon: Square },
-                  ].map((st) => {
-                    const Icon = st.icon;
-                    const isSelected = frame.style === st.id;
-                    return (
-                      <button
-                        key={st.id}
-                        type="button"
-                        onClick={() => onUpdateFrame({ style: st.id as any })}
-                        className={`compact-asset-tile ${isSelected ? 'active' : ''}`}
-                      >
-                        <Icon size={16} />
-                        <span className="compact-asset-name">{st.label}</span>
-                      </button>
-                    );
-                  })}
+              {/* Botón para subir nuevo marco PNG */}
+              <button
+                type="button"
+                onClick={() => framePngInputRef.current?.click()}
+                className="oneui-frame-card add"
+                title="Subir marco en formato PNG transparente"
+              >
+                <div className="frame-card-thumb add">
+                  <Plus size={20} />
                 </div>
-              </>
-            )}
+                <span>Subir PNG</span>
+              </button>
+            </div>
 
-            {/* MODO EDICIÓN DE TEXTO DEL EVENTO EN EL MARCO */}
-            {frame.style !== 'none' && frameSubMode === 'text' && (
-              <>
-                {/* FILA 1: Inputs de Título y Texto Secundario + Botón Volver */}
-                <div className="deck-slider-box">
-                  <div className="deck-text-input-line">
-                    <button
-                      type="button"
-                      onClick={() => setFrameSubMode('style')}
-                      className="deck-mini-btn"
-                      title="Volver a la selección de marcos"
-                    >
-                      <span>← Marcos</span>
-                    </button>
-
-                    <input
-                      type="text"
-                      value={frame.eventTitle || ''}
-                      onChange={(e) => onUpdateFrame({ eventTitle: e.target.value, dynamicTextEnabled: true })}
-                      placeholder="Título (Ej. Escuela Dominical)"
-                      className="deck-compact-input"
-                    />
-
-                    <input
-                      type="text"
-                      value={frame.dynamicTextRight || ''}
-                      onChange={(e) => onUpdateFrame({ dynamicTextRight: e.target.value, dynamicTextEnabled: true })}
-                      placeholder="Fecha / Lugar (Opcional)"
-                      className="deck-compact-input secondary"
-                    />
-
-                    <button
-                      type="button"
-                      onClick={() => onUpdateFrame({ dynamicTextEnabled: !(frame.dynamicTextEnabled ?? true) })}
-                      className={`deck-toggle-chip ${(frame.dynamicTextEnabled ?? true) ? 'on' : 'off'}`}
-                    >
-                      {(frame.dynamicTextEnabled ?? true) ? '✓' : 'Off'}
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={onSyncFrameToAll || onApplySettingsToAll}
-                      className="deck-mini-btn sync"
-                      title="Sincronizar este texto de marco con todo el lote"
-                    >
-                      <CheckCheck size={11} />
-                      <span>Sync</span>
-                    </button>
-                  </div>
+            {/* Fila 2: Personalización del Título Dinámico en el Marco */}
+            {frame.style === 'custom-png' && (
+              <div className="oneui-frame-custom-row">
+                <div className="oneui-frame-input-wrap">
+                  <Type size={14} style={{ color: '#f59e0b' }} />
+                  <input
+                    type="text"
+                    value={frame.eventTitle || ''}
+                    onChange={(e) => onUpdateFrame({ eventTitle: e.target.value, dynamicTextEnabled: true })}
+                    placeholder="Título del evento (ej. Escuela Dominical)"
+                    maxLength={42}
+                    className="oneui-deck-input"
+                  />
                 </div>
 
-                {/* FILA 2: Chips Rápidos de Eventos Institucionales Deslizables */}
-                <div className="deck-horizontal-strip chips-strip">
-                  {[
-                    'Escuela Dominical',
-                    'Oración de 7:00 PM',
-                    'Servicio de Doctrina',
-                    'Culto de Jóvenes',
-                    'Consagración',
-                    'Estudio Bíblico',
-                    'Bautismos',
-                    'Santa Cena',
-                    'Servicio Especial',
-                  ].map((ev) => {
+                <div className="oneui-chips-row">
+                  {['Escuela Dominical', 'Oración 7pm', 'Culto Especial', 'Estudio Bíblico'].map((ev) => {
                     const isEvActive = (frame.eventTitle || '').trim().toLowerCase() === ev.toLowerCase();
                     return (
                       <button
                         key={ev}
                         type="button"
                         onClick={() => onUpdateFrame({ eventTitle: ev, dynamicTextEnabled: true })}
-                        className={`quick-chip-btn ${isEvActive ? 'active' : ''}`}
+                        className={`oneui-chip-btn ${isEvActive ? 'active' : ''}`}
                       >
                         {ev}
                       </button>
                     );
                   })}
                 </div>
-              </>
+              </div>
             )}
           </div>
         )}
       </div>
 
-      {/* BARRA INFERIOR DE 5 PESTAÑAS — FLUJO: FILTROS → AJUSTES → ENCUADRE → FIRMA → MARCOS */}
-      <div className="sidebar-tabs">
-        {([
-          { id: 'presets', label: 'Filtros', icon: Wand2 },
-          { id: 'develop', label: 'Ajustes', icon: SlidersHorizontal },
-          { id: 'crop', label: 'Encuadre', icon: Crop },
-          { id: 'watermark', label: 'Firma', icon: ImageIcon },
-          { id: 'frame', label: 'Marcos', icon: FrameIcon },
-        ] as const).map((tab) => {
-          const TabIcon = tab.icon;
-          return (
-            <button
-              key={tab.id}
-              type="button"
-              onClick={() => setActiveTab(tab.id)}
-              className={`sidebar-tab ${activeTab === tab.id ? 'active' : ''}`}
-            >
-              <TabIcon size={15} />
-              <span>{tab.label}</span>
-            </button>
-          );
-        })}
-      </div>
+      {/* ============================================================
+          BARRA DE NAVEGACIÓN INFERIOR (ONE UI DOCK)
+         ============================================================ */}
+      <nav className="oneui-dock">
+        {/* 1. Botón Auto Destacado (Píldora con destello estilo Samsung One UI) */}
+        <button
+          type="button"
+          onClick={() => onApplyPreset('auto-church')}
+          className="oneui-dock-btn auto-highlight"
+          title="Mejora automática con IA en un toque"
+        >
+          <div className="oneui-dock-icon-circle highlight">
+            <Sparkles size={17} />
+          </div>
+          <span className="oneui-dock-label">Auto</span>
+        </button>
+
+        {/* 2. Encuadre */}
+        <button
+          type="button"
+          onClick={() => setActiveTab('crop')}
+          className={`oneui-dock-btn ${activeTab === 'crop' ? 'active' : ''}`}
+          title="Encuadre, proporción y nivelación"
+        >
+          <div className="oneui-dock-icon-circle">
+            <Crop size={18} />
+          </div>
+          <span className="oneui-dock-label">Encuadre</span>
+        </button>
+
+        {/* 3. Filtros */}
+        <button
+          type="button"
+          onClick={() => setActiveTab('presets')}
+          className={`oneui-dock-btn ${activeTab === 'presets' ? 'active' : ''}`}
+          title="Filtros y estilos de revelado"
+        >
+          <div className="oneui-dock-icon-circle">
+            <Wand2 size={18} />
+          </div>
+          <span className="oneui-dock-label">Filtros</span>
+        </button>
+
+        {/* 4. Ajustes */}
+        <button
+          type="button"
+          onClick={() => setActiveTab('develop')}
+          className={`oneui-dock-btn ${activeTab === 'develop' ? 'active' : ''}`}
+          title="Ajustes de luz, sombras y color"
+        >
+          <div className="oneui-dock-icon-circle">
+            <SunMedium size={18} />
+          </div>
+          <span className="oneui-dock-label">Ajustes</span>
+        </button>
+
+        {/* 5. Marco (Fusión de marco y firma) */}
+        <button
+          type="button"
+          onClick={() => setActiveTab('frame')}
+          className={`oneui-dock-btn ${activeTab === 'frame' ? 'active' : ''}`}
+          title="Marco institucional y textos dinámicos"
+        >
+          <div className="oneui-dock-icon-circle">
+            <FrameIcon size={18} />
+          </div>
+          <span className="oneui-dock-label">Marco</span>
+        </button>
+
+        {/* 6. Carrete de Sesión (Togglable) */}
+        {onToggleFilmstrip && (
+          <button
+            type="button"
+            onClick={onToggleFilmstrip}
+            className={`oneui-dock-btn ${isFilmstripOpen ? 'active' : ''}`}
+            title="Abrir carrete de fotografías"
+          >
+            <div className="oneui-dock-icon-circle">
+              <LayoutGrid size={18} />
+            </div>
+            <span className="oneui-dock-label">Carrete</span>
+          </button>
+        )}
+      </nav>
     </aside>
   );
 };

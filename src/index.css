@@ -18,15 +18,15 @@
   --radius-md: 0.5rem;
   --radius-sm: 0.375rem;
 
-  /* Por defecto: Tema Grafito Oscuro */
-  --bg-primary: #090d16;
-  --bg-surface: #0e1320;
-  --bg-card: rgba(16, 22, 36, 0.85);
-  --bg-card-hover: rgba(22, 30, 50, 0.95);
-  --bg-subcard: rgba(0, 0, 0, 0.28);
-  --bg-subcard-border: rgba(255, 255, 255, 0.06);
-  --bg-glass: rgba(12, 17, 28, 0.92);
-  --canvas-stage-bg: #070a12;
+  /* Por defecto: Tema Negro Puro AMOLED */
+  --bg-primary: #000000;
+  --bg-surface: #000000;
+  --bg-card: rgba(18, 18, 22, 0.96);
+  --bg-card-hover: rgba(28, 28, 34, 0.98);
+  --bg-subcard: rgba(255, 255, 255, 0.05);
+  --bg-subcard-border: rgba(255, 255, 255, 0.08);
+  --bg-glass: rgba(12, 12, 16, 0.96);
+  --canvas-stage-bg: #000000;
 
   --border-color: rgba(255, 255, 255, 0.08);
   --border-active: #38bdf8;
@@ -119,14 +119,14 @@ body[data-theme="light"],
 html[data-theme="dark"],
 body[data-theme="dark"],
 [data-theme="dark"] {
-  --bg-primary: #090d16;
-  --bg-surface: #0e1320;
-  --bg-card: rgba(16, 22, 36, 0.85);
-  --bg-card-hover: rgba(22, 30, 50, 0.95);
-  --bg-subcard: rgba(0, 0, 0, 0.28);
-  --bg-subcard-border: rgba(255, 255, 255, 0.06);
-  --bg-glass: rgba(12, 17, 28, 0.92);
-  --canvas-stage-bg: #070a12;
+  --bg-primary: #000000;
+  --bg-surface: #000000;
+  --bg-card: rgba(18, 18, 22, 0.96);
+  --bg-card-hover: rgba(28, 28, 34, 0.98);
+  --bg-subcard: rgba(255, 255, 255, 0.05);
+  --bg-subcard-border: rgba(255, 255, 255, 0.08);
+  --bg-glass: rgba(12, 12, 16, 0.96);
+  --canvas-stage-bg: #000000;
 
   --border-color: rgba(255, 255, 255, 0.08);
   --border-active: #38bdf8;
@@ -3676,4 +3676,782 @@ input[type="range"] {
   color: var(--text-muted, #94a3b8);
   letter-spacing: 0.02em;
   opacity: 0.85;
+}
+
+
+/* ========================================================
+   REDISENO SAMSUNG ONE UI / ANDROID NATIVO (AMOLED)
+   ======================================================== */
+
+.oneui-header {
+  background-color: #000000 !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
+  height: 52px;
+  padding: 0 1rem;
+}
+
+.oneui-header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.oneui-revert-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: none;
+  border: none;
+  color: #64748b;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: default;
+  padding: 0.35rem 0.6rem;
+  border-radius: 999px;
+  transition: all 0.15s ease;
+}
+
+.oneui-revert-btn.active {
+  color: #f8fafc;
+  cursor: pointer;
+}
+
+.oneui-revert-btn.active:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.oneui-counter-pill {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 0.22rem 0.55rem;
+  border-radius: 999px;
+  color: #f8fafc;
+  font-size: 0.74rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.oneui-counter-pill:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.badge-raw-tiny {
+  font-size: 0.6rem;
+  font-weight: 800;
+  background: rgba(245, 158, 11, 0.2);
+  color: #fbbf24;
+  padding: 1px 4px;
+  border-radius: 4px;
+}
+
+.oneui-header-right {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.oneui-save-action-btn {
+  background: none;
+  border: none;
+  color: #ffffff;
+  font-size: 0.88rem;
+  font-weight: 700;
+  padding: 0.4rem 0.8rem;
+  border-radius: 999px;
+  cursor: pointer;
+  letter-spacing: -0.01em;
+  transition: background 0.15s ease, opacity 0.15s ease;
+}
+
+.oneui-save-action-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.oneui-icon-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.oneui-icon-btn:hover,
+.oneui-icon-btn.active {
+  background: rgba(255, 255, 255, 0.1);
+  color: #f8fafc;
+}
+
+.oneui-update-dot-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.oneui-menu-wrap {
+  position: relative;
+}
+
+.oneui-popover-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 250px;
+  background: rgba(16, 16, 20, 0.98);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 1rem;
+  padding: 0.4rem;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.85);
+  z-index: 200;
+  backdrop-filter: blur(20px);
+}
+
+.oneui-menu-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.55rem 0.65rem;
+  border-radius: 0.65rem;
+  background: none;
+  border: none;
+  color: #f8fafc;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.12s ease;
+}
+
+.oneui-menu-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.oneui-menu-item .menu-item-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.oneui-menu-item .menu-item-text strong {
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.oneui-menu-item .menu-item-text span {
+  font-size: 0.66rem;
+  color: #94a3b8;
+}
+
+.oneui-menu-divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+  margin: 0.3rem 0;
+}
+
+/* 2. One UI Bottom System (Floating Deck + Dock) */
+.oneui-bottom-system {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 80;
+}
+
+@media (max-width: 900px) {
+  .oneui-bottom-system {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    pointer-events: none;
+  }
+}
+
+.oneui-floating-card {
+  width: calc(100% - 1.25rem);
+  max-width: 520px;
+  background: rgba(18, 18, 22, 0.95) !important;
+  backdrop-filter: blur(24px) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 1.5rem !important;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.85);
+  margin-bottom: 0.5rem;
+  padding: 0.85rem 1rem 0.7rem 1rem;
+  pointer-events: auto;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.oneui-deck-inner {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.oneui-deck-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.45rem;
+  padding: 0 0.2rem;
+}
+
+.oneui-param-title {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #f8fafc;
+  text-transform: uppercase;
+}
+
+.oneui-reset-tiny-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 0.18rem 0.45rem;
+  border-radius: 999px;
+  color: #94a3b8;
+  font-size: 0.68rem;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.oneui-reset-tiny-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
+}
+
+/* Diales Horizontales One UI */
+.oneui-dials-strip {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding: 0.3rem 0.1rem;
+  scrollbar-width: none;
+}
+
+.oneui-dials-strip::-webkit-scrollbar {
+  display: none;
+}
+
+.oneui-auto-pill {
+  flex-shrink: 0;
+  height: 38px;
+  padding: 0 0.85rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #f8fafc;
+  font-size: 0.74rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.oneui-auto-pill.active {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.25), rgba(245, 158, 11, 0.1));
+  border-color: #f59e0b;
+  color: #fbbf24;
+}
+
+.oneui-dial-item {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.oneui-dial-circle {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #94a3b8;
+  position: relative;
+  transition: transform 0.15s ease, background 0.15s ease;
+}
+
+.oneui-dial-circle:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+.oneui-dial-circle.modified {
+  border-color: rgba(245, 158, 11, 0.4);
+}
+
+.oneui-mod-dot {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #f59e0b;
+}
+
+.oneui-active-dial-circle {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #18181d;
+  border: 2px solid #f59e0b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 0 16px rgba(245, 158, 11, 0.25);
+}
+
+.oneui-dial-pie {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  opacity: 0.18;
+}
+
+.oneui-dial-num {
+  font-size: 0.88rem;
+  font-weight: 800;
+  color: #ffffff;
+  position: relative;
+  z-index: 2;
+  font-family: 'Outfit', sans-serif;
+}
+
+/* 3. Regla Graduada T�ctil One UI (Haptic Ruler) */
+.oneui-ruler-container {
+  width: 100%;
+  height: 42px;
+  margin-top: 0.4rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.oneui-haptic-ruler {
+  width: 100%;
+  max-width: 380px;
+  height: 38px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.oneui-haptic-ruler:active {
+  cursor: grabbing;
+}
+
+.ruler-center-needle {
+  position: absolute;
+  top: 5px;
+  bottom: 5px;
+  width: 2.5px;
+  border-radius: 1.5px;
+  z-index: 5;
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.6);
+  pointer-events: none;
+}
+
+.ruler-zero-dot {
+  position: absolute;
+  bottom: -2px;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  z-index: 6;
+  pointer-events: none;
+}
+
+.ruler-viewport {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  mask-image: linear-gradient(to right, transparent, black 25%, black 75%, transparent);
+  -webkit-mask-image: linear-gradient(to right, transparent, black 25%, black 75%, transparent);
+}
+
+.ruler-ticks-track {
+  display: flex;
+  align-items: center;
+  gap: 3.5px;
+  position: relative;
+  will-change: transform;
+}
+
+.ruler-tick-mark {
+  flex-shrink: 0;
+  transition: opacity 0.08s ease;
+}
+
+/* 4. Encuadre One UI */
+.oneui-geom-actions-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-bottom: 0.4rem;
+}
+
+.oneui-geom-circle-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.oneui-geom-circle-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+.oneui-geom-circle-btn.active {
+  background: #f59e0b;
+  color: #000000;
+  border-color: #f59e0b;
+}
+
+.oneui-geom-circle-btn.accent {
+  background: rgba(56, 189, 248, 0.15);
+  border-color: rgba(56, 189, 248, 0.3);
+  color: #38bdf8;
+}
+
+.oneui-ratios-carousel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.15rem;
+  overflow-x: auto;
+  padding: 0.4rem 0.2rem;
+  scrollbar-width: none;
+}
+
+.oneui-ratios-carousel::-webkit-scrollbar {
+  display: none;
+}
+
+.oneui-ratio-text-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  color: #94a3b8;
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0.2rem 0;
+  transition: color 0.15s ease;
+}
+
+.oneui-ratio-text-btn.active {
+  color: #ffffff;
+  font-weight: 800;
+}
+
+.oneui-ratio-active-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #f59e0b;
+}
+
+/* 5. Filtros One UI */
+.oneui-presets-strip {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  overflow-x: auto;
+  padding: 0.25rem 0.1rem;
+  scrollbar-width: none;
+}
+
+.oneui-preset-card {
+  flex: 0 0 auto;
+  width: 5.6rem;
+  padding: 0.55rem 0.35rem;
+  border-radius: 0.85rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1.5px solid rgba(255, 255, 255, 0.07);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  cursor: pointer;
+  color: #94a3b8;
+  transition: all 0.15s ease;
+}
+
+.oneui-preset-card:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.oneui-preset-card.active {
+  background: rgba(245, 158, 11, 0.12);
+  border-color: #f59e0b;
+  color: #ffffff;
+}
+
+.oneui-preset-icon-wrap {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.oneui-preset-card.active .oneui-preset-icon-wrap {
+  background: #f59e0b;
+  color: #000000;
+}
+
+.oneui-preset-card strong {
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.oneui-preset-card span {
+  font-size: 0.6rem;
+  color: #64748b;
+  text-align: center;
+}
+
+/* 6. Marcos One UI */
+.oneui-frame-cards-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  overflow-x: auto;
+  padding: 0.2rem 0.1rem;
+  scrollbar-width: none;
+}
+
+.oneui-frame-card {
+  flex: 0 0 auto;
+  width: 6.2rem;
+  padding: 0.45rem;
+  border-radius: 0.85rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1.5px solid rgba(255, 255, 255, 0.07);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  cursor: pointer;
+  color: #94a3b8;
+  position: relative;
+  transition: all 0.15s ease;
+}
+
+.oneui-frame-card.active {
+  border-color: #f59e0b;
+  color: #ffffff;
+  box-shadow: 0 0 14px rgba(245, 158, 11, 0.22);
+}
+
+.frame-card-thumb {
+  width: 100%;
+  aspect-ratio: 3 / 2;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  background: #141418;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.frame-card-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.oneui-frame-card span {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.oneui-frame-custom-row {
+  margin-top: 0.45rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.oneui-frame-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.75rem;
+  padding: 0.45rem 0.65rem;
+}
+
+.oneui-deck-input {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  color: #f8fafc;
+  font-size: 0.8rem;
+  font-family: inherit;
+}
+
+.oneui-chips-row {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  overflow-x: auto;
+  padding: 0.15rem 0;
+  scrollbar-width: none;
+}
+
+.oneui-chip-btn {
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  color: #94a3b8;
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.oneui-chip-btn.active {
+  background: #f59e0b;
+  color: #000000;
+  border-color: #f59e0b;
+}
+
+/* 7. Bottom Navigation Dock One UI */
+.oneui-dock {
+  width: 100%;
+  height: 56px;
+  background: #000000 !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  padding: 0 0.5rem calc(env(safe-area-inset-bottom, 0px));
+  pointer-events: auto;
+}
+
+.oneui-dock-btn {
+  background: none;
+  border: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  cursor: pointer;
+  padding: 0.3rem 0.6rem;
+  color: #94a3b8;
+  transition: all 0.15s ease;
+}
+
+.oneui-dock-icon-circle {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.oneui-dock-btn.active {
+  color: #ffffff;
+}
+
+.oneui-dock-btn.active .oneui-dock-icon-circle {
+  background: rgba(255, 255, 255, 0.12);
+  color: #f59e0b;
+}
+
+.oneui-dock-btn.auto-highlight .oneui-dock-icon-circle.highlight {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.35), rgba(56, 189, 248, 0.35));
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  color: #fef08a;
+}
+
+.oneui-dock-label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+/* 8. Carrete Drawer Flotante */
+.filmstrip-dock-wrapper {
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (max-width: 900px) {
+  .filmstrip-dock-wrapper {
+    position: fixed;
+    bottom: 235px;
+    left: 0.75rem;
+    right: 0.75rem;
+    z-index: 95;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(12px) scale(0.96);
+  }
+
+  .filmstrip-dock-wrapper.drawer-open {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0) scale(1);
+  }
 }
