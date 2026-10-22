@@ -3601,7 +3601,6 @@ input[type="range"] {
     flex-direction: column;
     overflow: hidden;
     width: 100%;
-    order: 1;
   }
 
   /* Lienzo Fotográfico Inmersivo */
@@ -3955,14 +3954,33 @@ input[type="range"] {
   flex-direction: column;
   align-items: center;
   z-index: 80;
-  flex-shrink: 0;
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 @media (max-width: 900px) {
   .oneui-bottom-system {
-    position: relative;
-    pointer-events: auto;
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    pointer-events: none !important;
+  }
+
+  .oneui-floating-card,
+  .oneui-dock {
+    pointer-events: auto !important;
+  }
+
+  .canvas-wrapper {
+    transition: padding-bottom 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  }
+
+  .studio-body.has-deck-open .canvas-wrapper {
+    padding-bottom: 235px !important;
+  }
+
+  .studio-body:not(.has-deck-open) .canvas-wrapper {
+    padding-bottom: 72px !important;
   }
 }
 

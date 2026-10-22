@@ -689,7 +689,7 @@ export const App: React.FC = () => {
       {photos.length === 0 ? (
         <BatchDropzone onFilesSelected={handleFilesSelected} />
       ) : (
-        <div className="studio-body">
+        <div className={`studio-body ${activeStudioTab ? 'has-deck-open' : ''}`}>
           {/* Main Visual Column: Preview Stage */}
           <div className="studio-main-column">
             <PreviewStage
