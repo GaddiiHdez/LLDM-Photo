@@ -4,6 +4,16 @@ Todas las actualizaciones y mejoras notables de BereaSnap están documentadas en
 
 ---
 
+## [1.5.1] - 2026-10-22
+
+### 📲 Actualizaciones Integradas Directas (In-App OTA)
+* **Descarga e Instalación Dentro de la App**: La actualización ahora se descarga y gestiona 100% dentro de BereaSnap mediante un canal nativo seguro, sin necesidad de abrir el navegador web ni redirigir a pestañas externas.
+* **Monitor de Progreso en Vivo**: Nueva tarjeta One UI con barra de progreso animada, porcentaje exacto (`%`) y conteo de MB descargados en tiempo real.
+* **Apertura Automática del Instalador Android**: Al concluir la descarga al 100%, se invoca de inmediato el instalador de paquetes del sistema operativo mediante `FileProvider`, con botón para reabrir el instalador si el aviso se cerró accidentalmente.
+* **Rediseño Visual One UI de Actualizaciones**: Modal rediseñado con fondo negro puro AMOLED, tarjeta de comparación de versiones, distintivo dorado de novedades y formato tipográfico limpio y estructurado.
+
+---
+
 ## [1.5.0] - 2026-10-22
 
 ### ✨ Herramientas Fotográficas Pro
