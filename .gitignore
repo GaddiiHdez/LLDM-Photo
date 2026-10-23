@@ -12,6 +12,7 @@ dist
 dist-ssr
 *.local
 *.apk
+release_notes.md
 
 # Editor directories and files
 .vscode/*

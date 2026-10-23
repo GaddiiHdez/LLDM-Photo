@@ -75,6 +75,9 @@ jobs:
           APP_VER=$(node -p "require('./package.json').version")
           echo "APP_VER=$APP_VER" >> $GITHUB_ENV
 
+      - name: Extraer Novedades Específicas de la Versión desde CHANGELOG.md
+        run: node scripts/extract-release-notes.cjs
+
       - name: Preparar y Nombrar Archivos APK
         run: |
           mkdir -p output-apk
@@ -94,21 +97,7 @@ jobs:
         with:
           tag_name: v${{ env.APP_VER }}
           name: BereaSnap v${{ env.APP_VER }} (Compilación ${{ github.run_number }})
-          body: |
-            ## 📸 BereaSnap v${{ env.APP_VER }} - Suite Fotográfica Pro & Flujo de Trabajo
-
-            ¡La actualización **v${{ env.APP_VER }}** de BereaSnap ya está disponible!
-
-            ### ✨ Novedades Principales:
-            - 🎛️ **Herramientas Fotográficas Pro**: Nuevo slider de Claridad / Textura para resaltar detalles eclesiásticos, Protector de Piel IA (*Skin Tone Guard*) que previene rostros anaranjados, Reducción de Ruido para tomas nocturnas/ISO alto y Regla de Tercios 3×3 con puntos dorados en encuadre.
-            - 🔄 **Flujo de Trabajo Profesional**: Deshacer y Rehacer paso a paso (`↺` y `↻` con soporte Ctrl+Z / Ctrl+Y), Exportación e Importación de Presets de usuario en archivo `.json` para compartir entre fotógrafos, Histograma multiespectral RGB en tiempo real y Cebras de sobreexposición (*Zebra Blinkies*) para no quemar túnicas blancas de coro ni lámparas.
-            - 💾 **Almacenamiento Persistente & 1-Toque**: Guardado automático de sesión en segundo plano (IndexedDB) para recuperar todas tus fotos y ajustes si sales de la app o entra una llamada. Nuevos perfiles de guardado con 1 toque (*Máxima Calidad Original* vs *Optimizado WhatsApp*).
-            - 💎 **Nuevo Icono Oficial Flat B+S**: Monograma estilizado y limpio en oro imperial sobre fondo negro puro AMOLED.
-            
-            ### 📥 Instrucciones de Instalación:
-            1. Descarga el archivo `BereaSnap-v${{ env.APP_VER }}.apk` o `BereaSnap.apk`.
-            2. Abre la descarga en tu teléfono Android e instálala directamente sobre tu versión anterior.
-            3. ¡Listo! Todo tu estudio fotográfico offline al alcance de tu mano.
+          body_path: release_notes.md
           files: |
             output-apk/BereaSnap-v${{ env.APP_VER }}.apk
             output-apk/BereaSnap.apk
