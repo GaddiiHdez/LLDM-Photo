@@ -11,6 +11,8 @@ import {
   Sparkles,
   MoreVertical,
   RotateCcw,
+  Undo2,
+  Redo2,
   CheckCheck,
   ChevronLeft,
   Home,
@@ -35,6 +37,10 @@ interface HeaderProps {
   onSingleExport?: () => void;
   onSingleShare?: () => void;
   onExportBatch: () => void;
+  canUndo?: boolean;
+  canRedo?: boolean;
+  onUndo?: () => void;
+  onRedo?: () => void;
   onRevert?: () => void;
   onApplySettingsToAll?: () => void;
 }
@@ -47,6 +53,8 @@ export const Header: React.FC<HeaderProps> = ({
   showOriginal = false,
   hasUpdateBadge = false,
   hasModifications = false,
+  canUndo = false,
+  canRedo = false,
   onGoHome,
   onToggleOriginal,
   onToggleTheme,
@@ -55,6 +63,8 @@ export const Header: React.FC<HeaderProps> = ({
   onSingleExport,
   onSingleShare,
   onExportBatch,
+  onUndo,
+  onRedo,
   onRevert,
   onApplySettingsToAll,
 }) => {
@@ -89,6 +99,34 @@ export const Header: React.FC<HeaderProps> = ({
                 aria-label="Volver al inicio"
               >
                 <ChevronLeft size={20} />
+              </button>
+            )}
+
+            {/* Deshacer paso a paso (Undo) */}
+            {onUndo && (
+              <button
+                type="button"
+                onClick={onUndo}
+                disabled={!canUndo}
+                className={`oneui-history-btn ${canUndo ? 'active' : ''}`}
+                title="Deshacer último ajuste (Ctrl+Z)"
+                aria-label="Deshacer"
+              >
+                <Undo2 size={16} />
+              </button>
+            )}
+
+            {/* Rehacer paso a paso (Redo) */}
+            {onRedo && (
+              <button
+                type="button"
+                onClick={onRedo}
+                disabled={!canRedo}
+                className={`oneui-history-btn ${canRedo ? 'active' : ''}`}
+                title="Rehacer ajuste (Ctrl+Y)"
+                aria-label="Rehacer"
+              >
+                <Redo2 size={16} />
               </button>
             )}
 

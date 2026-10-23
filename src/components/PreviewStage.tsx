@@ -6,6 +6,9 @@ import {
   Eye,
   ChevronLeft,
   ChevronRight,
+  Zap,
+  BarChart2,
+  X,
 } from 'lucide-react';
 import {
   drawProcessedPhotoSync,
@@ -21,6 +24,8 @@ interface PreviewStageProps {
   watermark: WatermarkSettings;
   frame: FrameSettings;
   showOriginal?: boolean;
+  isCropMode?: boolean;
+  showZebraClipping?: boolean;
   onToggleOriginal?: (val?: boolean) => void;
   onSingleExport?: () => void;
   onSingleShare?: () => void;
@@ -39,6 +44,9 @@ const NEUTRAL_ADJUSTMENTS: ImageAdjustments = {
   shadows: 0,
   highlights: 0,
   sharpness: 0,
+  clarity: 0,
+  noiseReduction: 0,
+  skinToneGuard: true,
 };
 
 // Caché LRU de proxies base (1280px) en memoria para cambio instantáneo entre fotos del lote
@@ -63,7 +71,7 @@ function getOrCreateBaseProxy(url: string, img: HTMLImageElement): HTMLCanvasEle
 }
 
 function getAdjustmentsKey(url: string, adj: ImageAdjustments, highRes: boolean): string {
-  return `${url}|${adj.brightness}|${adj.contrast}|${adj.saturation}|${adj.shadows}|${adj.highlights}|${adj.warmth}|${adj.sharpness}|${highRes ? 'hd' : 'fast'}`;
+  return `${url}|${adj.brightness}|${adj.contrast}|${adj.saturation}|${adj.shadows}|${adj.highlights}|${adj.warmth}|${adj.sharpness}|${adj.clarity || 0}|${adj.noiseReduction || 0}|${adj.skinToneGuard !== false ? 1 : 0}|${highRes ? 'hd' : 'fast'}`;
 }
 
 export const PreviewStage: React.FC<PreviewStageProps> = ({
@@ -71,6 +79,8 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
   watermark,
   frame,
   showOriginal = false,
+  isCropMode = false,
+  showZebraClipping = false,
   onToggleOriginal,
   onUpdateCrop,
   onPrevPhoto,
@@ -84,6 +94,17 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isInitialLoading, setIsInitialLoading] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(1);
+  const [showZebras, setShowZebras] = useState(showZebraClipping);
+  const [showHistogram, setShowHistogram] = useState(false);
+  const [clippingStats, setClippingStats] = useState<{ clippedPct: number; isClipping: boolean } | null>(null);
+
+  const zebraCanvasRef = useRef<HTMLCanvasElement>(null);
+  const histogramCanvasRef = useRef<HTMLCanvasElement>(null);
+
+  // Sincronizar prop si cambia externamente
+  useEffect(() => {
+    setShowZebras(showZebraClipping);
+  }, [showZebraClipping]);
 
   // ─── Refs que NO causan re-renders (esenciales para 60-120fps) ───────────────
   const dragStartRef = useRef<{ x: number; y: number; initialOffsetX: number; initialOffsetY: number } | null>(null);
@@ -139,6 +160,148 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
     return tonedProxyRef.current;
   };
 
+  // ─── ANÁLISIS DE ALTAS LUCES QUEMADAS (ZEBRA BLINKIES) E HISTOGRAMA RGB ──────
+  const updateZebraAndHistogram = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    if (!showZebras && !showHistogram) {
+      if (zebraCanvasRef.current) {
+        const zCtx = zebraCanvasRef.current.getContext('2d');
+        zCtx?.clearRect(0, 0, zebraCanvasRef.current.width, zebraCanvasRef.current.height);
+      }
+      return;
+    }
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const width = canvas.width;
+    const height = canvas.height;
+    if (width === 0 || height === 0) return;
+
+    let imgData: ImageData;
+    try {
+      imgData = ctx.getImageData(0, 0, width, height);
+    } catch {
+      return;
+    }
+
+    const data = imgData.data;
+    const totalPixels = width * height;
+
+    const histR = showHistogram ? new Uint32Array(256) : null;
+    const histG = showHistogram ? new Uint32Array(256) : null;
+    const histB = showHistogram ? new Uint32Array(256) : null;
+    const histL = showHistogram ? new Uint32Array(256) : null;
+
+    let clippedCount = 0;
+    const zCanvas = zebraCanvasRef.current;
+    let zCtx: CanvasRenderingContext2D | null = null;
+    let zImgData: ImageData | null = null;
+    let zBuffer: Uint32Array | null = null;
+
+    if (showZebras && zCanvas) {
+      if (zCanvas.width !== width || zCanvas.height !== height) {
+        zCanvas.width = width;
+        zCanvas.height = height;
+      }
+      zCtx = zCanvas.getContext('2d');
+      if (zCtx) {
+        zImgData = zCtx.createImageData(width, height);
+        zBuffer = new Uint32Array(zImgData.data.buffer);
+      }
+    }
+
+    // Análisis de píxeles
+    const step = showHistogram && !showZebras ? 4 : 1;
+    for (let y = 0; y < height; y += step) {
+      const rowOffset = y * width;
+      for (let x = 0; x < width; x += step) {
+        const idx = rowOffset + x;
+        const pxIdx = idx * 4;
+        const r = data[pxIdx];
+        const g = data[pxIdx + 1];
+        const b = data[pxIdx + 2];
+
+        if (showHistogram && histR && histG && histB && histL) {
+          histR[r]++;
+          histG[g]++;
+          histB[b]++;
+          const lum = (r * 77 + g * 150 + b * 29) >> 8;
+          histL[lum]++;
+        }
+
+        if (showZebras && zBuffer) {
+          // Altas luces quemadas (R, G y B >= 252 o blanco puro)
+          if (r >= 252 && g >= 252 && b >= 252) {
+            clippedCount++;
+            const isStripe = ((x + y) >> 2) & 1;
+            zBuffer[idx] = isStripe ? 0xFF0000FF : 0xAA000000;
+          } else {
+            zBuffer[idx] = 0;
+          }
+        }
+      }
+    }
+
+    if (showZebras && zCtx && zImgData) {
+      zCtx.putImageData(zImgData, 0, 0);
+      const clippedPct = (clippedCount / totalPixels) * 100;
+      setClippingStats({
+        clippedPct,
+        isClipping: clippedCount > 0,
+      });
+    }
+
+    if (showHistogram && histR && histG && histB && histL && histogramCanvasRef.current) {
+      const hCanvas = histogramCanvasRef.current;
+      const hCtx = hCanvas.getContext('2d');
+      if (hCtx) {
+        const hW = hCanvas.width;
+        const hH = hCanvas.height;
+        hCtx.clearRect(0, 0, hW, hH);
+
+        hCtx.fillStyle = 'rgba(10, 10, 15, 0.75)';
+        hCtx.fillRect(0, 0, hW, hH);
+
+        let maxVal = 1;
+        for (let i = 2; i < 254; i++) {
+          if (histL[i] > maxVal) maxVal = histL[i];
+          if (histR[i] > maxVal) maxVal = histR[i];
+          if (histG[i] > maxVal) maxVal = histG[i];
+          if (histB[i] > maxVal) maxVal = histB[i];
+        }
+
+        const drawCurve = (bins: Uint32Array, color: string, fill?: string) => {
+          hCtx.beginPath();
+          hCtx.strokeStyle = color;
+          hCtx.lineWidth = 1;
+          for (let i = 0; i < 256; i++) {
+            const pxX = (i / 255) * hW;
+            const normH = Math.min(1, bins[i] / maxVal) * (hH - 4);
+            const pxY = hH - normH;
+            if (i === 0) hCtx.moveTo(pxX, pxY);
+            else hCtx.lineTo(pxX, pxY);
+          }
+          hCtx.stroke();
+          if (fill) {
+            hCtx.lineTo(hW, hH);
+            hCtx.lineTo(0, hH);
+            hCtx.closePath();
+            hCtx.fillStyle = fill;
+            hCtx.fill();
+          }
+        };
+
+        drawCurve(histL, 'rgba(255, 255, 255, 0.35)', 'rgba(255, 255, 255, 0.08)');
+        drawCurve(histR, 'rgba(239, 68, 68, 0.85)');
+        drawCurve(histG, 'rgba(34, 197, 94, 0.85)');
+        drawCurve(histB, 'rgba(59, 130, 246, 0.85)');
+      }
+    }
+  }, [showZebras, showHistogram]);
+
   // ─── DIBUJO SÍNCRONO ULTRA-RÁPIDO (< 0.8ms cuando el tono ya está horneado) ──
   const renderCanvasSync = useCallback((
     cropOverride?: CropSettings,
@@ -193,7 +356,15 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
       logoCacheRef.current,
       true // adjustmentsAlreadyBaked: evita ctx.filter y getImageData al mover/rotar/encuadrar
     );
-  }, []);
+
+    // Actualizar indicador de luces quemadas y curvas de histograma
+    updateZebraAndHistogram();
+  }, [updateZebraAndHistogram]);
+
+  // Actualizar cebras o histograma al cambiar sus botones
+  useEffect(() => {
+    updateZebraAndHistogram();
+  }, [showZebras, showHistogram, updateZebraAndHistogram]);
 
   // Pre-cargar y cachear marco PNG institucional y redibujar al instante
   useEffect(() => {
@@ -702,8 +873,39 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
         onWheel={handleWheel}
         style={{ cursor: 'grab', touchAction: 'none' }}
       >
-        {/* Píldora Flotante Discreta de Lupa en esquina superior derecha */}
+        {/* Píldoras Flotantes Discretas en esquina superior derecha */}
         <div className="floating-stage-pills">
+          {/* Badge de Alerta: Altas luces quemadas (Zebra) */}
+          {showZebras && clippingStats?.isClipping && (
+            <div className="stage-clipping-warning-badge" title="Alerta: Ropas blancas o lámparas sobreexpuestas">
+              <span className="warning-dot" />
+              <span>{clippingStats.clippedPct.toFixed(1)}% quemado</span>
+            </div>
+          )}
+
+          {/* Botón Cebras (Zebra Blinkies) */}
+          <button
+            type="button"
+            onClick={() => setShowZebras((z) => !z)}
+            className={`stage-pill-btn ${showZebras ? 'active' : ''}`}
+            title="Activar / Desactivar indicador de altas luces quemadas (Zebra)"
+          >
+            <Zap size={12} style={{ color: showZebras ? '#f59e0b' : 'inherit' }} />
+            <span>Zebra</span>
+          </button>
+
+          {/* Botón Histograma RGB */}
+          <button
+            type="button"
+            onClick={() => setShowHistogram((h) => !h)}
+            className={`stage-pill-btn ${showHistogram ? 'active' : ''}`}
+            title="Mostrar / Ocultar histograma RGB multiespectral"
+          >
+            <BarChart2 size={12} style={{ color: showHistogram ? '#f59e0b' : 'inherit' }} />
+            <span>RGB</span>
+          </button>
+
+          {/* Lupa de inspección */}
           <button
             type="button"
             onClick={() => setZoomLevel((z) => (z === 1 ? 1.5 : z === 1.5 ? 2 : 1))}
@@ -714,6 +916,24 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
             <span>{Math.round(zoomLevel * 100)}%</span>
           </button>
         </div>
+
+        {/* Histograma RGB Flotante Compacto */}
+        {showHistogram && (
+          <div className="floating-rgb-histogram card-glass">
+            <div className="histogram-header">
+              <span>HISTOGRAMA RGB</span>
+              <button
+                type="button"
+                onClick={() => setShowHistogram(false)}
+                className="histogram-close-btn"
+                title="Cerrar histograma"
+              >
+                <X size={10} />
+              </button>
+            </div>
+            <canvas ref={histogramCanvasRef} width={136} height={52} className="histogram-canvas" />
+          </div>
+        )}
 
         {isInitialLoading && (
           <div className="rendering-overlay">
@@ -766,6 +986,32 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
             ref={canvasRef}
             className="studio-preview-canvas"
           />
+          {/* Overlay de Luces Quemadas (Zebra Blinkies) */}
+          <canvas
+            ref={zebraCanvasRef}
+            className="oneui-zebra-overlay"
+            style={{
+              display: showZebras ? 'block' : 'none',
+              maxWidth: zoomLevel === 1 ? '100%' : 'none',
+              maxHeight: zoomLevel === 1 ? '100%' : 'none',
+              width: zoomLevel === 1 ? 'auto' : `${(canvasRef.current?.width || 960) * zoomLevel}px`,
+              height: 'auto',
+              borderRadius: '0.45rem',
+            }}
+          />
+          {/* Cuadrícula de Composición: Regla de Tercios 3x3 */}
+          {isCropMode && (
+            <div className="oneui-rule-of-thirds-grid" title="Guía de composición eclesiástica: Regla de Tercios 3x3">
+              <div className="grid-line vertical line-1" />
+              <div className="grid-line vertical line-2" />
+              <div className="grid-line horizontal line-1" />
+              <div className="grid-line horizontal line-2" />
+              <div className="grid-dot dot-1" />
+              <div className="grid-dot dot-2" />
+              <div className="grid-dot dot-3" />
+              <div className="grid-dot dot-4" />
+            </div>
+          )}
         </div>
       </div>
     </div>

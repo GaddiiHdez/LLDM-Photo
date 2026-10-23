@@ -142,8 +142,8 @@ export async function exportSinglePhoto(
   options: ExportOptions = DEFAULT_EXPORT_OPTIONS,
   mode: 'download' | 'share' = 'download'
 ): Promise<ExportOutcome> {
-  const maxDim = options.qualityPreset === 'social' ? 2048 : 2560;
-  const jpegQuality = options.qualityPreset === 'social' ? 0.85 : 0.94;
+  const maxDim = options.qualityPreset === 'social' ? 2048 : 0;
+  const jpegQuality = options.qualityPreset === 'social' ? 0.85 : 0.96;
   const prefix = (options.filenamePrefix || 'BereaSnap').trim().replace(/[^a-zA-Z0-9_-]/g, '_');
 
   let canvas: HTMLCanvasElement | null = null;
@@ -191,8 +191,8 @@ export async function exportBatchAsJpgs(
   mode: 'download' | 'share' = 'download'
 ): Promise<BatchExportResult> {
   const prefix = (options.filenamePrefix || 'BereaSnap').trim().replace(/[^a-zA-Z0-9_-]/g, '_');
-  const maxDim = options.qualityPreset === 'social' ? 2048 : 2560;
-  const jpegQuality = options.qualityPreset === 'social' ? 0.85 : 0.92;
+  const maxDim = options.qualityPreset === 'social' ? 2048 : 0;
+  const jpegQuality = options.qualityPreset === 'social' ? 0.85 : 0.96;
   const isNative = Capacitor.isNativePlatform();
 
   let cachedPngFrame: HTMLImageElement | null = null;
@@ -328,8 +328,8 @@ export async function exportBatchAsZip(
 ): Promise<void> {
   const zip = new JSZip();
   const prefix = (options.filenamePrefix || 'BereaSnap').trim().replace(/[^a-zA-Z0-9_-]/g, '_');
-  const maxDim = options.qualityPreset === 'social' ? 2048 : 2560;
-  const jpegQuality = options.qualityPreset === 'social' ? 0.85 : 0.92;
+  const maxDim = options.qualityPreset === 'social' ? 2048 : 0;
+  const jpegQuality = options.qualityPreset === 'social' ? 0.85 : 0.96;
 
   const folder = zip.folder(`${prefix}_Editadas`);
 

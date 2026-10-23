@@ -3296,6 +3296,94 @@ input[type="range"] {
   max-width: 290px;
 }
 
+/* Card de Borrador de Sesión Recuperable (One UI) */
+.oneui-draft-restore-card {
+  width: 100%;
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.28);
+  border-radius: 18px;
+  padding: 0.85rem 1rem;
+  margin-bottom: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(16px);
+  animation: fadeIn 0.25s ease-out;
+}
+
+.draft-card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  text-align: left;
+}
+
+.draft-card-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.draft-card-text strong {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #fef3c7;
+}
+
+.draft-card-text span {
+  font-size: 0.72rem;
+  color: rgba(254, 243, 199, 0.7);
+}
+
+.draft-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.draft-action-btn.restore {
+  flex: 1;
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  border: none;
+  color: #000000;
+  font-size: 0.76rem;
+  font-weight: 700;
+  padding: 0.45rem 0.8rem;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: transform 0.15s ease, filter 0.15s ease;
+}
+
+.draft-action-btn.restore:hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+
+.draft-action-btn.restore:active {
+  transform: scale(0.97);
+}
+
+.draft-action-btn.discard {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.5);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.draft-action-btn.discard:hover {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #ef4444;
+}
+
 /* Botón Principal Cargar Estilo Samsung One UI */
 .oneui-launchpad-btn {
   display: inline-flex;
@@ -3494,6 +3582,103 @@ input[type="range"] {
 
 .stage-pill-btn:hover {
   border-color: #38bdf8;
+}
+
+.stage-pill-btn.active {
+  background: rgba(245, 158, 11, 0.22);
+  border-color: rgba(245, 158, 11, 0.55);
+  color: #f59e0b;
+}
+
+/* Badge de Alerta: Altas Luces Quemadas */
+.stage-clipping-warning-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.32rem;
+  padding: 0.22rem 0.55rem;
+  border-radius: 9999px;
+  background: rgba(239, 68, 68, 0.22);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(239, 68, 68, 0.6);
+  color: #fca5a5;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.35);
+  animation: pulseClipping 2s infinite ease-in-out;
+}
+
+.stage-clipping-warning-badge .warning-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: #ef4444;
+  box-shadow: 0 0 6px #ef4444;
+}
+
+@keyframes pulseClipping {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.8; transform: scale(0.97); }
+}
+
+/* Overlay Zebra Blinkies */
+.oneui-zebra-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 5;
+  mix-blend-mode: hard-light;
+}
+
+/* Histograma RGB Flotante Compacto */
+.floating-rgb-histogram {
+  position: absolute;
+  top: 0.75rem;
+  left: 0.75rem;
+  background: rgba(10, 10, 14, 0.88) !important;
+  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  border-radius: 12px;
+  padding: 0.4rem 0.5rem;
+  z-index: 25;
+  backdrop-filter: blur(14px);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.6);
+  animation: fadeIn 0.18s ease-out;
+}
+
+.histogram-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.3rem;
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: #94a3b8;
+  letter-spacing: 0.05em;
+}
+
+.histogram-close-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: none;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+}
+
+.histogram-close-btn:hover {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.histogram-canvas {
+  display: block;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 /* 4. Toast Popover Top-Layer + Fallback */
@@ -3780,6 +3965,39 @@ input[type="range"] {
   display: flex;
   align-items: center;
   gap: 0.65rem;
+}
+
+.oneui-history-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: transparent;
+  border: 1px solid transparent;
+  color: #475569;
+  cursor: default;
+  transition: all 0.15s ease;
+  padding: 0;
+}
+
+.oneui-history-btn.active {
+  color: #e2e8f0;
+  cursor: pointer;
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.oneui-history-btn.active:hover {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: rgba(245, 158, 11, 0.35);
+  color: #f59e0b;
+  transform: translateY(-1px);
+}
+
+.oneui-history-btn.active:active {
+  transform: scale(0.92);
 }
 
 .oneui-revert-btn {
@@ -4899,4 +5117,86 @@ input[type="range"] {
 .oneui-secondary-action-btn:hover {
   background: rgba(255, 255, 255, 0.1);
   color: #ffffff;
+}
+
+/* ============================================================
+   10. CUADRÍCULA DE COMPOSICIÓN: REGLA DE TERCIOS 3X3
+   ============================================================ */
+.oneui-rule-of-thirds-grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.4);
+  animation: gridFadeIn 0.2s ease-out;
+}
+
+@keyframes gridFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.oneui-rule-of-thirds-grid .grid-line {
+  position: absolute;
+  background: rgba(255, 255, 255, 0.45);
+  box-shadow: 0 0 2px rgba(0, 0, 0, 0.8);
+}
+
+.oneui-rule-of-thirds-grid .grid-line.vertical {
+  top: 0;
+  bottom: 0;
+  width: 1px;
+}
+
+.oneui-rule-of-thirds-grid .grid-line.vertical.line-1 {
+  left: 33.333%;
+}
+
+.oneui-rule-of-thirds-grid .grid-line.vertical.line-2 {
+  left: 66.666%;
+}
+
+.oneui-rule-of-thirds-grid .grid-line.horizontal {
+  left: 0;
+  right: 0;
+  height: 1px;
+}
+
+.oneui-rule-of-thirds-grid .grid-line.horizontal.line-1 {
+  top: 33.333%;
+}
+
+.oneui-rule-of-thirds-grid .grid-line.horizontal.line-2 {
+  top: 66.666%;
+}
+
+.oneui-rule-of-thirds-grid .grid-dot {
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #f59e0b;
+  box-shadow: 0 0 6px rgba(245, 158, 11, 0.8), 0 0 1px #000;
+  transform: translate(-50%, -50%);
+}
+
+.oneui-rule-of-thirds-grid .grid-dot.dot-1 {
+  left: 33.333%;
+  top: 33.333%;
+}
+
+.oneui-rule-of-thirds-grid .grid-dot.dot-2 {
+  left: 66.666%;
+  top: 33.333%;
+}
+
+.oneui-rule-of-thirds-grid .grid-dot.dot-3 {
+  left: 33.333%;
+  top: 66.666%;
+}
+
+.oneui-rule-of-thirds-grid .grid-dot.dot-4 {
+  left: 66.666%;
+  top: 66.666%;
 }

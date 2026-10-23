@@ -1,12 +1,20 @@
 import React, { useRef, useState } from 'react';
-import { ImagePlus } from 'lucide-react';
+import { ImagePlus, RotateCcw, X } from 'lucide-react';
 import { APP_VERSION } from '../version';
 
 interface BatchDropzoneProps {
   onFilesSelected: (files: FileList | File[]) => void;
+  pendingDraft?: { count: number; savedAt: number } | null;
+  onRestoreDraft?: () => void;
+  onDiscardDraft?: () => void;
 }
 
-export const BatchDropzone: React.FC<BatchDropzoneProps> = ({ onFilesSelected }) => {
+export const BatchDropzone: React.FC<BatchDropzoneProps> = ({
+  onFilesSelected,
+  pendingDraft,
+  onRestoreDraft,
+  onDiscardDraft,
+}) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragOver, setIsDragOver] = useState(false);
 
@@ -67,6 +75,40 @@ export const BatchDropzone: React.FC<BatchDropzoneProps> = ({ onFilesSelected })
             Estudio de revelado digital y edición fotográfica
           </p>
         </div>
+
+        {/* Banner de Recuperación de Sesión Anterior (IndexedDB) */}
+        {pendingDraft && onRestoreDraft && (
+          <div className="oneui-draft-restore-card">
+            <div className="draft-card-header">
+              <RotateCcw size={16} style={{ color: '#f59e0b', flexShrink: 0 }} />
+              <div className="draft-card-text">
+                <strong>Sesión previa detectada</strong>
+                <span>
+                  {pendingDraft.count} {pendingDraft.count === 1 ? 'foto guardada' : 'fotos guardadas'} automáticamente
+                </span>
+              </div>
+            </div>
+            <div className="draft-card-actions">
+              <button
+                type="button"
+                onClick={onRestoreDraft}
+                className="draft-action-btn restore"
+              >
+                Restaurar sesión
+              </button>
+              {onDiscardDraft && (
+                <button
+                  type="button"
+                  onClick={onDiscardDraft}
+                  className="draft-action-btn discard"
+                  title="Descartar borrador"
+                >
+                  <X size={13} />
+                </button>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Botón Principal Táctil Estilo Samsung One UI */}
         <button

@@ -142,50 +142,115 @@ export function applyCpuToneAndSharpness(
     adjustments.highlights !== 0 ||
     adjustments.warmth !== 0;
   const hasSharpness = !skipSharpness && adjustments.sharpness > 0;
+  const hasClarity = (adjustments.clarity || 0) !== 0;
+  const hasNoiseReduction = (adjustments.noiseReduction || 0) > 0;
+  const skinToneGuard = adjustments.skinToneGuard !== false;
 
-  if (!hasTone && !hasSharpness) return;
+  if (!hasTone && !hasSharpness && !hasClarity && !hasNoiseReduction) return;
 
   try {
     const imgData = ctx.getImageData(x, y, width, height);
     const data = imgData.data;
     const len = data.length;
 
-    if (hasTone) {
-      const lut = getLumDeltaLut(adjustments.shadows, adjustments.highlights);
-      const warmthFactor = adjustments.warmth / 100;
+    // 1. Mapeo Tonal, Calidez, Protector de Piel y Claridad / Textura
+    if (hasTone || hasClarity) {
+      const lut =
+        adjustments.shadows !== 0 || adjustments.highlights !== 0
+          ? getLumDeltaLut(adjustments.shadows, adjustments.highlights)
+          : null;
+      const warmthFactor = (adjustments.warmth || 0) / 100;
       const wR = Math.round(warmthFactor * 22);
       const wG = Math.round(warmthFactor * 3);
       const wB = -wR;
+      const clarityFactor = (adjustments.clarity || 0) / 250;
 
-      if (adjustments.shadows !== 0 || adjustments.highlights !== 0) {
-        for (let i = 0; i < len; i += 4) {
-          const r = data[i];
-          const g = data[i + 1];
-          const b = data[i + 2];
-          const lum = (77 * r + 150 * g + 29 * b) >> 8;
-          const d = lut[lum];
+      for (let i = 0; i < len; i += 4) {
+        const r = data[i];
+        const g = data[i + 1];
+        const b = data[i + 2];
+        const lum = (77 * r + 150 * g + 29 * b) >> 8;
+        let d = lut ? lut[lum] : 0;
 
-          const nr = r + d + wR;
-          const ng = g + d + wG;
-          const nb = b + d + wB;
-
-          data[i] = nr < 0 ? 0 : nr > 255 ? 255 : nr;
-          data[i + 1] = ng < 0 ? 0 : ng > 255 ? 255 : ng;
-          data[i + 2] = nb < 0 ? 0 : nb > 255 ? 255 : nb;
+        // Claridad / Micro-contraste en medios tonos (ropas, textos, detalles de templo)
+        if (hasClarity && lum >= 35 && lum <= 220) {
+          d += Math.round((lum - 128) * clarityFactor);
         }
-      } else if (wR !== 0 || wG !== 0) {
-        // Solo calidez activa: bucle ultrarrápido sin cálculo de luminancia
-        for (let i = 0; i < len; i += 4) {
-          const nr = data[i] + wR;
-          const ng = data[i + 1] + wG;
-          const nb = data[i + 2] + wB;
-          data[i] = nr < 0 ? 0 : nr > 255 ? 255 : nr;
-          data[i + 1] = ng < 0 ? 0 : ng > 255 ? 255 : ng;
-          data[i + 2] = nb < 0 ? 0 : nb > 255 ? 255 : nb;
+
+        // Protector Inteligente de Tono de Piel (Skin Tone Guard)
+        let effWR = wR;
+        let effWG = wG;
+        let effWB = wB;
+
+        if (skinToneGuard && (wR !== 0 || wG !== 0)) {
+          // Heurística de tono de piel humano: R > G > B en ratios naturales
+          const isSkin = r > g && g > b && r - g >= 12 && g - b >= 4 && r > 60 && b < 215;
+          if (isSkin) {
+            effWR = Math.round(wR * 0.28);
+            effWG = Math.round(wG * 0.4);
+            effWB = -effWR;
+          }
+        }
+
+        const nr = r + d + effWR;
+        const ng = g + d + effWG;
+        const nb = b + d + effWB;
+
+        data[i] = nr < 0 ? 0 : nr > 255 ? 255 : nr;
+        data[i + 1] = ng < 0 ? 0 : ng > 255 ? 255 : ng;
+        data[i + 2] = nb < 0 ? 0 : nb > 255 ? 255 : nb;
+      }
+    }
+
+    // 2. Reducción de Ruido con filtro bilateral en sombras para ISO alto
+    if (hasNoiseReduction && width > 4 && height > 4) {
+      const nrStrength = (adjustments.noiseReduction || 0) / 100;
+      const threshold = Math.round(15 + nrStrength * 35);
+      const rowStride = width * 4;
+
+      if (!sharpnessScratchBuffer || sharpnessScratchBuffer.length < len) {
+        sharpnessScratchBuffer = new Uint8ClampedArray(len);
+      }
+      sharpnessScratchBuffer.set(data);
+      const copy = sharpnessScratchBuffer;
+
+      for (let py = 1; py < height - 1; py++) {
+        let idx = (py * width + 1) * 4;
+        for (let px = 1; px < width - 1; px++, idx += 4) {
+          const cR = copy[idx];
+          const cG = copy[idx + 1];
+          const cB = copy[idx + 2];
+          const lum = (77 * cR + 150 * cG + 29 * cB) >> 8;
+
+          if (lum < 155) {
+            let sumR = cR;
+            let sumG = cG;
+            let sumB = cB;
+            let count = 1;
+            const neighbors = [idx - 4, idx + 4, idx - rowStride, idx + rowStride];
+            for (let n = 0; n < 4; n++) {
+              const nIdx = neighbors[n];
+              const nR = copy[nIdx];
+              const nG = copy[nIdx + 1];
+              const nB = copy[nIdx + 2];
+              if (Math.abs(nR - cR) + Math.abs(nG - cG) + Math.abs(nB - cB) < threshold) {
+                sumR += nR;
+                sumG += nG;
+                sumB += nB;
+                count++;
+              }
+            }
+            if (count > 1) {
+              data[idx] = Math.round(cR * (1 - nrStrength * 0.7) + (sumR / count) * (nrStrength * 0.7));
+              data[idx + 1] = Math.round(cG * (1 - nrStrength * 0.7) + (sumG / count) * (nrStrength * 0.7));
+              data[idx + 2] = Math.round(cB * (1 - nrStrength * 0.7) + (sumB / count) * (nrStrength * 0.7));
+            }
+          }
         }
       }
     }
 
+    // 3. Nitidez de detalle (Filtro convolucional 3x3 optimizado)
     if (hasSharpness) {
       const amount = (adjustments.sharpness / 100) * 0.45;
       const amtFp = Math.round(amount * 256);
@@ -450,11 +515,11 @@ export function drawProcessedPhotoSync(
     baseSrcH = rawWidth / srcTargetRatio;
   }
 
-  let width: number;
-  let height: number;
-  const maxTargetDim = maxDimension > 0 ? maxDimension : 2560;
   const effectiveMaxW = isRotated90 ? rawHeight : rawWidth;
   const effectiveMaxH = isRotated90 ? rawWidth : rawHeight;
+  const maxTargetDim = maxDimension > 0 ? maxDimension : Math.max(effectiveMaxW, effectiveMaxH, 2560);
+  let width: number;
+  let height: number;
 
   if (targetRatio >= 1) {
     width = Math.min(effectiveMaxW, maxTargetDim);

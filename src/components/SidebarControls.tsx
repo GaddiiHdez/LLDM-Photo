@@ -27,6 +27,9 @@ import {
   Trash2,
   RefreshCw,
   Calendar,
+  Shield,
+  Download,
+  Upload,
 } from 'lucide-react';
 import { formatFrameDate } from '../utils/eventClassifier';
 import { HapticRuler } from './HapticRuler';
@@ -34,6 +37,8 @@ import {
   getCustomPresets,
   saveCustomPreset,
   deleteCustomPreset,
+  exportPresetsToFile,
+  importPresetsFromJson,
   type CustomPreset,
 } from '../utils/presetStorage';
 import type {
@@ -119,6 +124,7 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
 
   const [savedFrames, setSavedFrames] = useState<SavedPngFrame[]>([]);
   const framePngInputRef = useRef<HTMLInputElement>(null);
+  const presetJsonInputRef = useRef<HTMLInputElement>(null);
 
   // Estados de Arrastre Táctil para el Carrete Integrado One UI
   const [dragIndex, setDragIndex] = useState<number | null>(null);
@@ -256,6 +262,32 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
     setShowSavePresetInput(false);
   };
 
+  const handleExportPresets = () => {
+    if (customPresets.length === 0) {
+      alert('Guarda al menos un filtro personalizado antes de exportar.');
+      return;
+    }
+    exportPresetsToFile(customPresets);
+  };
+
+  const handleImportPresets = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result as string;
+      if (content) {
+        const res = importPresetsFromJson(content);
+        if (res.success) {
+          setCustomPresets(getCustomPresets());
+        }
+        alert(res.message);
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
   const lightParams: {
     key: keyof ImageAdjustments;
     label: string;
@@ -266,10 +298,12 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
   }[] = [
     { key: 'brightness', label: 'Exposición', icon: SunMedium, min: -100, max: 100, step: 1 },
     { key: 'contrast', label: 'Contraste', icon: Contrast, min: -100, max: 100, step: 1 },
+    { key: 'clarity', label: 'Claridad', icon: Sparkles, min: -100, max: 100, step: 1 },
     { key: 'highlights', label: 'Altas Luces', icon: Sun, min: -100, max: 100, step: 1 },
     { key: 'shadows', label: 'Sombras', icon: Moon, min: -100, max: 100, step: 1 },
     { key: 'saturation', label: 'Saturación', icon: Droplets, min: -100, max: 100, step: 1 },
     { key: 'warmth', label: 'Calidez', icon: Thermometer, min: -100, max: 100, step: 1 },
+    { key: 'noiseReduction', label: 'Reducir Ruido', icon: Shield, min: 0, max: 100, step: 1 },
     { key: 'sharpness', label: 'Nitidez', icon: Focus, min: 0, max: 100, step: 1 },
   ];
 
@@ -364,7 +398,7 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
   ];
 
   const activeParamConfig = lightParams.find((p) => p.key === activeLightParam) || lightParams[0];
-  const activeValue = photo.adjustments[activeLightParam] ?? 0;
+  const activeValue = Number(photo.adjustments[activeLightParam] ?? 0);
 
   return (
     <aside className="oneui-bottom-system">
@@ -436,11 +470,27 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
                 <span>Auto</span>
               </button>
 
+              {/* Botón Píldora "Protector de Piel IA" */}
+              <button
+                type="button"
+                onClick={() =>
+                  onUpdateAdjustments({
+                    ...photo.adjustments,
+                    skinToneGuard: photo.adjustments.skinToneGuard === false ? true : false,
+                  })
+                }
+                className={`oneui-auto-pill ${photo.adjustments.skinToneGuard !== false ? 'active' : ''}`}
+                title="Protector Inteligente de Tono de Piel: Evita que los rostros queden anaranjados al subir calidez"
+              >
+                <Shield size={10} style={{ display: 'inline', marginRight: 2 }} />
+                <span>Piel IA</span>
+              </button>
+
               {/* Diales Circulares */}
               {lightParams.map((p) => {
                 const Icon = p.icon;
                 const isSelected = activeLightParam === p.key;
-                const val = photo.adjustments[p.key] ?? 0;
+                const val = Number(photo.adjustments[p.key] ?? 0);
                 const isModified = val !== 0;
 
                 return (
@@ -636,6 +686,13 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
                 </div>
               ) : (
                 <div className="oneui-deck-actions-right">
+                  <input
+                    ref={presetJsonInputRef}
+                    type="file"
+                    accept=".json"
+                    onChange={handleImportPresets}
+                    style={{ display: 'none' }}
+                  />
                   <button
                     type="button"
                     onClick={() => setShowSavePresetInput(true)}
@@ -644,6 +701,24 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
                   >
                     <Plus size={11} />
                     <span>Guardar</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleExportPresets}
+                    className="oneui-reset-tiny-btn"
+                    title="Exportar mis filtros a un archivo JSON"
+                  >
+                    <Download size={11} />
+                    <span>Exportar</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => presetJsonInputRef.current?.click()}
+                    className="oneui-reset-tiny-btn"
+                    title="Importar filtros desde un archivo JSON"
+                  >
+                    <Upload size={11} />
+                    <span>Importar</span>
                   </button>
                   <button
                     type="button"

@@ -49,6 +49,9 @@ export interface ImageAdjustments {
   shadows: number;    // -100 to 100
   highlights: number; // -100 to 100
   sharpness: number;  // 0 to 100
+  clarity?: number;   // -100 to 100 (micro-contraste y textura en telas/templos)
+  noiseReduction?: number; // 0 to 100 (reducción de ruido para tomas con ISO alto)
+  skinToneGuard?: boolean; // true por defecto (protector inteligente de tonos de piel)
 }
 
 export interface WatermarkSettings {

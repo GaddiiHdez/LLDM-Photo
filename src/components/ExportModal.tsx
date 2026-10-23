@@ -101,7 +101,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
               </button>
             </div>
 
-            {/* SECCIÓN 2: CALIDAD Y RESOLUCIÓN (2 COLUMNAS SEGMENTADAS) */}
+            {/* SECCIÓN 2: PERFILES DE GUARDADO CON 1 TOQUE (SEGMENTADOS) */}
             <div className="oneui-segmented-row">
               <button
                 type="button"
@@ -111,12 +111,12 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                 <div className="oneui-segmented-header">
                   <span className="oneui-segmented-title">
                     <ShieldCheck size={14} style={{ color: options.qualityPreset === 'max' ? '#f59e0b' : 'inherit' }} />
-                    Original 95%
+                    Máxima Calidad (Original)
                   </span>
                   {options.qualityPreset === 'max' && <CheckCircle2 size={13} style={{ color: '#f59e0b' }} />}
                 </div>
                 <span className="oneui-segmented-desc">
-                  Máxima nitidez e impresión
+                  Archivo histórico e impresión (resolución completa)
                 </span>
               </button>
 
@@ -128,12 +128,12 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                 <div className="oneui-segmented-header">
                   <span className="oneui-segmented-title">
                     <Zap size={14} style={{ color: options.qualityPreset === 'social' ? '#f59e0b' : 'inherit' }} />
-                    Redes (2048px)
+                    Optimizado WhatsApp / Redes
                   </span>
                   {options.qualityPreset === 'social' && <CheckCircle2 size={13} style={{ color: '#f59e0b' }} />}
                 </div>
                 <span className="oneui-segmented-desc">
-                  3× más veloz, optimizado web
+                  Comprime el peso sin perder nitidez en WhatsApp
                 </span>
               </button>
             </div>

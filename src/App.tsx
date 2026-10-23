@@ -33,6 +33,13 @@ import {
   getFrameAspectRatio,
   resolveCropRatio,
 } from './utils/smartCrop';
+import {
+  saveSessionDraft,
+  checkSessionDraft,
+  restoreSessionDraft,
+  clearSessionDraft,
+  type DraftSummary,
+} from './utils/sessionDraftStorage';
 
 const PRESET_ADJUSTMENTS: Record<PresetType, ImageAdjustments> = {
   'auto-church': computeAdaptiveChurchEnhancement(null),
@@ -243,6 +250,40 @@ export const App: React.FC = () => {
     deliveryFormat: 'jpg',
   });
 
+  // Estado del Borrador de Sesión en Segundo Plano (IndexedDB)
+  const [pendingDraft, setPendingDraft] = useState<DraftSummary | null>(null);
+
+  // Estados y Refs del Historial de Edición Paso a Paso (Undo / Redo ↺ ↻)
+  interface PhotoSnapshot {
+    adjustments: ImageAdjustments;
+    crop: CropSettings;
+    preset: PresetType;
+  }
+  const historyMapRef = useRef<Map<string, { past: PhotoSnapshot[]; future: PhotoSnapshot[] }>>(new Map());
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
+  const isHistoryActionRef = useRef(false);
+  const historyDebounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const initialBurstSnapshotRef = useRef<PhotoSnapshot | null>(null);
+
+  // Comprobar borrador previo guardado en IndexedDB al inicio
+  useEffect(() => {
+    checkSessionDraft().then((summary) => {
+      if (summary?.exists && summary.count > 0) {
+        setPendingDraft(summary);
+      }
+    });
+  }, []);
+
+  // Guardado Automático de Sesión en IndexedDB (Debounced 1.5s ante cualquier cambio)
+  useEffect(() => {
+    if (photos.length === 0) return;
+    const timer = setTimeout(() => {
+      saveSessionDraft(photos, activePhotoId, frame, watermark);
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [photos, activePhotoId, frame, watermark]);
+
   // Referencia siempre actualizada del lote (para efectos asíncronos sin cierres obsoletos)
   const photosRef = useRef<PhotoItem[]>([]);
 
@@ -335,8 +376,214 @@ export const App: React.FC = () => {
   // Active photo selection
   const activePhoto = photos.find((p) => p.id === activePhotoId) || photos[0];
 
+  // Sincronizar disponibilidad de Undo/Redo al cambiar de foto activa
+  useEffect(() => {
+    if (historyDebounceTimerRef.current) {
+      clearTimeout(historyDebounceTimerRef.current);
+      historyDebounceTimerRef.current = null;
+    }
+    initialBurstSnapshotRef.current = null;
+
+    if (!activePhotoId) {
+      setCanUndo(false);
+      setCanRedo(false);
+      return;
+    }
+
+    const stack = historyMapRef.current.get(activePhotoId) || { past: [], future: [] };
+    historyMapRef.current.set(activePhotoId, stack);
+    setCanUndo(stack.past.length > 0);
+    setCanRedo(stack.future.length > 0);
+  }, [activePhotoId]);
+
+  // Registrar un snapshot en el historial para deshacer/rehacer paso a paso
+  const recordSnapshot = (photoId: string, currentSnapshot: PhotoSnapshot, immediate: boolean = false) => {
+    if (isHistoryActionRef.current) return;
+
+    const commitToPast = (snap: PhotoSnapshot) => {
+      const stack = historyMapRef.current.get(photoId) || { past: [], future: [] };
+      const last = stack.past[stack.past.length - 1];
+      const isIdentical =
+        last &&
+        last.preset === snap.preset &&
+        JSON.stringify(last.adjustments) === JSON.stringify(snap.adjustments) &&
+        JSON.stringify(last.crop) === JSON.stringify(snap.crop);
+
+      if (!isIdentical) {
+        stack.past.push({
+          adjustments: { ...snap.adjustments },
+          crop: { ...snap.crop },
+          preset: snap.preset,
+        });
+        if (stack.past.length > 30) stack.past.shift();
+      }
+      stack.future = [];
+      historyMapRef.current.set(photoId, stack);
+      if (photoId === activePhotoId) {
+        setCanUndo(true);
+        setCanRedo(false);
+      }
+    };
+
+    if (immediate) {
+      if (historyDebounceTimerRef.current) {
+        clearTimeout(historyDebounceTimerRef.current);
+        historyDebounceTimerRef.current = null;
+      }
+      commitToPast(currentSnapshot);
+      initialBurstSnapshotRef.current = null;
+    } else {
+      if (!initialBurstSnapshotRef.current) {
+        initialBurstSnapshotRef.current = {
+          adjustments: { ...currentSnapshot.adjustments },
+          crop: { ...currentSnapshot.crop },
+          preset: currentSnapshot.preset,
+        };
+      }
+      if (historyDebounceTimerRef.current) {
+        clearTimeout(historyDebounceTimerRef.current);
+      }
+      historyDebounceTimerRef.current = setTimeout(() => {
+        if (initialBurstSnapshotRef.current) {
+          commitToPast(initialBurstSnapshotRef.current);
+          initialBurstSnapshotRef.current = null;
+        }
+        historyDebounceTimerRef.current = null;
+      }, 450);
+    }
+  };
+
+  // Deshacer el último cambio de slider, filtro o encuadre (Undo)
+  const handleUndo = () => {
+    if (!activePhoto) return;
+    if (historyDebounceTimerRef.current) {
+      clearTimeout(historyDebounceTimerRef.current);
+      historyDebounceTimerRef.current = null;
+    }
+    initialBurstSnapshotRef.current = null;
+
+    const stack = historyMapRef.current.get(activePhoto.id);
+    if (!stack || stack.past.length === 0) return;
+
+    const prevSnapshot = stack.past.pop()!;
+    stack.future.push({
+      adjustments: { ...activePhoto.adjustments },
+      crop: { ...activePhoto.crop },
+      preset: activePhoto.preset,
+    });
+    historyMapRef.current.set(activePhoto.id, stack);
+
+    isHistoryActionRef.current = true;
+    setPhotos((prev) =>
+      prev.map((p) =>
+        p.id === activePhoto.id
+          ? {
+              ...p,
+              adjustments: { ...prevSnapshot.adjustments },
+              crop: { ...prevSnapshot.crop },
+              preset: prevSnapshot.preset,
+            }
+          : p
+      )
+    );
+
+    setCanUndo(stack.past.length > 0);
+    setCanRedo(true);
+    setTimeout(() => {
+      isHistoryActionRef.current = false;
+    }, 60);
+    showToast('↺ Deshecho');
+  };
+
+  // Rehacer el cambio deshecho (Redo)
+  const handleRedo = () => {
+    if (!activePhoto) return;
+    const stack = historyMapRef.current.get(activePhoto.id);
+    if (!stack || stack.future.length === 0) return;
+
+    const nextSnapshot = stack.future.pop()!;
+    stack.past.push({
+      adjustments: { ...activePhoto.adjustments },
+      crop: { ...activePhoto.crop },
+      preset: activePhoto.preset,
+    });
+    historyMapRef.current.set(activePhoto.id, stack);
+
+    isHistoryActionRef.current = true;
+    setPhotos((prev) =>
+      prev.map((p) =>
+        p.id === activePhoto.id
+          ? {
+              ...p,
+              adjustments: { ...nextSnapshot.adjustments },
+              crop: { ...nextSnapshot.crop },
+              preset: nextSnapshot.preset,
+            }
+          : p
+      )
+    );
+
+    setCanUndo(true);
+    setCanRedo(stack.future.length > 0);
+    setTimeout(() => {
+      isHistoryActionRef.current = false;
+    }, 60);
+    showToast('↻ Rehecho');
+  };
+
+  // Atajos de teclado para Deshacer (Ctrl+Z) y Rehacer (Ctrl+Y / Ctrl+Shift+Z)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+      if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key.toLowerCase() === 'z') {
+        e.preventDefault();
+        handleUndo();
+      } else if (
+        ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') ||
+        ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'z')
+      ) {
+        e.preventDefault();
+        handleRedo();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activePhoto]);
+
+  // Manejo de Borrador de Sesión
+  const handleRestoreDraft = async () => {
+    const res = await restoreSessionDraft();
+    if (res && res.photos.length > 0) {
+      setPhotos(res.photos);
+      setActivePhotoId(res.activePhotoId);
+      if (res.frame) setFrame(res.frame);
+      if (res.watermark) setWatermark(res.watermark);
+      setPendingDraft(null);
+      showToast(`✨ Sesión recuperada: ${res.photos.length} fotos cargadas`);
+    }
+  };
+
+  const handleDiscardDraft = async () => {
+    await clearSessionDraft();
+    setPendingDraft(null);
+    showToast('Sesión anterior descartada');
+  };
+
   // Update adjustments for active photo
   const handleUpdateAdjustments = (newAdjustments: ImageAdjustments) => {
+    if (activePhoto) {
+      recordSnapshot(
+        activePhoto.id,
+        {
+          adjustments: activePhoto.adjustments,
+          crop: activePhoto.crop,
+          preset: activePhoto.preset,
+        },
+        false
+      );
+    }
     setPhotos((prev) =>
       prev.map((p) => (p.id === activePhotoId ? { ...p, adjustments: newAdjustments, preset: 'custom' } : p))
     );
@@ -356,6 +603,17 @@ export const App: React.FC = () => {
   // Update crop settings for active photo (al cambiar de proporción se reencuadra de forma inteligente)
   const handleUpdateCrop = (newCrop: CropSettings) => {
     const current = photos.find((p) => p.id === activePhotoId);
+    if (current) {
+      recordSnapshot(
+        current.id,
+        {
+          adjustments: current.adjustments,
+          crop: current.crop,
+          preset: current.preset,
+        },
+        false
+      );
+    }
     setPhotos((prev) =>
       prev.map((p) => (p.id === activePhotoId ? { ...p, crop: newCrop } : p))
     );
@@ -372,6 +630,18 @@ export const App: React.FC = () => {
 
   // Apply preset to active photo (soporta auto-análisis dinámico y presets personalizados)
   const handleApplyPreset = async (preset: PresetType, customAdjustments?: ImageAdjustments) => {
+    if (activePhoto) {
+      recordSnapshot(
+        activePhoto.id,
+        {
+          adjustments: activePhoto.adjustments,
+          crop: activePhoto.crop,
+          preset: activePhoto.preset,
+        },
+        true
+      );
+    }
+
     if (preset === 'auto-church' && activePhoto) {
       showToast('⚡ Analizando rango dinámico e histograma...');
       const sensorData = await analyzeImageHistogram(activePhoto.originalUrl, activePhoto.isRaw);
@@ -470,6 +740,15 @@ export const App: React.FC = () => {
   // Revertir foto activa a estado original/neutro
   const handleRevertActivePhoto = () => {
     if (!activePhoto) return;
+    recordSnapshot(
+      activePhoto.id,
+      {
+        adjustments: activePhoto.adjustments,
+        crop: activePhoto.crop,
+        preset: activePhoto.preset,
+      },
+      true
+    );
     setPhotos((prev) =>
       prev.map((p) =>
         p.id === activePhoto.id
@@ -681,7 +960,7 @@ export const App: React.FC = () => {
     input.click();
   };
 
-  const handleGoHome = () => {
+  const handleGoHome = async () => {
     if (photos.length === 0) return;
     const confirmLeave = window.confirm('¿Deseas cerrar la sesión actual y volver al inicio?');
     if (!confirmLeave) return;
@@ -691,8 +970,10 @@ export const App: React.FC = () => {
         URL.revokeObjectURL(p.originalUrl);
       }
     });
+    await clearSessionDraft();
     setPhotos([]);
     setActivePhotoId('');
+    setPendingDraft(null);
     setActiveStudioTab('develop');
   };
 
@@ -707,6 +988,10 @@ export const App: React.FC = () => {
         showOriginal={showOriginal}
         hasUpdateBadge={hasUpdateBadge}
         hasModifications={hasModifications}
+        canUndo={canUndo}
+        canRedo={canRedo}
+        onUndo={handleUndo}
+        onRedo={handleRedo}
         onGoHome={handleGoHome}
         onToggleOriginal={(val) => setShowOriginal((prev) => (typeof val === 'boolean' ? val : !prev))}
         onSelectTheme={handleSelectTheme}
@@ -722,7 +1007,12 @@ export const App: React.FC = () => {
 
       {/* Main Studio Area */}
       {photos.length === 0 ? (
-        <BatchDropzone onFilesSelected={handleFilesSelected} />
+        <BatchDropzone
+          onFilesSelected={handleFilesSelected}
+          pendingDraft={pendingDraft}
+          onRestoreDraft={handleRestoreDraft}
+          onDiscardDraft={handleDiscardDraft}
+        />
       ) : (
         <div className={`studio-body ${activeStudioTab ? 'has-deck-open' : ''}`}>
           {/* Main Visual Column: Preview Stage */}
@@ -732,6 +1022,7 @@ export const App: React.FC = () => {
               watermark={watermark}
               frame={frame}
               showOriginal={showOriginal}
+              isCropMode={activeStudioTab === 'crop'}
               onToggleOriginal={(val) => setShowOriginal((prev) => (typeof val === 'boolean' ? val : !prev))}
               onSingleExport={handleSingleExport}
               onSingleShare={handleSingleShare}
