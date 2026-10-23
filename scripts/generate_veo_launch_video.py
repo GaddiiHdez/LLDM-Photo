@@ -15,17 +15,46 @@ import mimetypes
 import urllib.request
 import urllib.error
 
-DEFAULT_PROMPT = (
-    "Cinematic 9:16 vertical luxury tech commercial for mobile app BereaSnap. "
-    "Opening shot: An ultra-sleek obsidian titanium smartphone floats weightlessly in pitch-black AMOLED space (#000000). "
-    "Warm imperial golden rim lighting catches the chamfered glass edges. The screen illuminates as an intricate 3D golden 'B+S' "
-    "optical monogram rotates smoothly, unfurling like a camera aperture iris with anamorphic cyan and amber lens flares. "
-    "Camera smoothly dollies in: Seamless transition revealing the BereaSnap photo editing UI in dark AMOLED theme with Samsung One UI aesthetics. "
-    "Smooth glass slider controls for Skin Tone Guard and Clarity adjust with fluid micro-animations. A professional church choir "
-    "photograph on screen instantly reveals crisp white textile detail, high dynamic range, and radiant natural skin tones without clipping. "
-    "Final shot: Slow pullback to a heroic 3/4 angle on a polished reflective black studio surface, subtle golden bokeh dust floating in the air. "
-    "Master-level lighting, hyper-realistic 8k render, photorealistic product commercial style, ARRI Alexa 35mm optical look, 24fps."
-)
+PRESETS = {
+    "ui-mockup": {
+        "image": "public/promo/shot_2_ui_action_real.jpg",
+        "prompt": (
+            "Cinematic commercial macro shot of a sleek titanium smartphone floating in dark AMOLED space. "
+            "On the AMOLED display, the BereaSnap photo editor app is running in Samsung One UI dark theme, "
+            "editing the actual monumental church photograph from the starting frame. "
+            "Glowing golden glass sliders for 'Skin Tone Guard', 'Claridad', and 'Reducción de Ruido' adjust smoothly, "
+            "causing the church photograph on screen to dynamically enhance: highlights become radiant, the golden sanctuary "
+            "elements shimmer with anamorphic warm lens flares, and every detail gains crystalline sharpness. "
+            "Camera smoothly pulls back at 24fps, luxury tech commercial aesthetic, ARRI Alexa 35mm optical look."
+        )
+    },
+    "real-hp": {
+        "image": "public/promo/hermosa_provincia_santa_cena_real.jpg",
+        "prompt": (
+            "Cinematic camera movement slowly pushing in and panning across the monumental sanctuary of Hermosa Provincia during Santa Cena. "
+            "Golden beams of celestial light emanate from the grand sunburst chandelier and the golden commemorative frame adorned with wheat and grapes. "
+            "The vast congregation in pure white garments is illuminated with warm, reverent lighting and subtle floating golden bokeh particles. "
+            "Breathtaking church photography brought to life with pristine high dynamic range, ARRI Alexa cinematic look, 24fps."
+        )
+    },
+    "real-cintermex": {
+        "image": "public/promo/cintermex_monterrey_real.jpg",
+        "prompt": (
+            "Cinematic camera slowly rising and tracking across the grand Cintermex auditorium celebrating 100 years. "
+            "Thousands of faithful raise their hands as warm golden rays illuminate the monumental arch inscribed with 'SANTIDAD A JESUCRISTO 1926 - 2026' "
+            "and the gleaming golden flame sculpture. Soft anamorphic lens flares reflect off the golden typography and the Centenario seal. "
+            "Majestic, inspiring, documentary cinema grade, 24fps."
+        )
+    },
+    "shot-1-reveal": {
+        "image": "public/promo/shot_1_reveal.jpg",
+        "prompt": (
+            "Cinematic 9:16 vertical commercial opening. A sleek titanium smartphone floats in pure pitch-black AMOLED space (#000000). "
+            "Dramatic golden rim lighting sweeps along the curved glass edges. On screen, the luxury golden 'B+S' BereaSnap monogram rotates "
+            "and unfurls like an optical camera diaphragm with anamorphic lens flares and glowing warm light beams. 8k render, luxury tech ad."
+        )
+    }
+}
 
 BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
 
@@ -36,7 +65,7 @@ def get_api_key(cli_key: str | None) -> str:
         print("Configúrala antes de ejecutar:")
         print("  Windows PowerShell: $env:GEMINI_API_KEY = 'tu-api-key'")
         print("  O pásala como argumento: python generate_veo_launch_video.py --api-key tu-api-key\n")
-        print("Puedes obtener tu clave gratuita o de pago en: https://aistudio.google.com/app/apikey")
+        print("Puedes obtener tu clave en: https://aistudio.google.com/app/apikey")
         sys.exit(1)
     return key.strip()
 
@@ -50,7 +79,7 @@ def run_rest_veo(api_key: str, prompt: str, image_path: str | None, aspect_ratio
     instance = {"prompt": prompt}
 
     if image_path and os.path.exists(image_path):
-        print(f"🖼️ Adjuntando fotograma de referencia inicial: {image_path}")
+        print(f"🖼️ Adjuntando fotograma de referencia: {image_path}")
         mime_type, _ = mimetypes.guess_type(image_path)
         mime_type = mime_type or "image/jpeg"
         with open(image_path, "rb") as f:
@@ -128,7 +157,6 @@ def run_rest_veo(api_key: str, prompt: str, image_path: str | None, aspect_ratio
             samples = generate_response.get("generatedSamples", [])
 
             if not samples:
-                # Intento alternativo según versión del payload
                 samples = response_payload.get("generatedVideos", [])
 
             if not samples:
@@ -161,34 +189,49 @@ def run_rest_veo(api_key: str, prompt: str, image_path: str | None, aspect_ratio
 
 def main():
     parser = argparse.ArgumentParser(description="Generar video publicitario de lanzamiento con Veo 3.1 para BereaSnap.")
+    parser.add_argument("--preset", choices=list(PRESETS.keys()), default="ui-mockup",
+                        help="Preset preconfigurado ('ui-mockup' con foto real en pantalla, 'real-hp', 'real-cintermex', 'shot-1-reveal')")
     parser.add_argument("--api-key", help="Clave API de Gemini / Google AI Studio", default=None)
-    parser.add_argument("--prompt", help="Prompt cinemático", default=DEFAULT_PROMPT)
-    parser.add_argument("--first-frame", help="Ruta de imagen inicial para Image-to-Video", default=None)
+    parser.add_argument("--prompt", help="Prompt cinemático personalizado (opcional)", default=None)
+    parser.add_argument("--first-frame", help="Ruta de imagen inicial personalizada (opcional)", default=None)
     parser.add_argument("--aspect-ratio", help="Relación de aspecto (9:16 o 16:9)", default="9:16")
     parser.add_argument("--duration", type=int, help="Duración en segundos (5 a 8)", default=5)
     parser.add_argument("--resolution", help="Resolución (720p o 1080p)", default="720p")
     parser.add_argument("--model", help="Modelo de Veo a utilizar", default="veo-3.1-generate-preview")
-    parser.add_argument("--output", help="Ruta de destino del archivo .mp4", default="public/promo/bereasnap_launch_veo31_9x16.mp4")
+    parser.add_argument("--output", help="Ruta de destino del archivo .mp4", default=None)
 
     args = parser.parse_args()
 
     api_key = get_api_key(args.api_key)
 
-    # Si no se pasó first-frame explícito pero existe shot_1_reveal.jpg, ofrecer usarlo
-    first_frame = args.first_frame
-    default_shot1 = os.path.join(os.path.dirname(__file__), "..", "public", "promo", "shot_1_reveal.jpg")
-    if not first_frame and os.path.exists(default_shot1):
-        first_frame = default_shot1
+    preset_config = PRESETS.get(args.preset, PRESETS["ui-mockup"])
+    
+    # Resolver imagen
+    if args.first_frame:
+        image_path = args.first_frame
+    else:
+        root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+        image_path = os.path.join(root_dir, preset_config["image"])
+
+    # Resolver prompt
+    prompt = args.prompt or preset_config["prompt"]
+
+    # Resolver ruta de salida
+    if args.output:
+        output_path = args.output
+    else:
+        root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+        output_path = os.path.join(root_dir, "public", "promo", f"bereasnap_veo31_{args.preset}_{args.aspect_ratio.replace(':', 'x')}.mp4")
 
     success = run_rest_veo(
         api_key=api_key,
-        prompt=args.prompt,
-        image_path=first_frame,
+        prompt=prompt,
+        image_path=image_path,
         aspect_ratio=args.aspect_ratio,
         duration=args.duration,
         resolution=args.resolution,
         model=args.model,
-        output_path=args.output
+        output_path=output_path
     )
 
     if not success:
