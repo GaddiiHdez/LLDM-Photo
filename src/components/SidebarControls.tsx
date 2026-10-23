@@ -591,7 +591,7 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
                 />
               </div>
             ) : (
-              /* Carrusel Horizontal de Proporciones estilo One UI (Texto limpio con punto) */
+              /* Carrusel Horizontal de Proporciones estilo One UI (Píldoras táctiles) */
               <div className="oneui-ratios-carousel">
                 {ratioList.map((r) => {
                   const isSelected = (photo.crop?.aspectRatio || 'original') === r.id;
@@ -600,10 +600,9 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
                       key={r.id}
                       type="button"
                       onClick={() => handleCropChange('aspectRatio', r.id)}
-                      className={`oneui-ratio-text-btn ${isSelected ? 'active' : ''}`}
+                      className={`oneui-ratio-pill-btn ${isSelected ? 'active' : ''}`}
                     >
                       <span>{r.label}</span>
-                      {isSelected && <span className="oneui-ratio-active-dot" />}
                     </button>
                   );
                 })}
@@ -623,8 +622,8 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
                     type="text"
                     value={newPresetName}
                     onChange={(e) => setNewPresetName(e.target.value)}
-                    placeholder="Nombre del filtro..."
-                    className="oneui-deck-input"
+                    placeholder="Nombre filtro..."
+                    className="oneui-mini-input"
                     autoFocus
                     onKeyDown={(e) => e.key === 'Enter' && handleSaveCustomPreset()}
                   />
@@ -659,7 +658,7 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
               )}
             </div>
 
-            {/* Carrusel Horizontal de Presets */}
+            {/* Carrusel Horizontal de Presets Compacto */}
             <div className="oneui-presets-strip">
               {presetsList.map((p) => {
                 const Icon = p.icon;
@@ -670,12 +669,12 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
                     type="button"
                     onClick={() => onApplyPreset(p.id)}
                     className={`oneui-preset-card ${isActive ? 'active' : ''}`}
+                    title={p.shortDesc}
                   >
                     <div className="oneui-preset-icon-wrap">
-                      <Icon size={17} />
+                      <Icon size={14} />
                     </div>
                     <strong>{p.label}</strong>
-                    <span>{p.shortDesc}</span>
                   </button>
                 );
               })}
@@ -690,10 +689,9 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
                     className={`oneui-preset-card custom ${isActive ? 'active' : ''}`}
                   >
                     <div className="oneui-preset-icon-wrap">
-                      <Star size={15} fill={isActive ? '#fff' : '#f59e0b'} color={isActive ? '#fff' : '#f59e0b'} />
+                      <Star size={13} fill={isActive ? '#fff' : '#f59e0b'} color={isActive ? '#fff' : '#f59e0b'} />
                     </div>
                     <strong>{cp.name}</strong>
-                    <span>Personal</span>
                     <button
                       type="button"
                       onClick={(e) => {
@@ -701,6 +699,7 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
                         setCustomPresets(deleteCustomPreset(cp.id));
                       }}
                       className="oneui-preset-del"
+                      title="Eliminar filtro"
                     >
                       <X size={10} />
                     </button>

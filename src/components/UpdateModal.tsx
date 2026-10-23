@@ -55,37 +55,29 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
 
   return (
     <div
-      className="modal-backdrop"
+      className="modal-backdrop oneui-sheet-backdrop"
       onClick={onClose}
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 250,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: 'rgba(5, 8, 15, 0.82)',
-        backdropFilter: 'blur(12px)',
-        padding: '1rem',
-      }}
     >
       <div
-        className="card-glass"
+        className="oneui-bottom-sheet card-glass"
         onClick={(e) => e.stopPropagation()}
         style={{
           width: '100%',
-          maxWidth: '440px',
+          maxWidth: '460px',
           maxHeight: '90vh',
-          borderRadius: '1.25rem',
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
-          backgroundColor: '#0f1422',
+          backgroundColor: '#0d0d12',
           border: '1px solid rgba(255, 255, 255, 0.12)',
-          boxShadow: '0 20px 50px rgba(0, 0, 0, 0.75), 0 0 1px rgba(245, 158, 11, 0.3)',
+          boxShadow: '0 -16px 48px rgba(0, 0, 0, 0.85)',
           color: '#ffffff',
         }}
       >
+        {/* Manija One UI para deslizar o cerrar */}
+        <div className="oneui-sheet-handle-row" onClick={onClose} title="Cerrar">
+          <div className="oneui-sheet-handle" />
+        </div>
         {/* Header */}
         <div
           style={{

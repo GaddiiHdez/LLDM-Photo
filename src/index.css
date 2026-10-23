@@ -4313,10 +4313,9 @@ input[type="range"] {
 .oneui-ratios-carousel {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 1.15rem;
+  gap: 0.35rem;
   overflow-x: auto;
-  padding: 0.4rem 0.2rem;
+  padding: 0.2rem 0;
   scrollbar-width: none;
 }
 
@@ -4324,57 +4323,57 @@ input[type="range"] {
   display: none;
 }
 
-.oneui-ratio-text-btn {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  background: none;
-  border: none;
+.oneui-ratio-pill-btn {
+  flex-shrink: 0;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   color: #94a3b8;
-  font-size: 0.8rem;
-  font-weight: 500;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 0.22rem 0.6rem;
+  border-radius: 999px;
   cursor: pointer;
-  padding: 0.2rem 0;
-  transition: color 0.15s ease;
+  transition: all 0.12s ease;
+  white-space: nowrap;
 }
 
-.oneui-ratio-text-btn.active {
-  color: #ffffff;
-  font-weight: 800;
+.oneui-ratio-pill-btn:hover {
+  background: rgba(255, 255, 255, 0.09);
+  color: #e2e8f0;
 }
 
-.oneui-ratio-active-dot {
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
+.oneui-ratio-pill-btn.active {
   background: #f59e0b;
+  color: #000000;
+  border-color: #f59e0b;
+  font-weight: 700;
 }
 
 /* 5. Filtros One UI */
 .oneui-presets-strip {
   display: flex;
   align-items: center;
-  gap: 0.65rem;
+  gap: 0.45rem;
   overflow-x: auto;
-  padding: 0.25rem 0.1rem;
+  padding: 0.15rem 0.1rem;
   scrollbar-width: none;
 }
 
 .oneui-preset-card {
   flex: 0 0 auto;
-  width: 5.6rem;
-  padding: 0.55rem 0.35rem;
-  border-radius: 0.85rem;
+  width: 4.8rem;
+  padding: 0.35rem 0.35rem;
+  border-radius: 0.65rem;
   background: rgba(255, 255, 255, 0.04);
   border: 1.5px solid rgba(255, 255, 255, 0.07);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.25rem;
+  gap: 0.2rem;
   cursor: pointer;
   color: #94a3b8;
   transition: all 0.15s ease;
+  position: relative;
 }
 
 .oneui-preset-card:hover {
@@ -4382,14 +4381,15 @@ input[type="range"] {
 }
 
 .oneui-preset-card.active {
-  background: rgba(245, 158, 11, 0.12);
+  background: rgba(245, 158, 11, 0.1);
   border-color: #f59e0b;
   color: #ffffff;
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.2);
 }
 
 .oneui-preset-icon-wrap {
-  width: 32px;
-  height: 32px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.06);
   display: flex;
@@ -4403,15 +4403,13 @@ input[type="range"] {
 }
 
 .oneui-preset-card strong {
-  font-size: 0.68rem;
+  font-size: 0.64rem;
   font-weight: 700;
   text-align: center;
-}
-
-.oneui-preset-card span {
-  font-size: 0.6rem;
-  color: #64748b;
-  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 /* 6. Marcos One UI */
@@ -4758,4 +4756,147 @@ input[type="range"] {
   background: rgba(255, 255, 255, 0.1);
   border-color: #f59e0b;
   color: #f59e0b;
+}
+
+/* ============================================================
+   9. ONE UI BOTTOM SHEET MODALS (EXPORT, UPDATES, ACTIONS)
+   ============================================================ */
+@media (max-width: 900px) {
+  .modal-backdrop.oneui-sheet-backdrop {
+    align-items: flex-end !important;
+    padding: 0 !important;
+    background: rgba(0, 0, 0, 0.72) !important;
+    backdrop-filter: blur(8px) !important;
+  }
+
+  .export-modal.oneui-sheet,
+  .oneui-bottom-sheet {
+    width: 100% !important;
+    max-width: 100% !important;
+    border-radius: 24px 24px 0 0 !important;
+    border-left: none !important;
+    border-right: none !important;
+    border-bottom: none !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+    background: #0d0d12 !important;
+    box-shadow: 0 -12px 36px rgba(0, 0, 0, 0.9) !important;
+    padding: 0.45rem 1.15rem calc(1.15rem + env(safe-area-inset-bottom, 0px)) 1.15rem !important;
+    animation: oneuiSheetSlideUp 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  }
+}
+
+@keyframes oneuiSheetSlideUp {
+  from {
+    transform: translateY(100%);
+    opacity: 0.6;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.oneui-segmented-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  margin-bottom: 0.6rem;
+}
+
+.oneui-segmented-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.2rem;
+  padding: 0.55rem 0.75rem;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1.5px solid rgba(255, 255, 255, 0.08);
+  border-radius: 0.85rem;
+  cursor: pointer;
+  color: #94a3b8;
+  transition: all 0.15s ease;
+  text-align: left;
+}
+
+.oneui-segmented-card:hover {
+  background: rgba(255, 255, 255, 0.07);
+  color: #ffffff;
+}
+
+.oneui-segmented-card.active {
+  border-color: #f59e0b;
+  background: rgba(245, 158, 11, 0.08);
+  color: #ffffff;
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.2);
+}
+
+.oneui-segmented-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.oneui-segmented-title {
+  font-size: 0.78rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.oneui-segmented-desc {
+  font-size: 0.64rem;
+  opacity: 0.75;
+  line-height: 1.25;
+}
+
+.oneui-export-actions {
+  display: grid;
+  grid-template-columns: 1.5fr 1fr;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.oneui-primary-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: #000000;
+  font-weight: 800;
+  font-size: 0.84rem;
+  padding: 0.7rem 1rem;
+  border-radius: 999px;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 16px rgba(245, 158, 11, 0.35);
+  transition: all 0.15s ease;
+}
+
+.oneui-primary-action-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(245, 158, 11, 0.45);
+}
+
+.oneui-secondary-action-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #e2e8f0;
+  font-weight: 700;
+  font-size: 0.84rem;
+  padding: 0.7rem 1rem;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.oneui-secondary-action-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
 }
