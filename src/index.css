@@ -3897,6 +3897,8 @@ input[type="range"] {
 
 .oneui-header {
   background-color: #000000 !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
   min-height: 52px;
   height: calc(52px + env(safe-area-inset-top, 0px));
@@ -5540,9 +5542,10 @@ input[type="range"] {
 
 /* 9. Sheet de Selección de Guardado (Foto Actual vs Todo el Lote) */
 .oneui-save-choice-sheet {
+  width: 92%;
   max-width: 440px;
   margin: 0 auto;
-  padding-bottom: calc(1.2rem + env(safe-area-inset-bottom, 0px));
+  padding: 1.25rem 1.25rem calc(1.25rem + env(safe-area-inset-bottom, 0px)) 1.25rem;
 }
 
 .oneui-save-choice-options {

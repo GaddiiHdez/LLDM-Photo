@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Sun,
   Moon,
@@ -355,91 +356,94 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
       </div>
 
-      {/* Sheet de Selección de Guardado (Foto Actual vs Todo el Lote) */}
-      {isSaveChoiceOpen && (
-        <div
-          className="modal-backdrop oneui-sheet-backdrop"
-          style={{ zIndex: 9999 }}
-          onClick={() => setIsSaveChoiceOpen(false)}
-        >
+      {/* Sheet de Selección de Guardado renderizado en document.body vía Portal para evitar recorte en Header */}
+      {isSaveChoiceOpen &&
+        typeof document !== 'undefined' &&
+        createPortal(
           <div
-            className="oneui-save-choice-sheet oneui-sheet card-glass"
-            onClick={(e) => e.stopPropagation()}
+            className="modal-backdrop oneui-sheet-backdrop"
+            style={{ zIndex: 9999 }}
+            onClick={() => setIsSaveChoiceOpen(false)}
           >
-            <div className="oneui-sheet-handle-row" onClick={() => setIsSaveChoiceOpen(false)} title="Cerrar">
-              <div className="oneui-sheet-handle" />
-            </div>
-
-            <div className="oneui-deck-title-row" style={{ marginBottom: '0.85rem' }}>
-              <div className="oneui-param-title-group">
-                <span className="oneui-param-title" style={{ fontSize: '0.85rem' }}>¿QUÉ DESEAS GUARDAR?</span>
-                <span className="oneui-param-meta-tag">
-                  {totalPhotos} {totalPhotos === 1 ? 'fotografía' : 'fotografías en sesión'}
-                </span>
+            <div
+              className="oneui-save-choice-sheet oneui-bottom-sheet oneui-sheet card-glass"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="oneui-sheet-handle-row" onClick={() => setIsSaveChoiceOpen(false)} title="Cerrar">
+                <div className="oneui-sheet-handle" />
               </div>
+
+              <div className="oneui-deck-title-row" style={{ marginBottom: '0.85rem' }}>
+                <div className="oneui-param-title-group">
+                  <span className="oneui-param-title" style={{ fontSize: '0.85rem' }}>¿QUÉ DESEAS GUARDAR?</span>
+                  <span className="oneui-param-meta-tag">
+                    {totalPhotos} {totalPhotos === 1 ? 'fotografía' : 'fotografías en sesión'}
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsSaveChoiceOpen(false)}
+                  className="oneui-reset-tiny-btn"
+                  title="Cerrar"
+                >
+                  <X size={14} />
+                </button>
+              </div>
+
+              <div className="oneui-save-choice-options">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsSaveChoiceOpen(false);
+                    onSingleExport?.();
+                  }}
+                  className="oneui-save-choice-card"
+                >
+                  <div
+                    className="oneui-save-choice-icon-wrap"
+                    style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b' }}
+                  >
+                    <ImageIcon size={20} />
+                  </div>
+                  <div className="oneui-save-choice-text">
+                    <strong>Guardar solo foto actual ({currentPhotoIndex + 1} de {totalPhotos})</strong>
+                    <span>Guarda la foto seleccionada con todos sus ajustes aplicados</span>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsSaveChoiceOpen(false);
+                    onExportBatch();
+                  }}
+                  className="oneui-save-choice-card primary-border"
+                >
+                  <div
+                    className="oneui-save-choice-icon-wrap"
+                    style={{ background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8' }}
+                  >
+                    <FolderArchive size={20} />
+                  </div>
+                  <div className="oneui-save-choice-text">
+                    <strong>Guardar todo el lote ({totalPhotos} fotos)</strong>
+                    <span>Configurar y exportar todas las fotos a Galería o Archivo ZIP</span>
+                  </div>
+                </button>
+              </div>
+
               <button
                 type="button"
                 onClick={() => setIsSaveChoiceOpen(false)}
-                className="oneui-reset-tiny-btn"
-                title="Cerrar"
+                className="oneui-btn-secondary"
+                style={{ width: '100%', marginTop: '0.75rem', justifyContent: 'center' }}
               >
-                <X size={14} />
+                Cancelar
               </button>
             </div>
-
-            <div className="oneui-save-choice-options">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsSaveChoiceOpen(false);
-                  onSingleExport?.();
-                }}
-                className="oneui-save-choice-card"
-              >
-                <div
-                  className="oneui-save-choice-icon-wrap"
-                  style={{ background: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b' }}
-                >
-                  <ImageIcon size={20} />
-                </div>
-                <div className="oneui-save-choice-text">
-                  <strong>Guardar solo foto actual ({currentPhotoIndex + 1} de {totalPhotos})</strong>
-                  <span>Guarda la foto seleccionada con todos sus ajustes aplicados</span>
-                </div>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setIsSaveChoiceOpen(false);
-                  onExportBatch();
-                }}
-                className="oneui-save-choice-card primary-border"
-              >
-                <div
-                  className="oneui-save-choice-icon-wrap"
-                  style={{ background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8' }}
-                >
-                  <FolderArchive size={20} />
-                </div>
-                <div className="oneui-save-choice-text">
-                  <strong>Guardar todo el lote ({totalPhotos} fotos)</strong>
-                  <span>Configurar y exportar todas las fotos a Galería o Archivo ZIP</span>
-                </div>
-              </button>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setIsSaveChoiceOpen(false)}
-              className="oneui-btn-secondary"
-              style={{ width: '100%', marginTop: '0.75rem', justifyContent: 'center' }}
-            >
-              Cancelar
-            </button>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body
+        )}
     </header>
   );
 };

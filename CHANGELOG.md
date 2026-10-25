@@ -4,6 +4,13 @@ Todas las actualizaciones y mejoras notables de BereaSnap están documentadas en
 
 ---
 
+## [1.5.3] - 2026-10-25
+
+### 🩹 Corrección de Renderizado del Menú de Guardado (Hotfix)
+* **Renderizado en Pantalla Completa (React Portal)**: Se corrigió el fallo donde el menú de selección de guardado ("¿Qué deseas guardar?") quedaba atrapado y recortado dentro de los 52px de la barra superior debido al filtro de desenfoque (`backdrop-filter`) del encabezado. Ahora se inyecta directamente en la raíz de la pantalla (`document.body`), desplegándose limpiamente como una hoja inferior completa estilo Samsung One UI en la parte baja del teléfono.
+
+---
+
 ## [1.5.2] - 2026-10-25
 
 ### 🩹 Correcciones Críticas de Experiencia y Usabilidad Móvil
