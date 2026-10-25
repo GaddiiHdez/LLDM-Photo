@@ -4,6 +4,16 @@ Todas las actualizaciones y mejoras notables de BereaSnap están documentadas en
 
 ---
 
+## [1.5.2] - 2026-10-25
+
+### 🩹 Correcciones Críticas de Experiencia y Usabilidad Móvil
+* **Barra Superior Optimizada (Cero Desbordamiento)**: Se rediseñó el espaciado y tamaño de los controles en la barra de navegación superior. En pantallas móviles compactas se oculta el texto secundario de "Revertir" (manteniendo su icono activo) y se protege la prioridad de los botones de la derecha, evitando que el botón "Guardar" o el menú de opciones (⋮) queden recortados o fuera de la pantalla.
+* **Menú Inteligente de Guardado (Foto Actual vs Todo el Lote)**: Al presionar el botón "Guardar" teniendo más de una fotografía en la sesión, ahora se despliega una hoja inferior táctil (One UI Save Sheet) que te permite elegir con claridad entre guardar únicamente la fotografía activa o exportar el lote completo con sus ajustes a la Galería o ZIP. Si solo tienes una foto cargada, se guarda al instante con un solo toque.
+* **Gesto Táctil de Desplazamiento Fluido en el Carrete de Sesión**: Se solucionó la restricción táctil que impedía deslizar horizontalmente con el dedo a través de las miniaturas del carrete. Ahora puedes navegar con total suavidad con un toque y desplazamiento natural hasta la última foto de la sesión, reservando la pulsación prolongada (450ms) únicamente para reordenar fotos.
+* **Centrado Automático de Fotografía Activa**: Al cambiar de foto o tocar un elemento en el carrete, la miniatura correspondiente se desplaza suavemente al centro de la vista sin tener que buscarla manualmente.
+
+---
+
 ## [1.5.1] - 2026-10-22
 
 ### 📲 Actualizaciones Integradas Directas (In-App OTA)

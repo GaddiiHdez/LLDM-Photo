@@ -143,14 +143,16 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
 
   const handlePointerDown = (e: React.PointerEvent<HTMLElement>, index: number) => {
     if (e.button !== 0 && e.pointerType === 'mouse') return;
+    // Solo inicia el temporizador de reordenar con pulsación larga deliberada (450ms)
+    // para no bloquear el deslizamiento / swipe horizontal natural con el dedo
     const timer = window.setTimeout(() => {
       setIsDragging(true);
       setDragIndex(index);
       setDropIndex(index);
       if (typeof navigator !== 'undefined' && navigator.vibrate) {
-        navigator.vibrate(35);
+        navigator.vibrate(40);
       }
-    }, 140);
+    }, 450);
 
     pointerDownRef.current = {
       startX: e.clientX,
@@ -170,7 +172,9 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
     const dy = Math.abs(e.clientY - downInfo.startY);
 
     if (!isDragging) {
-      if (dx > 8 || dy > 8) {
+      // Si el dedo se mueve más de 6px antes de los 450ms, es un GESTO DE DESPLAZAMIENTO (Swipe):
+      // cancelamos el temporizador de reordenamiento y permitimos que el navegador desplace el carrete
+      if (dx > 6 || dy > 6) {
         if (downInfo.timer) {
           clearTimeout(downInfo.timer);
           downInfo.timer = null;
@@ -241,6 +245,22 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
     setDropIndex(null);
     pointerDownRef.current = null;
   };
+
+  // Auto-scroll del carrete para centrar la foto activa cuando se selecciona o cambia
+  useEffect(() => {
+    if (photo && filmstripScrollerRef.current && activeTab === 'filmstrip') {
+      const activeEl = filmstripScrollerRef.current.querySelector(
+        '.oneui-filmstrip-thumb.active'
+      ) as HTMLElement | null;
+      if (activeEl) {
+        activeEl.scrollIntoView({
+          behavior: 'smooth',
+          inline: 'center',
+          block: 'nearest',
+        });
+      }
+    }
+  }, [photo?.id, activeTab]);
 
   useEffect(() => {
     const syncStorage = () => {
