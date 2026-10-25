@@ -1064,16 +1064,24 @@ export const App: React.FC = () => {
         </div>
       )}
 
-      {/* Modal Configuración y Progreso de Exportación ZIP */}
+      {/* Modal Configuración y Progreso de Exportación (Foto Actual o Lote Completo) */}
       <ExportModal
         isOpen={isExportModalOpen || isExporting}
         isProcessing={isExporting}
         current={exportProgress.current}
         total={photos.length}
+        currentPhotoIndex={currentPhotoIndex >= 0 ? currentPhotoIndex : 0}
         currentName={exportProgress.currentName}
         options={exportOptions}
         onChangeOptions={setExportOptions}
         onStartExport={handleStartBatchExport}
+        onSingleExport={(mode) => {
+          if (mode === 'share') {
+            handleSingleShare();
+          } else {
+            handleSingleExport();
+          }
+        }}
         onClose={() => setIsExportModalOpen(false)}
       />
 

@@ -4,6 +4,15 @@ Todas las actualizaciones y mejoras notables de BereaSnap están documentadas en
 
 ---
 
+## [1.5.4] - 2026-10-25
+
+### 🎨 Barra Superior y Ventana de Guardado Rediseñadas
+* **Barra superior sin desbordamiento**: Se compactaron los botones (atrás, deshacer, rehacer, contador, ojo, Guardar, Compartir y menú ⋮) para que quepan completos en pantallas de teléfono. "Revertir" ya no ocupa espacio en la barra en móvil: ahora está dentro del menú ⋮ como "Revertir foto original".
+* **Botón Compartir visible**: El icono de compartir ahora se muestra siempre en la barra, con tamaño táctil normal.
+* **Ventana de guardado unificada**: Al tocar "Guardar" se abre una sola hoja inferior con el mismo diseño One UI del resto de la app, donde eliges "Foto actual" o "Todo el lote", calidad, formato (JPG/ZIP) y prefijo. Se eliminó la ventana intermedia y el botón "Cancelar" que rompía la estética; se cierra con la manija, la X o tocando fuera.
+
+---
+
 ## [1.5.3] - 2026-10-25
 
 ### 🩹 Corrección de Renderizado del Menú de Guardado (Hotfix)

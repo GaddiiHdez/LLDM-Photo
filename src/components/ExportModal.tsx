@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
-import { Sparkles, RefreshCw, Download, Share2, X, CheckCircle2, Zap, ShieldCheck, Images, FileArchive } from 'lucide-react';
+import { Sparkles, RefreshCw, Download, Share2, X, CheckCircle2, Zap, ShieldCheck, Images, Image as ImageIcon, FileArchive } from 'lucide-react';
 import type { ExportOptions } from '../types/editor';
 
 interface ExportModalProps {
@@ -8,10 +8,12 @@ interface ExportModalProps {
   isProcessing: boolean;
   current: number;
   total: number;
+  currentPhotoIndex?: number;
   currentName: string;
   options: ExportOptions;
   onChangeOptions: (opts: ExportOptions) => void;
   onStartExport: (mode: 'download' | 'share') => void;
+  onSingleExport?: (mode: 'download' | 'share') => void;
   onClose: () => void;
 }
 
@@ -20,19 +22,49 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   isProcessing,
   current,
   total,
+  currentPhotoIndex = 0,
   currentName,
   options,
   onChangeOptions,
   onStartExport,
+  onSingleExport,
   onClose,
 }) => {
+  const [exportScope, setExportScope] = useState<'single' | 'batch'>('single');
+
+  useEffect(() => {
+    if (isOpen && total === 1) {
+      setExportScope('single');
+    }
+  }, [isOpen, total]);
+
   if (!isOpen) return null;
 
   const percentage = total > 0 ? Math.round((current / total) * 100) : 0;
   const isNative = Capacitor.isNativePlatform();
   const delivery = options.deliveryFormat || 'jpg';
-  const primaryLabel =
-    delivery === 'zip' ? 'Guardar ZIP' : isNative ? 'Guardar en Galería' : 'Descargar JPG';
+  const isBatchMode = total > 1 && exportScope === 'batch';
+
+  const primaryLabel = isBatchMode
+    ? delivery === 'zip'
+      ? `Guardar ZIP (${total})`
+      : isNative
+        ? `Guardar ${total} Fotos`
+        : `Descargar ${total} JPG`
+    : isNative
+      ? 'Guardar en Galería'
+      : 'Descargar JPG';
+
+  const handleAction = (mode: 'download' | 'share') => {
+    if (isBatchMode) {
+      onStartExport(mode);
+    } else if (onSingleExport) {
+      onSingleExport(mode);
+      onClose();
+    } else {
+      onStartExport(mode);
+    }
+  };
 
   return (
     <div className="modal-backdrop oneui-sheet-backdrop" onClick={!isProcessing ? onClose : undefined}>
@@ -49,9 +81,9 @@ export const ExportModal: React.FC<ExportModalProps> = ({
           <>
             <div className="oneui-deck-title-row" style={{ marginBottom: '0.65rem' }}>
               <div className="oneui-param-title-group">
-                <span className="oneui-param-title" style={{ fontSize: '0.85rem' }}>EXPORTAR LOTE</span>
+                <span className="oneui-param-title" style={{ fontSize: '0.85rem' }}>GUARDAR FOTOGRAFÍA</span>
                 <span className="oneui-param-meta-tag">
-                  {total} {total === 1 ? 'fotografía' : 'fotografías'}
+                  {total} {total === 1 ? 'foto' : 'fotos'}
                 </span>
               </div>
               <button
@@ -64,42 +96,83 @@ export const ExportModal: React.FC<ExportModalProps> = ({
               </button>
             </div>
 
-            {/* SECCIÓN 1: FORMATO DE ENTREGA (2 COLUMNAS SEGMENTADAS) */}
-            <div className="oneui-segmented-row">
-              <button
-                type="button"
-                onClick={() => onChangeOptions({ ...options, deliveryFormat: 'jpg' })}
-                className={`oneui-segmented-card ${delivery === 'jpg' ? 'active' : ''}`}
-              >
-                <div className="oneui-segmented-header">
-                  <span className="oneui-segmented-title">
-                    <Images size={14} style={{ color: delivery === 'jpg' ? '#f59e0b' : 'inherit' }} />
-                    Fotos JPG
+            {/* SECCIÓN 0: ALCANCE DE GUARDADO (FOTO ACTUAL vs TODO EL LOTE) */}
+            {total > 1 && (
+              <div className="oneui-segmented-row">
+                <button
+                  type="button"
+                  onClick={() => setExportScope('single')}
+                  className={`oneui-segmented-card ${exportScope === 'single' ? 'active' : ''}`}
+                >
+                  <div className="oneui-segmented-header">
+                    <span className="oneui-segmented-title">
+                      <ImageIcon size={14} style={{ color: exportScope === 'single' ? '#f59e0b' : 'inherit' }} />
+                      Foto Actual ({currentPhotoIndex + 1}/{total})
+                    </span>
+                    {exportScope === 'single' && <CheckCircle2 size={13} style={{ color: '#f59e0b' }} />}
+                  </div>
+                  <span className="oneui-segmented-desc">
+                    Solo la foto visible en pantalla
                   </span>
-                  {delivery === 'jpg' && <CheckCircle2 size={13} style={{ color: '#f59e0b' }} />}
-                </div>
-                <span className="oneui-segmented-desc">
-                  {isNative ? 'Directo a Galería de fotos' : 'Archivos JPG individuales'}
-                </span>
-              </button>
+                </button>
 
-              <button
-                type="button"
-                onClick={() => onChangeOptions({ ...options, deliveryFormat: 'zip' })}
-                className={`oneui-segmented-card ${delivery === 'zip' ? 'active' : ''}`}
-              >
-                <div className="oneui-segmented-header">
-                  <span className="oneui-segmented-title">
-                    <FileArchive size={14} style={{ color: delivery === 'zip' ? '#f59e0b' : 'inherit' }} />
-                    Archivo ZIP
+                <button
+                  type="button"
+                  onClick={() => setExportScope('batch')}
+                  className={`oneui-segmented-card ${exportScope === 'batch' ? 'active' : ''}`}
+                >
+                  <div className="oneui-segmented-header">
+                    <span className="oneui-segmented-title">
+                      <Images size={14} style={{ color: exportScope === 'batch' ? '#f59e0b' : 'inherit' }} />
+                      Todo el Lote ({total})
+                    </span>
+                    {exportScope === 'batch' && <CheckCircle2 size={13} style={{ color: '#f59e0b' }} />}
+                  </div>
+                  <span className="oneui-segmented-desc">
+                    Procesar las {total} fotos de la sesión
                   </span>
-                  {delivery === 'zip' && <CheckCircle2 size={13} style={{ color: '#f59e0b' }} />}
-                </div>
-                <span className="oneui-segmented-desc">
-                  Lote comprimido único
-                </span>
-              </button>
-            </div>
+                </button>
+              </div>
+            )}
+
+            {/* SECCIÓN 1: FORMATO DE ENTREGA (SOLO EN MODO LOTE) */}
+            {isBatchMode && (
+              <div className="oneui-segmented-row">
+                <button
+                  type="button"
+                  onClick={() => onChangeOptions({ ...options, deliveryFormat: 'jpg' })}
+                  className={`oneui-segmented-card ${delivery === 'jpg' ? 'active' : ''}`}
+                >
+                  <div className="oneui-segmented-header">
+                    <span className="oneui-segmented-title">
+                      <Images size={14} style={{ color: delivery === 'jpg' ? '#f59e0b' : 'inherit' }} />
+                      Fotos JPG
+                    </span>
+                    {delivery === 'jpg' && <CheckCircle2 size={13} style={{ color: '#f59e0b' }} />}
+                  </div>
+                  <span className="oneui-segmented-desc">
+                    {isNative ? 'Directo a Galería de fotos' : 'Archivos JPG individuales'}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => onChangeOptions({ ...options, deliveryFormat: 'zip' })}
+                  className={`oneui-segmented-card ${delivery === 'zip' ? 'active' : ''}`}
+                >
+                  <div className="oneui-segmented-header">
+                    <span className="oneui-segmented-title">
+                      <FileArchive size={14} style={{ color: delivery === 'zip' ? '#f59e0b' : 'inherit' }} />
+                      Archivo ZIP
+                    </span>
+                    {delivery === 'zip' && <CheckCircle2 size={13} style={{ color: '#f59e0b' }} />}
+                  </div>
+                  <span className="oneui-segmented-desc">
+                    Lote comprimido único
+                  </span>
+                </button>
+              </div>
+            )}
 
             {/* SECCIÓN 2: PERFILES DE GUARDADO CON 1 TOQUE (SEGMENTADOS) */}
             <div className="oneui-segmented-row">
@@ -167,7 +240,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
             <div className="oneui-export-actions">
               <button
                 type="button"
-                onClick={() => onStartExport('download')}
+                onClick={() => handleAction('download')}
                 className="oneui-primary-action-btn"
               >
                 <Download size={16} />
@@ -176,7 +249,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
 
               <button
                 type="button"
-                onClick={() => onStartExport('share')}
+                onClick={() => handleAction('share')}
                 className="oneui-secondary-action-btn"
                 title="Compartir por WhatsApp, Telegram o Drive"
               >
