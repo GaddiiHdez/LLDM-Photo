@@ -11,6 +11,8 @@ import {
   Focus,
   Copy,
   Shield,
+  Palette,
+  Pipette,
 } from 'lucide-react';
 import { HapticRuler } from '../HapticRuler';
 import type { PhotoItem, ImageAdjustments, PresetType } from '../../types/editor';
@@ -20,6 +22,8 @@ interface DevelopTabProps {
   onUpdateAdjustments: (adjustments: ImageAdjustments) => void;
   onApplyPreset: (preset: PresetType, customAdjustments?: ImageAdjustments) => void | Promise<void>;
   onApplySettingsToAll?: () => void;
+  isEyedropperActive?: boolean;
+  onToggleEyedropper?: () => void;
 }
 
 const LIGHT_PARAMS: {
@@ -37,6 +41,7 @@ const LIGHT_PARAMS: {
   { key: 'shadows', label: 'Sombras', icon: Moon, min: -100, max: 100, step: 1 },
   { key: 'saturation', label: 'Saturación', icon: Droplets, min: -100, max: 100, step: 1 },
   { key: 'warmth', label: 'Calidez', icon: Thermometer, min: -100, max: 100, step: 1 },
+  { key: 'tint', label: 'Matiz', icon: Palette, min: -100, max: 100, step: 1 },
   { key: 'noiseReduction', label: 'Reducir Ruido', icon: Shield, min: 0, max: 100, step: 1 },
   { key: 'sharpness', label: 'Nitidez', icon: Focus, min: 0, max: 100, step: 1 },
 ];
@@ -46,6 +51,8 @@ export const DevelopTab: React.FC<DevelopTabProps> = ({
   onUpdateAdjustments,
   onApplyPreset,
   onApplySettingsToAll,
+  isEyedropperActive = false,
+  onToggleEyedropper,
 }) => {
   const [activeLightParam, setActiveLightParam] = useState<keyof ImageAdjustments>('brightness');
 
@@ -123,6 +130,18 @@ export const DevelopTab: React.FC<DevelopTabProps> = ({
           <Shield size={10} style={{ display: 'inline', marginRight: 2 }} />
           <span>Piel IA</span>
         </button>
+
+        {onToggleEyedropper && (
+          <button
+            type="button"
+            onClick={onToggleEyedropper}
+            className={`oneui-auto-pill ${isEyedropperActive ? 'active' : ''}`}
+            title="Gotero de Balance de Blancos: toca un tono blanco o gris neutro en la foto"
+          >
+            <Pipette size={10} style={{ display: 'inline', marginRight: 2 }} />
+            <span>Gotero WB</span>
+          </button>
+        )}
 
         {LIGHT_PARAMS.map((p) => {
           const Icon = p.icon;

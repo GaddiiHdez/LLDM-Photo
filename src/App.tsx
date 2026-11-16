@@ -9,6 +9,7 @@ import { SidebarControls } from './components/SidebarControls';
 import { ExportModal } from './components/ExportModal';
 import { UpdateModal } from './components/UpdateModal';
 import { checkForUpdate, type UpdateInfo } from './services/updateService';
+import { consumePendingSharedFiles, subscribeSharedFiles } from './services/shareReceiver';
 import { APP_VERSION } from './version';
 
 import type {
@@ -137,8 +138,9 @@ export const App: React.FC = () => {
     setTheme(mode);
   };
 
-  // Compare Before/After State
+  // Compare Before/After State & Gotero de Balance de Blancos
   const [showOriginal, setShowOriginal] = useState<boolean>(false);
+  const [isEyedropperActive, setIsEyedropperActive] = useState<boolean>(false);
 
   // Global Toast Notification (Popover manual + fallback)
   const [toastMsg, setToastMsg] = useState<string | null>(null);
@@ -292,6 +294,7 @@ export const App: React.FC = () => {
 
   // Referencia siempre actualizada del lote (para efectos asíncronos sin cierres obsoletos)
   const photosRef = useRef<PhotoItem[]>([]);
+  const handleFilesSelectedRef = useRef<(files: FileList | File[]) => Promise<void>>(async () => {});
 
   // Procesa elementos con concurrencia limitada para evitar picos de RAM en Android con lotes grandes / RAW
   async function mapWithConcurrency<T, R>(
@@ -393,6 +396,53 @@ export const App: React.FC = () => {
     if (!activePhotoId && newPhotos.length > 0) {
       setActivePhotoId(newPhotos[0].id);
     }
+  };
+  handleFilesSelectedRef.current = handleFilesSelected;
+
+  // Escuchar fotos compartidas directamente desde Galería Android ("Compartir → BereaSnap")
+  useEffect(() => {
+    let cleanup = () => {};
+    consumePendingSharedFiles().then((files) => {
+      if (files.length > 0) {
+        handleFilesSelectedRef.current(files);
+        showToast(`📲 ${files.length} ${files.length === 1 ? 'foto recibida' : 'fotos recibidas'} desde Galería`);
+      }
+    });
+    subscribeSharedFiles((files) => {
+      handleFilesSelectedRef.current(files);
+      showToast(`📲 ${files.length} ${files.length === 1 ? 'foto añadida' : 'fotos añadidas'} desde Galería`);
+    }).then((unsub) => {
+      cleanup = unsub;
+    });
+    return () => cleanup();
+  }, []);
+
+  // Desactivar gotero al cambiar de foto o pestaña
+  useEffect(() => {
+    setIsEyedropperActive(false);
+  }, [activePhotoId, activeStudioTab]);
+
+  // Aplicar balance de blancos muestreado con el gotero
+  const handlePickWhiteBalance = (warmth: number, tint: number) => {
+    if (!activePhoto) return;
+    recordSnapshot(
+      activePhoto.id,
+      {
+        adjustments: activePhoto.adjustments,
+        crop: activePhoto.crop,
+        preset: activePhoto.preset,
+      },
+      true
+    );
+    setPhotos((prev) =>
+      prev.map((p) =>
+        p.id === activePhoto.id
+          ? { ...p, adjustments: { ...p.adjustments, warmth, tint }, preset: 'custom' }
+          : p
+      )
+    );
+    setIsEyedropperActive(false);
+    showToast(`🎯 Balance calibrado (Calidez ${warmth > 0 ? `+${warmth}` : warmth} • Matiz ${tint > 0 ? `+${tint}` : tint})`);
   };
 
   // Mantener referencia fresca del lote
@@ -758,6 +808,7 @@ export const App: React.FC = () => {
         activePhoto.adjustments.contrast !== 0 ||
         activePhoto.adjustments.saturation !== 0 ||
         activePhoto.adjustments.warmth !== 0 ||
+        (activePhoto.adjustments.tint || 0) !== 0 ||
         activePhoto.adjustments.shadows !== 0 ||
         activePhoto.adjustments.highlights !== 0 ||
         activePhoto.adjustments.sharpness !== 0 ||
@@ -794,6 +845,7 @@ export const App: React.FC = () => {
               ...p,
               adjustments: {
                 ...PRESET_ADJUSTMENTS['custom'],
+                tint: 0,
                 clarity: 0,
                 noiseReduction: 0,
                 skinToneGuard: true,
@@ -1094,7 +1146,11 @@ export const App: React.FC = () => {
               frame={frame}
               showOriginal={showOriginal}
               isCropMode={activeStudioTab === 'crop'}
+              isEyedropperActive={isEyedropperActive}
               onToggleOriginal={(val) => setShowOriginal((prev) => (typeof val === 'boolean' ? val : !prev))}
+              onPickWhiteBalance={handlePickWhiteBalance}
+              onCancelEyedropper={() => setIsEyedropperActive(false)}
+              onNotify={showToast}
               onSingleExport={handleSingleExport}
               onSingleShare={handleSingleShare}
               onUpdateCrop={handleUpdateCrop}
@@ -1132,6 +1188,8 @@ export const App: React.FC = () => {
             activeTab={activeStudioTab}
             onChangeTab={setActiveStudioTab}
             onNotify={showToast}
+            isEyedropperActive={isEyedropperActive}
+            onToggleEyedropper={() => setIsEyedropperActive((prev) => !prev)}
           />
         </div>
       )}

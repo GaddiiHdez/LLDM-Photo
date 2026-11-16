@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { getCustomPresets, type CustomPreset } from '../utils/presetStorage';
 import { getSavedPngFrames, type SavedPngFrame } from '../utils/frameStorage';
+import { getSavedLogos, type SavedLogo } from '../utils/logoStorage';
 import { DevelopTab } from './sidebar/DevelopTab';
 import { CropTab } from './sidebar/CropTab';
 import { PresetsTab } from './sidebar/PresetsTab';
@@ -51,19 +52,24 @@ interface SidebarControlsProps {
   isFilmstripOpen?: boolean;
   onToggleFilmstrip?: () => void;
   onNotify?: (msg: string) => void;
+  isEyedropperActive?: boolean;
+  onToggleEyedropper?: () => void;
 }
 
 export const SidebarControls: React.FC<SidebarControlsProps> = ({
   photo,
+  watermark,
   frame,
   onUpdateAdjustments,
   onUpdateCrop,
   onApplyPreset,
+  onUpdateWatermark,
   onUpdateFrame,
   onApplySettingsToAll,
   onApplyCropToAll,
   onSmartCrop,
   onSyncFrameToAll,
+  onSyncWatermarkToAll,
   photos = [],
   onSelectPhoto,
   onDeletePhoto,
@@ -73,6 +79,8 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
   activeTab: controlledActiveTab,
   onChangeTab,
   onNotify,
+  isEyedropperActive = false,
+  onToggleEyedropper,
 }) => {
   const [internalTab, setInternalTab] = useState<'develop' | 'crop' | 'presets' | 'frame' | 'filmstrip' | null>('develop');
   const activeTab = controlledActiveTab !== undefined ? controlledActiveTab : internalTab;
@@ -87,11 +95,13 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
 
   const [customPresets, setCustomPresets] = useState<CustomPreset[]>([]);
   const [savedFrames, setSavedFrames] = useState<SavedPngFrame[]>([]);
+  const [savedLogos, setSavedLogos] = useState<SavedLogo[]>([]);
 
   useEffect(() => {
     const syncStorage = () => {
       setSavedFrames(getSavedPngFrames());
       setCustomPresets(getCustomPresets());
+      setSavedLogos(getSavedLogos());
     };
     syncStorage();
     window.addEventListener('bereasnap-storage-updated', syncStorage);
@@ -118,6 +128,8 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
               onUpdateAdjustments={onUpdateAdjustments}
               onApplyPreset={onApplyPreset}
               onApplySettingsToAll={onApplySettingsToAll}
+              isEyedropperActive={isEyedropperActive}
+              onToggleEyedropper={onToggleEyedropper}
             />
           )}
 
@@ -145,10 +157,15 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
             <FrameTab
               photo={photo}
               frame={frame}
+              watermark={watermark}
               savedFrames={savedFrames}
+              savedLogos={savedLogos}
               onChangeSavedFrames={setSavedFrames}
+              onChangeSavedLogos={setSavedLogos}
               onUpdateFrame={onUpdateFrame}
+              onUpdateWatermark={onUpdateWatermark}
               onSyncFrameToAll={onSyncFrameToAll}
+              onSyncWatermarkToAll={onSyncWatermarkToAll}
             />
           )}
 

@@ -10,6 +10,7 @@ public class MainActivity extends BridgeActivity {
         // Los plugins locales deben registrarse antes de super.onCreate
         registerPlugin(MediaSaverPlugin.class);
         registerPlugin(AppUpdaterPlugin.class);
+        registerPlugin(ShareReceiverPlugin.class);
         super.onCreate(savedInstanceState);
     }
 }

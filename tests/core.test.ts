@@ -68,10 +68,17 @@ describe('pixelFilters (processImagePixels & hasActiveCpuFilters)', () => {
 
   it('hasActiveCpuFilters detecta ajustes activos respetando skipSharpness', () => {
     assert.equal(hasActiveCpuFilters(baseAdj), false);
+    assert.equal(hasActiveCpuFilters({ ...baseAdj, tint: 25 }), true);
     assert.equal(hasActiveCpuFilters({ ...baseAdj, sharpness: 40 }, false), true);
     assert.equal(hasActiveCpuFilters({ ...baseAdj, sharpness: 40 }, true), false);
     assert.equal(hasActiveCpuFilters({ ...baseAdj, clarity: 25 }), true);
     assert.equal(hasActiveCpuFilters({ ...baseAdj, noiseReduction: 30 }), true);
+  });
+
+  it('el parámetro tint (Matiz) desplaza hacia verde o magenta correctamente', () => {
+    const magentaPixels = new Uint8ClampedArray([120, 140, 120, 255]);
+    processImagePixels(magentaPixels, 1, 1, { ...baseAdj, tint: 100, skinToneGuard: false }, true);
+    assert.ok(magentaPixels[1] < 140 && magentaPixels[0] > 120 && magentaPixels[2] > 120);
   });
 
   it('Skin Tone Guard atenúa el incremento cálido en píxeles de tono de piel frente a fondos neutros', () => {

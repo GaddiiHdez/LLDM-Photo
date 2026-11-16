@@ -4,6 +4,21 @@ Todas las actualizaciones y mejoras notables de BereaSnap están documentadas en
 
 ---
 
+## [1.7.0] - 2026-11-15
+
+### 📲 Integración Nativa con Galería Android
+* **Compartir desde Galería → BereaSnap**: Ahora puedes seleccionar una o varias fotos directamente en tu Galería o app de Fotos, tocar **Compartir** y elegir **BereaSnap** para abrirlas al instante en el editor conservando sus metadatos EXIF originales.
+
+### 🖼️ Control Total de Marcos y Logo / Firma
+* **Sub-pestaña "Logo / Firma" dentro de Marco**: Recupera el control de marca de agua en la interfaz One UI: activa o sube el logotipo PNG de tu iglesia o escribe tu firma en texto, elige esquina o centro y ajusta tamaño y opacidad con un toque.
+* **Posición, Tamaño, Color y Visibilidad de Textos en Marco**: En la pestaña de **Marcos**, ahora puedes mover el texto dinámico (*Doble / Centro / Izquierda / Derecha*), cambiar color (*Oro / Blanco / Plata*), escalar tamaño (`70%–140%`), ocultarlo por completo o borrar el texto derecho si tu marco ya incluye texto impreso.
+
+### 🎛️ Comparativa Rápida y Calibración de Color Pro
+* **Mantener presionado para ver Original (Hold-to-Compare)**: Deja el dedo presionado sobre la fotografía (sin arrastrar) para ver la imagen original al instante y suelta para volver a tus ajustes.
+* **Gotero de Balance de Blancos (`Gotero WB`) + Dial de Matiz (Verde ↔ Magenta)**: Activa el gotero en **Ajustes** y toca una túnica blanca o pared neutra para neutralizar automáticamente luces verdosas o amarillas de auditorios y templos, junto al nuevo dial de **Matiz**.
+
+---
+
 ## [1.6.0] - 2026-11-15
 
 ### ⚡ Rendimiento, Memoria y Estabilidad en Android

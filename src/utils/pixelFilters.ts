@@ -41,6 +41,7 @@ export function hasActiveCpuFilters(
     adjustments.shadows !== 0 ||
     adjustments.highlights !== 0 ||
     adjustments.warmth !== 0 ||
+    (adjustments.tint || 0) !== 0 ||
     (!skipSharpness && adjustments.sharpness > 0) ||
     (adjustments.clarity || 0) !== 0 ||
     (adjustments.noiseReduction || 0) > 0
@@ -48,7 +49,7 @@ export function hasActiveCpuFilters(
 }
 
 /**
- * Procesa píxeles RGBA in-place: mapeo tonal con LUT, calidez con Skin Tone Guard,
+ * Procesa píxeles RGBA in-place: mapeo tonal con LUT, calidez y matiz con Skin Tone Guard,
  * claridad en medios tonos, reducción de ruido bilateral en sombras y nitidez 3x3.
  * Reutilizable tanto en el hilo principal (preview 60fps) como en Web Worker (exportación).
  */
@@ -63,7 +64,8 @@ export function processImagePixels(
   const hasTone =
     adjustments.shadows !== 0 ||
     adjustments.highlights !== 0 ||
-    adjustments.warmth !== 0;
+    adjustments.warmth !== 0 ||
+    (adjustments.tint || 0) !== 0;
   const hasSharpness = !skipSharpness && adjustments.sharpness > 0;
   const hasClarity = (adjustments.clarity || 0) !== 0;
   const hasNoiseReduction = (adjustments.noiseReduction || 0) > 0;
@@ -73,7 +75,7 @@ export function processImagePixels(
 
   const len = data.length;
 
-  // 1. Mapeo Tonal, Calidez, Protector de Piel y Claridad / Textura
+  // 1. Mapeo Tonal, Calidez, Matiz (Verde-Magenta), Protector de Piel y Claridad / Textura
   if (hasTone || hasClarity) {
     const lut =
       adjustments.shadows !== 0 || adjustments.highlights !== 0
@@ -83,6 +85,10 @@ export function processImagePixels(
     const wR = Math.round(warmthFactor * 22);
     const wG = Math.round(warmthFactor * 3);
     const wB = -wR;
+    const tintFactor = (adjustments.tint || 0) / 100;
+    const tR = Math.round(tintFactor * 9);
+    const tG = Math.round(-tintFactor * 18);
+    const tB = Math.round(tintFactor * 9);
     const clarityFactor = (adjustments.clarity || 0) / 250;
 
     for (let i = 0; i < len; i += 4) {
@@ -101,19 +107,25 @@ export function processImagePixels(
       let effWR = wR;
       let effWG = wG;
       let effWB = wB;
+      let effTR = tR;
+      let effTG = tG;
+      let effTB = tB;
 
-      if (skinToneGuard && (wR !== 0 || wG !== 0)) {
+      if (skinToneGuard && (wR !== 0 || wG !== 0 || tG !== 0)) {
         const isSkin = r > g && g > b && r - g >= 12 && g - b >= 4 && r > 60 && b < 215;
         if (isSkin) {
           effWR = Math.round(wR * 0.28);
           effWG = Math.round(wG * 0.4);
           effWB = -effWR;
+          effTR = Math.round(tR * 0.65);
+          effTG = Math.round(tG * 0.65);
+          effTB = Math.round(tB * 0.65);
         }
       }
 
-      const nr = r + d + effWR;
-      const ng = g + d + effWG;
-      const nb = b + d + effWB;
+      const nr = r + d + effWR + effTR;
+      const ng = g + d + effWG + effTG;
+      const nb = b + d + effWB + effTB;
 
       data[i] = nr < 0 ? 0 : nr > 255 ? 255 : nr;
       data[i + 1] = ng < 0 ? 0 : ng > 255 ? 255 : ng;

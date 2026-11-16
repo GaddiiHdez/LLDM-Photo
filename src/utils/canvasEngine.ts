@@ -798,17 +798,20 @@ function drawFrameOverlayAndWatermark(
           }
         };
 
-        const isCentenarioBar =
-          frame.dynamicTextPosition !== 'bottom-center' &&
-          (frame.dynamicTextPosition === 'centenario-left' ||
-            frame.pngDataUrl?.includes('centenario') ||
-            !frame.dynamicTextPosition);
+        const pos =
+          frame.dynamicTextPosition ||
+          (frame.pngDataUrl?.includes('centenario') || frame.pngDataUrl?.includes('notexto')
+            ? 'centenario-left'
+            : 'bottom-center');
 
-        if (frame.eventTitle && frame.eventTitle.trim().length > 0) {
-          ctx.save();
-          const title = frame.eventTitle.trim().toUpperCase();
+        const leftText = (frame.eventTitle || '').trim().toUpperCase();
+        const rawRight =
+          frame.dynamicTextRight !== undefined ? frame.dynamicTextRight : (frame.eventDate || '');
+        const rightText = rawRight.trim().toUpperCase();
 
-          if (isCentenarioBar) {
+        if (pos === 'centenario-left') {
+          if (leftText.length > 0) {
+            ctx.save();
             const textX = frameDrawX + frameDrawW * 0.121;
             const textY = frameDrawY + frameDrawH * 0.9845;
             const maxW = frameDrawW * 0.32;
@@ -818,36 +821,45 @@ function drawFrameOverlayAndWatermark(
             ctx.textBaseline = 'middle';
             ctx.textAlign = 'left';
             applyDynamicTextStyle(fontSize, textY);
-            ctx.fillText(title, textX, textY, maxW);
-          } else {
-            const textX = frameDrawX + frameDrawW * 0.5;
-            const textY = frameDrawY + frameDrawH * 0.975;
-            const fontSize = Math.max(13, Math.round(frameDrawH * 0.022 * textScale));
+            ctx.fillText(leftText, textX, textY, maxW);
+            ctx.restore();
+          }
 
+          if (rightText.length > 0) {
+            ctx.save();
+            const textX = frameDrawX + frameDrawW * 0.879;
+            const textY = frameDrawY + frameDrawH * 0.9845;
+            const maxW = frameDrawW * 0.30;
+            const fontSize = Math.max(11, Math.round(frameDrawH * 0.0175 * textScale));
+
+            ctx.font = `700 ${fontSize}px 'Cinzel', 'Cinzel Decorative', 'Times New Roman', 'Georgia', serif`;
+            ctx.textBaseline = 'middle';
+            ctx.textAlign = 'right';
+            applyDynamicTextStyle(fontSize, textY);
+            ctx.fillText(rightText, textX, textY, maxW);
+            ctx.restore();
+          }
+        } else {
+          const combined = [leftText, rightText].filter(Boolean).join('  •  ');
+          if (combined.length > 0) {
+            ctx.save();
+            const textY = frameDrawY + frameDrawH * 0.975;
+            const fontSize = Math.max(12, Math.round(frameDrawH * 0.020 * textScale));
+            let textX = frameDrawX + frameDrawW * 0.5;
+            ctx.textAlign = 'center';
+            if (pos === 'bottom-left') {
+              textX = frameDrawX + frameDrawW * 0.055;
+              ctx.textAlign = 'left';
+            } else if (pos === 'bottom-right') {
+              textX = frameDrawX + frameDrawW * 0.945;
+              ctx.textAlign = 'right';
+            }
             ctx.font = `700 ${fontSize}px 'Cinzel', 'Outfit', sans-serif`;
             ctx.textBaseline = 'middle';
-            ctx.textAlign = 'center';
             applyDynamicTextStyle(fontSize, textY);
-            ctx.fillText(title, textX, textY, frameDrawW * 0.85);
+            ctx.fillText(combined, textX, textY, frameDrawW * 0.86);
+            ctx.restore();
           }
-          ctx.restore();
-        }
-
-        const rightSourceText = frame.dynamicTextRight || frame.eventDate || '';
-        if (rightSourceText.trim().length > 0) {
-          ctx.save();
-          const rightText = rightSourceText.trim().toUpperCase();
-          const textX = frameDrawX + frameDrawW * 0.879;
-          const textY = frameDrawY + frameDrawH * 0.9845;
-          const maxW = frameDrawW * 0.30;
-          const fontSize = Math.max(11, Math.round(frameDrawH * 0.0175 * textScale));
-
-          ctx.font = `700 ${fontSize}px 'Cinzel', 'Cinzel Decorative', 'Times New Roman', 'Georgia', serif`;
-          ctx.textBaseline = 'middle';
-          ctx.textAlign = 'right';
-          applyDynamicTextStyle(fontSize, textY);
-          ctx.fillText(rightText, textX, textY, maxW);
-          ctx.restore();
         }
       }
     } catch (err) {

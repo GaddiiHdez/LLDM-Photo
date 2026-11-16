@@ -9,6 +9,7 @@ import {
   Zap,
   BarChart2,
   X,
+  Pipette,
 } from 'lucide-react';
 import {
   drawProcessedPhotoSync,
@@ -27,7 +28,11 @@ interface PreviewStageProps {
   showOriginal?: boolean;
   isCropMode?: boolean;
   showZebraClipping?: boolean;
+  isEyedropperActive?: boolean;
   onToggleOriginal?: (val?: boolean) => void;
+  onPickWhiteBalance?: (warmth: number, tint: number) => void;
+  onCancelEyedropper?: () => void;
+  onNotify?: (msg: string) => void;
   onSingleExport?: () => void;
   onSingleShare?: () => void;
   onUpdateCrop: (crop: CropSettings) => void;
@@ -42,6 +47,7 @@ const NEUTRAL_ADJUSTMENTS: ImageAdjustments = {
   contrast: 0,
   saturation: 0,
   warmth: 0,
+  tint: 0,
   shadows: 0,
   highlights: 0,
   sharpness: 0,
@@ -51,7 +57,7 @@ const NEUTRAL_ADJUSTMENTS: ImageAdjustments = {
 };
 
 function getAdjustmentsKey(url: string, adj: ImageAdjustments, highRes: boolean): string {
-  return `${url}|${adj.brightness}|${adj.contrast}|${adj.saturation}|${adj.shadows}|${adj.highlights}|${adj.warmth}|${adj.sharpness}|${adj.clarity || 0}|${adj.noiseReduction || 0}|${adj.skinToneGuard !== false ? 1 : 0}|${highRes ? 'hd' : 'fast'}`;
+  return `${url}|${adj.brightness}|${adj.contrast}|${adj.saturation}|${adj.shadows}|${adj.highlights}|${adj.warmth}|${adj.tint || 0}|${adj.sharpness}|${adj.clarity || 0}|${adj.noiseReduction || 0}|${adj.skinToneGuard !== false ? 1 : 0}|${highRes ? 'hd' : 'fast'}`;
 }
 
 export const PreviewStage: React.FC<PreviewStageProps> = ({
@@ -61,7 +67,11 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
   showOriginal = false,
   isCropMode = false,
   showZebraClipping = false,
+  isEyedropperActive = false,
   onToggleOriginal,
+  onPickWhiteBalance,
+  onCancelEyedropper,
+  onNotify,
   onUpdateCrop,
   onPrevPhoto,
   onNextPhoto,
@@ -93,6 +103,12 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
   const wheelCommitTimerRef = useRef<number | null>(null);
   const currentTempCropRef = useRef<CropSettings | null>(null);
   const isDraggingRef = useRef(false);
+  const holdCompareTimerRef = useRef<number | null>(null);
+  const isHoldingCompareRef = useRef(false);
+  const isEyedropperActiveRef = useRef(isEyedropperActive);
+  const onToggleOriginalRef = useRef(onToggleOriginal);
+  const onPickWhiteBalanceRef = useRef(onPickWhiteBalance);
+  const onNotifyRef = useRef(onNotify);
 
   const photoRef = useRef(photo);
   const watermarkRef = useRef(watermark);
@@ -131,6 +147,10 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
   hasPrevPhotoRef.current = hasPrevPhoto;
   hasNextPhotoRef.current = hasNextPhoto;
   zoomLevelRef.current = zoomLevel;
+  isEyedropperActiveRef.current = isEyedropperActive;
+  onToggleOriginalRef.current = onToggleOriginal;
+  onPickWhiteBalanceRef.current = onPickWhiteBalance;
+  onNotifyRef.current = onNotify;
 
   // Asegurar que exista el canvas proxy de tono
   const getTonedProxyCanvas = (): HTMLCanvasElement => {
@@ -146,6 +166,7 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
       if (animFrameIdRef.current) cancelAnimationFrame(animFrameIdRef.current);
       if (hdBakeTimerRef.current) window.clearTimeout(hdBakeTimerRef.current);
       if (wheelCommitTimerRef.current) window.clearTimeout(wheelCommitTimerRef.current);
+      if (holdCompareTimerRef.current) window.clearTimeout(holdCompareTimerRef.current);
       if (tonedProxyRef.current) {
         tonedProxyRef.current.width = 0;
         tonedProxyRef.current.height = 0;
@@ -557,10 +578,95 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
     };
   };
 
-  // ─── INICIO DE ARRASTRE (Mouse) ───────────────────────────────────────────────
+  const cancelHoldCompare = () => {
+    if (holdCompareTimerRef.current) {
+      window.clearTimeout(holdCompareTimerRef.current);
+      holdCompareTimerRef.current = null;
+    }
+    if (isHoldingCompareRef.current) {
+      isHoldingCompareRef.current = false;
+      onToggleOriginalRef.current?.(false);
+    }
+  };
+
+  const sampleWhiteBalanceAt = (clientX: number, clientY: number) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    if (
+      rect.width <= 0 ||
+      rect.height <= 0 ||
+      clientX < rect.left ||
+      clientX > rect.right ||
+      clientY < rect.top ||
+      clientY > rect.bottom
+    ) {
+      onNotifyRef.current?.('Toca directamente sobre un área blanca o gris de la foto');
+      return;
+    }
+
+    const cx = Math.floor(((clientX - rect.left) / rect.width) * canvas.width);
+    const cy = Math.floor(((clientY - rect.top) / rect.height) * canvas.height);
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    const r = 2; // Vecindad 5x5 para evitar ruido por píxel aislado
+    const sx = Math.max(0, cx - r);
+    const sy = Math.max(0, cy - r);
+    const sw = Math.min(canvas.width - sx, r * 2 + 1);
+    const sh = Math.min(canvas.height - sy, r * 2 + 1);
+
+    try {
+      const { data } = ctx.getImageData(sx, sy, sw, sh);
+      let sumR = 0;
+      let sumG = 0;
+      let sumB = 0;
+      const count = data.length / 4;
+      for (let i = 0; i < data.length; i += 4) {
+        sumR += data[i];
+        sumG += data[i + 1];
+        sumB += data[i + 2];
+      }
+      const avgR = sumR / count;
+      const avgG = sumG / count;
+      const avgB = sumB / count;
+      const avgLum = (avgR + avgG + avgB) / 3;
+
+      if (avgLum < 15 || (avgR >= 253 && avgG >= 253 && avgB >= 253)) {
+        onNotifyRef.current?.('Toca un blanco o gris con detalle (no negro puro ni zona quemada)');
+        return;
+      }
+
+      const deltaWarmth = -((avgR - avgB) / 44) * 100;
+      const deltaTint = ((avgG - (avgR + avgB) / 2) / 27) * 100;
+
+      const curWarmth = photoAdjustmentsRef.current.warmth || 0;
+      const curTint = photoAdjustmentsRef.current.tint || 0;
+      const nextWarmth = Math.max(-100, Math.min(100, Math.round(curWarmth + deltaWarmth)));
+      const nextTint = Math.max(-100, Math.min(100, Math.round(curTint + deltaTint)));
+
+      onPickWhiteBalanceRef.current?.(nextWarmth, nextTint);
+    } catch {
+      onNotifyRef.current?.('No se pudo muestrear este píxel');
+    }
+  };
+
+  // ─── INICIO DE ARRASTRE / GOTERO / HOLD-TO-COMPARE (Mouse) ───────────────────
   const handleMouseDown = (e: React.MouseEvent) => {
-    if ((e.target as HTMLElement)?.closest('button, .floating-stage-pills')) return;
+    if ((e.target as HTMLElement)?.closest('button, .floating-stage-pills, .eyedropper-banner')) return;
     e.preventDefault();
+
+    if (isEyedropperActiveRef.current) {
+      sampleWhiteBalanceAt(e.clientX, e.clientY);
+      return;
+    }
+
+    if (holdCompareTimerRef.current) window.clearTimeout(holdCompareTimerRef.current);
+    holdCompareTimerRef.current = window.setTimeout(() => {
+      isHoldingCompareRef.current = true;
+      onToggleOriginalRef.current?.(true);
+    }, 260);
+
     const baseCrop = currentTempCropRef.current || photoCropRef.current;
     isDraggingRef.current = true;
     if (canvasWrapperRef.current) {
@@ -579,6 +685,13 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
     if (!isDraggingRef.current || !dragStartRef.current) return;
     const dx = e.clientX - dragStartRef.current.x;
     const dy = e.clientY - dragStartRef.current.y;
+    if (Math.abs(dx) > 6 || Math.abs(dy) > 6) {
+      if (holdCompareTimerRef.current) {
+        window.clearTimeout(holdCompareTimerRef.current);
+        holdCompareTimerRef.current = null;
+      }
+    }
+    if (isHoldingCompareRef.current) return;
     const baseCrop = currentTempCropRef.current || photoCropRef.current;
 
     const { offsetX, offsetY } = computeSmoothPanOffsets(
@@ -606,10 +719,11 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
 
   // ─── SOLTAR (Mouse) ──────────────────────────────────────────────────────────
   const handleMouseUp = () => {
+    cancelHoldCompare();
     if (!isDraggingRef.current) return;
     isDraggingRef.current = false;
     if (canvasWrapperRef.current) {
-      canvasWrapperRef.current.style.cursor = 'grab';
+      canvasWrapperRef.current.style.cursor = isEyedropperActiveRef.current ? 'crosshair' : 'grab';
     }
     dragStartRef.current = null;
 
@@ -659,14 +773,29 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
     };
 
     const onTouchStart = (e: TouchEvent) => {
-      if ((e.target as HTMLElement)?.closest('.canvas-nav-btn, button, .floating-stage-pills')) {
+      if ((e.target as HTMLElement)?.closest('.canvas-nav-btn, button, .floating-stage-pills, .eyedropper-banner')) {
         return;
       }
 
       if (e.cancelable) e.preventDefault();
+
+      if (isEyedropperActiveRef.current && e.touches.length === 1) {
+        sampleWhiteBalanceAt(e.touches[0].clientX, e.touches[0].clientY);
+        return;
+      }
+
       const baseCrop = currentTempCropRef.current || photoCropRef.current;
 
       if (e.touches.length === 1) {
+        if (holdCompareTimerRef.current) window.clearTimeout(holdCompareTimerRef.current);
+        holdCompareTimerRef.current = window.setTimeout(() => {
+          isHoldingCompareRef.current = true;
+          if (typeof navigator !== 'undefined' && navigator.vibrate) {
+            navigator.vibrate(18);
+          }
+          onToggleOriginalRef.current?.(true);
+        }, 260);
+
         const isCroppedOrZoomed =
           (baseCrop?.zoom || 1) > 1.005 ||
           (baseCrop?.aspectRatio && baseCrop.aspectRatio !== 'original') ||
@@ -683,6 +812,7 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
         touchState.initialOffsetY = baseCrop?.offsetY || 0;
         isDraggingRef.current = true;
       } else if (e.touches.length >= 2) {
+        cancelHoldCompare();
         const t1 = e.touches[0];
         const t2 = e.touches[1];
         const dist = Math.hypot(t1.clientX - t2.clientX, t1.clientY - t2.clientY);
@@ -706,6 +836,17 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
       if (e.touches.length === 1) {
         touchState.lastX = e.touches[0].clientX;
         touchState.lastY = e.touches[0].clientY;
+
+        if (
+          Math.abs(touchState.lastX - touchState.startX) > 8 ||
+          Math.abs(touchState.lastY - touchState.startY) > 8
+        ) {
+          if (holdCompareTimerRef.current) {
+            window.clearTimeout(holdCompareTimerRef.current);
+            holdCompareTimerRef.current = null;
+          }
+        }
+        if (isHoldingCompareRef.current) return;
 
         if (touchState.mode === 'pan') {
           const dx = e.touches[0].clientX - touchState.startX;
@@ -773,6 +914,16 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
     };
 
     const onTouchEnd = (e: TouchEvent) => {
+      if (e.touches.length === 0) {
+        const wasHoldingCompare = isHoldingCompareRef.current;
+        cancelHoldCompare();
+        if (wasHoldingCompare) {
+          isDraggingRef.current = false;
+          touchState.mode = 'none';
+          currentTempCropRef.current = null;
+          return;
+        }
+      }
       if (!isDraggingRef.current) return;
 
       if (e.touches.length === 1) {
@@ -866,8 +1017,61 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
         onMouseUp={handleMouseUp}
         onMouseLeave={handleMouseUp}
         onWheel={handleWheel}
-        style={{ cursor: 'grab', touchAction: 'none' }}
+        style={{ cursor: isEyedropperActive ? 'crosshair' : 'grab', touchAction: 'none' }}
       >
+        {/* Banner Guía del Gotero de Balance de Blancos */}
+        {isEyedropperActive && (
+          <div
+            className="eyedropper-banner"
+            style={{
+              position: 'absolute',
+              top: '0.65rem',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              zIndex: 40,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.45rem',
+              padding: '0.35rem 0.7rem',
+              borderRadius: '999px',
+              background: 'rgba(13, 13, 18, 0.92)',
+              border: '1px solid rgba(245, 158, 11, 0.5)',
+              color: '#fef08a',
+              fontSize: '0.72rem',
+              fontWeight: 700,
+              whiteSpace: 'nowrap',
+              boxShadow: '0 8px 24px rgba(0, 0, 0, 0.65)',
+            }}
+          >
+            <Pipette size={13} style={{ color: '#f59e0b' }} />
+            <span>Toca un tono blanco o gris neutro</span>
+            {onCancelEyedropper && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onCancelEyedropper();
+                }}
+                style={{
+                  background: 'rgba(255,255,255,0.1)',
+                  border: 'none',
+                  borderRadius: '50%',
+                  width: 18,
+                  height: 18,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#fff',
+                  cursor: 'pointer',
+                  padding: 0,
+                }}
+                title="Cancelar gotero"
+              >
+                <X size={11} />
+              </button>
+            )}
+          </div>
+        )}
         {/* Píldoras Flotantes Discretas en esquina superior derecha */}
         <div className="floating-stage-pills">
           {/* Badge de Alerta: Altas luces quemadas (Zebra) */}

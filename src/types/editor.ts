@@ -46,6 +46,7 @@ export interface ImageAdjustments {
   contrast: number;   // -100 to 100
   saturation: number; // -100 to 100
   warmth: number;     // -100 to 100
+  tint?: number;      // -100 (Verde) to +100 (Magenta)
   shadows: number;    // -100 to 100
   highlights: number; // -100 to 100
   sharpness: number;  // 0 to 100
