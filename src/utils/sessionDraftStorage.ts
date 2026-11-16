@@ -1,7 +1,9 @@
-import { idbGet, idbSet } from './idbStorage';
+import { idbGet, idbSet, idbDelete, idbDeleteByPrefix } from './idbStorage';
+import { getDrawableImageUrl } from './rawDecoder';
 import type { PhotoItem, ImageAdjustments, CropSettings, PresetType, FrameSettings, WatermarkSettings } from '../types/editor';
 
 const DRAFT_STORAGE_KEY = 'bereasnap_active_session_draft';
+const BLOB_KEY_PREFIX = 'bereasnap_draft_blob_';
 const MAX_DRAFT_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 días
 
 export interface DraftPhotoEntry {
@@ -10,7 +12,8 @@ export interface DraftPhotoEntry {
   sizeFormatted: string;
   width: number;
   height: number;
-  blob: Blob;
+  /** Solo presente en borradores legacy v1; en v2 los binarios viven en claves separadas */
+  blob?: Blob;
   adjustments: ImageAdjustments;
   crop: CropSettings;
   preset: PresetType;
@@ -34,67 +37,105 @@ export interface DraftSummary {
 }
 
 /**
- * Guarda el lote completo de fotos, ajustes, marco y firma en IndexedDB
+ * Rastrea qué binarios de fotos ya fueron persistidos en IndexedDB (id -> firma de archivo)
+ * para que mover sliders o cambiar el marco no reescriba decenas de MB en disco cada 1.5s.
  */
-export async function saveSessionDraft(
+const persistedBlobSignatures = new Map<string, string>();
+let activeSaveChain: Promise<void> = Promise.resolve();
+
+function getPhotoBlobSignature(photo: PhotoItem): string {
+  const size = photo.file instanceof Blob ? photo.file.size : 0;
+  return `${photo.name}|${size}|${photo.originalUrl}`;
+}
+
+async function resolvePhotoBlob(photo: PhotoItem): Promise<Blob | null> {
+  if (photo.file instanceof Blob) {
+    return photo.file;
+  }
+  if (photo.originalUrl) {
+    try {
+      const res = await fetch(photo.originalUrl);
+      return await res.blob();
+    } catch (fetchErr) {
+      console.warn('[SessionDraft] Error obteniendo blob para', photo.name, fetchErr);
+    }
+  }
+  return null;
+}
+
+/**
+ * Guarda el lote completo de fotos, ajustes, marco y firma en IndexedDB de forma incremental:
+ * los binarios nuevos se escriben una sola vez y los ajustes ligeros se actualizan en <5ms.
+ */
+export function saveSessionDraft(
   photos: PhotoItem[],
   activePhotoId: string,
   frame: FrameSettings,
   watermark: WatermarkSettings
 ): Promise<void> {
-  if (!photos || photos.length === 0) {
-    await clearSessionDraft();
-    return;
-  }
+  activeSaveChain = activeSaveChain
+    .catch(() => {})
+    .then(async () => {
+      if (!photos || photos.length === 0) {
+        await clearSessionDraft();
+        return;
+      }
 
-  try {
-    const draftPhotos: DraftPhotoEntry[] = [];
+      try {
+        const draftPhotos: DraftPhotoEntry[] = [];
+        const currentIds = new Set<string>();
 
-    for (const photo of photos) {
-      let blob: Blob | null = null;
-      if (photo.file instanceof Blob) {
-        blob = photo.file;
-      } else if (photo.originalUrl) {
-        try {
-          const res = await fetch(photo.originalUrl);
-          blob = await res.blob();
-        } catch (fetchErr) {
-          console.warn('[SessionDraft] Error obteniendo blob para', photo.name, fetchErr);
+        for (const photo of photos) {
+          currentIds.add(photo.id);
+          const sig = getPhotoBlobSignature(photo);
+
+          if (persistedBlobSignatures.get(photo.id) !== sig) {
+            const blob = await resolvePhotoBlob(photo);
+            if (!blob) continue;
+            await idbSet(`${BLOB_KEY_PREFIX}${photo.id}`, blob);
+            persistedBlobSignatures.set(photo.id, sig);
+          }
+
+          draftPhotos.push({
+            id: photo.id,
+            name: photo.name,
+            sizeFormatted: photo.sizeFormatted,
+            width: photo.width,
+            height: photo.height,
+            adjustments: { ...photo.adjustments },
+            crop: { ...photo.crop },
+            preset: photo.preset,
+            isRaw: Boolean(photo.isRaw),
+            metadata: photo.metadata ? { ...photo.metadata } : undefined,
+          });
         }
+
+        // Podar binarios de fotos eliminadas de la sesión
+        for (const trackedId of Array.from(persistedBlobSignatures.keys())) {
+          if (!currentIds.has(trackedId)) {
+            await idbDelete(`${BLOB_KEY_PREFIX}${trackedId}`);
+            persistedBlobSignatures.delete(trackedId);
+          }
+        }
+
+        if (draftPhotos.length === 0) return;
+
+        const draftData: SessionDraftData = {
+          version: 2,
+          savedAt: Date.now(),
+          activePhotoId: activePhotoId || draftPhotos[0].id,
+          frame: { ...frame },
+          watermark: { ...watermark },
+          photos: draftPhotos,
+        };
+
+        await idbSet(DRAFT_STORAGE_KEY, draftData);
+      } catch (err) {
+        console.warn('[SessionDraft] Error guardando borrador:', err);
       }
+    });
 
-      if (blob) {
-        draftPhotos.push({
-          id: photo.id,
-          name: photo.name,
-          sizeFormatted: photo.sizeFormatted || `${(blob.size / (1024 * 1024)).toFixed(1)} MB`,
-          width: photo.width,
-          height: photo.height,
-          blob,
-          adjustments: { ...photo.adjustments },
-          crop: { ...photo.crop },
-          preset: photo.preset,
-          isRaw: Boolean(photo.isRaw),
-          metadata: photo.metadata ? { ...photo.metadata } : undefined,
-        });
-      }
-    }
-
-    if (draftPhotos.length === 0) return;
-
-    const draftData: SessionDraftData = {
-      version: 1,
-      savedAt: Date.now(),
-      activePhotoId: activePhotoId || draftPhotos[0].id,
-      frame: { ...frame },
-      watermark: { ...watermark },
-      photos: draftPhotos,
-    };
-
-    await idbSet(DRAFT_STORAGE_KEY, draftData);
-  } catch (err) {
-    console.warn('[SessionDraft] Error guardando borrador:', err);
-  }
+  return activeSaveChain;
 }
 
 /**
@@ -139,14 +180,27 @@ export async function restoreSessionDraft(): Promise<{
       return null;
     }
 
-    const restoredPhotos: PhotoItem[] = draft.photos.map((dp) => {
-      const file = new File([dp.blob], dp.name, { type: dp.blob.type || 'image/jpeg' });
-      const originalUrl = URL.createObjectURL(dp.blob);
-      return {
+    persistedBlobSignatures.clear();
+    const restoredPhotos: PhotoItem[] = [];
+
+    for (const dp of draft.photos) {
+      const blob =
+        dp.blob instanceof Blob
+          ? dp.blob
+          : await idbGet<Blob>(`${BLOB_KEY_PREFIX}${dp.id}`);
+
+      if (!(blob instanceof Blob)) continue;
+
+      const file = new File([blob], dp.name, { type: blob.type || 'image/jpeg' });
+      const originalUrl = dp.isRaw
+        ? await getDrawableImageUrl(file)
+        : URL.createObjectURL(blob);
+
+      const item: PhotoItem = {
         id: dp.id,
         file,
         name: dp.name,
-        sizeFormatted: dp.sizeFormatted || `${(dp.blob.size / (1024 * 1024)).toFixed(1)} MB`,
+        sizeFormatted: dp.sizeFormatted || `${(blob.size / (1024 * 1024)).toFixed(1)} MB`,
         width: dp.width,
         height: dp.height,
         originalUrl,
@@ -157,7 +211,18 @@ export async function restoreSessionDraft(): Promise<{
         isRaw: dp.isRaw,
         metadata: dp.metadata,
       };
-    });
+
+      // Si venía de v1 embebido, migrar el blob a clave separada para los siguientes guardados
+      if (dp.blob instanceof Blob) {
+        await idbSet(`${BLOB_KEY_PREFIX}${dp.id}`, blob);
+      }
+      persistedBlobSignatures.set(dp.id, getPhotoBlobSignature(item));
+      restoredPhotos.push(item);
+    }
+
+    if (restoredPhotos.length === 0) {
+      return null;
+    }
 
     return {
       photos: restoredPhotos,
@@ -172,11 +237,13 @@ export async function restoreSessionDraft(): Promise<{
 }
 
 /**
- * Elimina el borrador de la sesión actual
+ * Elimina el borrador de la sesión actual y todos los binarios asociados en IndexedDB
  */
 export async function clearSessionDraft(): Promise<void> {
   try {
-    await idbSet(DRAFT_STORAGE_KEY, null);
+    persistedBlobSignatures.clear();
+    await idbDelete(DRAFT_STORAGE_KEY);
+    await idbDeleteByPrefix(BLOB_KEY_PREFIX);
   } catch (err) {
     console.warn('[SessionDraft] Error limpiando borrador:', err);
   }

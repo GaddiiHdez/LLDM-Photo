@@ -45,6 +45,9 @@ jobs:
       - name: Instalar Dependencias Web y Capacitor
         run: npm install
 
+      - name: Ejecutar Pruebas Unitarias
+        run: npm test
+
       - name: Compilar Aplicación Web (Vite + Tipografías Offline)
         run: npm run build
 

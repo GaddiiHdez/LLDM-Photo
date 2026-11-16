@@ -1,11 +1,12 @@
 {
   "name": "bereasnap",
   "private": true,
-  "version": "1.5.4",
+  "version": "1.6.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "test": "node scripts/run-tests.mjs",
     "lint": "oxlint",
     "preview": "vite preview",
     "start": "npx serve dist -s -p ${PORT:-3000}",

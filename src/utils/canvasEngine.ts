@@ -1,4 +1,5 @@
 import type { ImageAdjustments, WatermarkSettings, FrameSettings, CropSettings, AspectRatioType } from '../types/editor';
+import { processImagePixels, hasActiveCpuFilters, type PixelScratchRef } from './pixelFilters';
 
 export type DrawableSource = HTMLImageElement | HTMLCanvasElement;
 
@@ -19,10 +20,53 @@ export function getCachedImageSync(src: string | undefined | null): HTMLImageEle
   return null;
 }
 
+const baseProxyCache = new Map<string, HTMLCanvasElement>();
+const MAX_PROXY_CACHE = 10;
+
+function disposeCanvas(canvas: HTMLCanvasElement | undefined | null): void {
+  if (!canvas) return;
+  canvas.width = 0;
+  canvas.height = 0;
+}
+
+export function getCachedBaseProxy(url: string): HTMLCanvasElement | null {
+  const existing = baseProxyCache.get(url);
+  if (existing && existing.width > 0 && existing.height > 0) {
+    baseProxyCache.delete(url);
+    baseProxyCache.set(url, existing);
+    return existing;
+  }
+  return null;
+}
+
+export function getOrCreateBaseProxy(url: string, img: HTMLImageElement): HTMLCanvasElement {
+  const existing = baseProxyCache.get(url);
+  if (existing && existing.width > 0 && existing.height > 0) {
+    baseProxyCache.delete(url);
+    baseProxyCache.set(url, existing);
+    return existing;
+  }
+  const proxy = createBaseProxyCanvas(img, 1280);
+  if (baseProxyCache.size >= MAX_PROXY_CACHE) {
+    const oldestKey = baseProxyCache.keys().next().value;
+    if (oldestKey !== undefined) {
+      disposeCanvas(baseProxyCache.get(oldestKey));
+      baseProxyCache.delete(oldestKey);
+    }
+  }
+  baseProxyCache.set(url, proxy);
+  return proxy;
+}
+
 export function evictCachedImage(src: string | undefined | null): void {
   if (!src) return;
   imageElementCache.delete(src);
   pendingImageLoads.delete(src);
+  const proxy = baseProxyCache.get(src);
+  if (proxy) {
+    disposeCanvas(proxy);
+    baseProxyCache.delete(src);
+  }
 }
 
 export function loadImage(src: string): Promise<HTMLImageElement> {
@@ -83,50 +127,101 @@ function getTintedLogoCanvas(logoImg: HTMLImageElement, color: string): HTMLCanv
 
   if (tintedLogoCache.size >= 16) {
     const firstKey = tintedLogoCache.keys().next().value;
-    if (firstKey !== undefined) tintedLogoCache.delete(firstKey);
+    if (firstKey !== undefined) {
+      disposeCanvas(tintedLogoCache.get(firstKey));
+      tintedLogoCache.delete(firstKey);
+    }
   }
   tintedLogoCache.set(key, tintCanvas);
   return tintCanvas;
 }
 
-/**
- * Look-Up Table (LUT) precalculada de 256 niveles para Sombras y Altas Luces.
- * Reemplaza ~1,000,000 de llamadas a Math.pow() por fotograma con una búsqueda O(1) en arreglo entero.
- */
-let lastLutKey = '';
-let cachedLumDeltaLut = new Int16Array(256);
+// Buffer reutilizable en hilo principal para preview interactivo 60fps
+const syncScratchRef: PixelScratchRef = { buffer: null };
 
-function getLumDeltaLut(shadows: number, highlights: number): Int16Array {
-  const key = `${shadows}|${highlights}`;
-  if (key === lastLutKey) return cachedLumDeltaLut;
+let pixelWorker: Worker | null = null;
+let workerJobId = 0;
+const pendingWorkerJobs = new Map<
+  number,
+  { resolve: (buf: ArrayBuffer) => void; reject: (err: Error) => void }
+>();
 
-  const lut = new Int16Array(256);
-  const shadowFactor = shadows / 100;
-  const highlightFactor = highlights / 100;
+function getPixelWorker(): Worker | null {
+  if (typeof Worker === 'undefined') return null;
+  if (pixelWorker) return pixelWorker;
 
-  for (let lum = 0; lum < 256; lum++) {
-    let delta = 0;
-    if (shadowFactor !== 0 && lum < 140) {
-      const weight = Math.pow((140 - lum) / 140, 1.4);
-      delta += weight * shadowFactor * 55;
-    }
-    if (highlightFactor !== 0 && lum > 135) {
-      const weight = Math.pow((lum - 135) / 120, 1.25);
-      delta += weight * highlightFactor * 65;
-    }
-    lut[lum] = Math.round(delta);
+  try {
+    const worker = new Worker(new URL('../workers/pixelProcessor.worker.ts', import.meta.url), {
+      type: 'module',
+    });
+    worker.onmessage = (event: MessageEvent<{ id: number; ok: boolean; buffer: ArrayBuffer; error?: string }>) => {
+      const { id, ok, buffer, error } = event.data;
+      const job = pendingWorkerJobs.get(id);
+      if (!job) return;
+      pendingWorkerJobs.delete(id);
+      if (ok) {
+        job.resolve(buffer);
+      } else {
+        job.reject(new Error(error || 'Error en worker de píxeles'));
+      }
+    };
+    worker.onerror = (err) => {
+      for (const job of pendingWorkerJobs.values()) {
+        job.reject(new Error(err.message || 'Fallo en Web Worker'));
+      }
+      pendingWorkerJobs.clear();
+      worker.terminate();
+      pixelWorker = null;
+    };
+    pixelWorker = worker;
+    return pixelWorker;
+  } catch {
+    return null;
   }
-
-  lastLutKey = key;
-  cachedLumDeltaLut = lut;
-  return lut;
 }
 
-// Buffer reutilizable para el filtro de nitidez (evita recolectar basura de 2-8 MB en cada frame)
-let sharpnessScratchBuffer: Uint8ClampedArray | null = null;
+/**
+ * Libera el buffer temporal de píxeles (ej. tras exportar fotos de 24–45 MP)
+ */
+export function releaseScratchBuffer(): void {
+  syncScratchRef.buffer = null;
+  if (pixelWorker) {
+    try {
+      pixelWorker.postMessage({ type: 'release' });
+    } catch {}
+  }
+}
 
 /**
- * Aplica mapeo tonal (Sombras, Altas Luces, Calidez) mediante LUT entera y Nitidez 3x3 optimizada.
+ * Libera todos los recursos en RAM del motor gráfico (proxies, buffers y opcionalmente caché de imágenes)
+ */
+export function releaseEngineMemory(clearImageCaches: boolean = false): void {
+  releaseScratchBuffer();
+  for (const proxy of baseProxyCache.values()) {
+    disposeCanvas(proxy);
+  }
+  baseProxyCache.clear();
+
+  if (clearImageCaches) {
+    if (pixelWorker) {
+      for (const job of pendingWorkerJobs.values()) {
+        job.reject(new Error('Sesión cerrada'));
+      }
+      pendingWorkerJobs.clear();
+      pixelWorker.terminate();
+      pixelWorker = null;
+    }
+    for (const logoCanvas of tintedLogoCache.values()) {
+      disposeCanvas(logoCanvas);
+    }
+    tintedLogoCache.clear();
+    imageElementCache.clear();
+    pendingImageLoads.clear();
+  }
+}
+
+/**
+ * Aplica mapeo tonal (Sombras, Altas Luces, Calidez) mediante LUT entera y Nitidez 3x3 optimizada (síncrono).
  */
 export function applyCpuToneAndSharpness(
   ctx: CanvasRenderingContext2D,
@@ -137,160 +232,73 @@ export function applyCpuToneAndSharpness(
   adjustments: ImageAdjustments,
   skipSharpness: boolean = false
 ): void {
-  const hasTone =
-    adjustments.shadows !== 0 ||
-    adjustments.highlights !== 0 ||
-    adjustments.warmth !== 0;
-  const hasSharpness = !skipSharpness && adjustments.sharpness > 0;
-  const hasClarity = (adjustments.clarity || 0) !== 0;
-  const hasNoiseReduction = (adjustments.noiseReduction || 0) > 0;
-  const skinToneGuard = adjustments.skinToneGuard !== false;
-
-  if (!hasTone && !hasSharpness && !hasClarity && !hasNoiseReduction) return;
+  if (!hasActiveCpuFilters(adjustments, skipSharpness)) return;
 
   try {
     const imgData = ctx.getImageData(x, y, width, height);
-    const data = imgData.data;
-    const len = data.length;
-
-    // 1. Mapeo Tonal, Calidez, Protector de Piel y Claridad / Textura
-    if (hasTone || hasClarity) {
-      const lut =
-        adjustments.shadows !== 0 || adjustments.highlights !== 0
-          ? getLumDeltaLut(adjustments.shadows, adjustments.highlights)
-          : null;
-      const warmthFactor = (adjustments.warmth || 0) / 100;
-      const wR = Math.round(warmthFactor * 22);
-      const wG = Math.round(warmthFactor * 3);
-      const wB = -wR;
-      const clarityFactor = (adjustments.clarity || 0) / 250;
-
-      for (let i = 0; i < len; i += 4) {
-        const r = data[i];
-        const g = data[i + 1];
-        const b = data[i + 2];
-        const lum = (77 * r + 150 * g + 29 * b) >> 8;
-        let d = lut ? lut[lum] : 0;
-
-        // Claridad / Micro-contraste en medios tonos (ropas, textos, detalles de templo)
-        if (hasClarity && lum >= 35 && lum <= 220) {
-          d += Math.round((lum - 128) * clarityFactor);
-        }
-
-        // Protector Inteligente de Tono de Piel (Skin Tone Guard)
-        let effWR = wR;
-        let effWG = wG;
-        let effWB = wB;
-
-        if (skinToneGuard && (wR !== 0 || wG !== 0)) {
-          // Heurística de tono de piel humano: R > G > B en ratios naturales
-          const isSkin = r > g && g > b && r - g >= 12 && g - b >= 4 && r > 60 && b < 215;
-          if (isSkin) {
-            effWR = Math.round(wR * 0.28);
-            effWG = Math.round(wG * 0.4);
-            effWB = -effWR;
-          }
-        }
-
-        const nr = r + d + effWR;
-        const ng = g + d + effWG;
-        const nb = b + d + effWB;
-
-        data[i] = nr < 0 ? 0 : nr > 255 ? 255 : nr;
-        data[i + 1] = ng < 0 ? 0 : ng > 255 ? 255 : ng;
-        data[i + 2] = nb < 0 ? 0 : nb > 255 ? 255 : nb;
-      }
-    }
-
-    // 2. Reducción de Ruido con filtro bilateral en sombras para ISO alto
-    if (hasNoiseReduction && width > 4 && height > 4) {
-      const nrStrength = (adjustments.noiseReduction || 0) / 100;
-      const threshold = Math.round(15 + nrStrength * 35);
-      const rowStride = width * 4;
-
-      if (!sharpnessScratchBuffer || sharpnessScratchBuffer.length < len) {
-        sharpnessScratchBuffer = new Uint8ClampedArray(len);
-      }
-      sharpnessScratchBuffer.set(data);
-      const copy = sharpnessScratchBuffer;
-
-      for (let py = 1; py < height - 1; py++) {
-        let idx = (py * width + 1) * 4;
-        for (let px = 1; px < width - 1; px++, idx += 4) {
-          const cR = copy[idx];
-          const cG = copy[idx + 1];
-          const cB = copy[idx + 2];
-          const lum = (77 * cR + 150 * cG + 29 * cB) >> 8;
-
-          if (lum < 155) {
-            let sumR = cR;
-            let sumG = cG;
-            let sumB = cB;
-            let count = 1;
-            const neighbors = [idx - 4, idx + 4, idx - rowStride, idx + rowStride];
-            for (let n = 0; n < 4; n++) {
-              const nIdx = neighbors[n];
-              const nR = copy[nIdx];
-              const nG = copy[nIdx + 1];
-              const nB = copy[nIdx + 2];
-              if (Math.abs(nR - cR) + Math.abs(nG - cG) + Math.abs(nB - cB) < threshold) {
-                sumR += nR;
-                sumG += nG;
-                sumB += nB;
-                count++;
-              }
-            }
-            if (count > 1) {
-              data[idx] = Math.round(cR * (1 - nrStrength * 0.7) + (sumR / count) * (nrStrength * 0.7));
-              data[idx + 1] = Math.round(cG * (1 - nrStrength * 0.7) + (sumG / count) * (nrStrength * 0.7));
-              data[idx + 2] = Math.round(cB * (1 - nrStrength * 0.7) + (sumB / count) * (nrStrength * 0.7));
-            }
-          }
-        }
-      }
-    }
-
-    // 3. Nitidez de detalle (Filtro convolucional 3x3 optimizado)
-    if (hasSharpness) {
-      const amount = (adjustments.sharpness / 100) * 0.45;
-      const amtFp = Math.round(amount * 256);
-
-      if (!sharpnessScratchBuffer || sharpnessScratchBuffer.length < len) {
-        sharpnessScratchBuffer = new Uint8ClampedArray(len);
-      }
-      sharpnessScratchBuffer.set(data);
-      const copy = sharpnessScratchBuffer;
-      const rowStride = width * 4;
-
-      for (let py = 1; py < height - 1; py++) {
-        let idx = (py * width + 1) * 4;
-        for (let px = 1; px < width - 1; px++, idx += 4) {
-          // Canal R
-          const cR = copy[idx];
-          const edgeR = (cR << 2) - copy[idx - 4] - copy[idx + 4] - copy[idx - rowStride] - copy[idx + rowStride];
-          const vR = cR + ((edgeR * amtFp) >> 8);
-          data[idx] = vR < 0 ? 0 : vR > 255 ? 255 : vR;
-
-          // Canal G
-          const idxG = idx + 1;
-          const cG = copy[idxG];
-          const edgeG = (cG << 2) - copy[idxG - 4] - copy[idxG + 4] - copy[idxG - rowStride] - copy[idxG + rowStride];
-          const vG = cG + ((edgeG * amtFp) >> 8);
-          data[idxG] = vG < 0 ? 0 : vG > 255 ? 255 : vG;
-
-          // Canal B
-          const idxB = idx + 2;
-          const cB = copy[idxB];
-          const edgeB = (cB << 2) - copy[idxB - 4] - copy[idxB + 4] - copy[idxB - rowStride] - copy[idxB + rowStride];
-          const vB = cB + ((edgeB * amtFp) >> 8);
-          data[idxB] = vB < 0 ? 0 : vB > 255 ? 255 : vB;
-        }
-      }
-    }
-
+    processImagePixels(imgData.data, width, height, adjustments, skipSharpness, syncScratchRef);
     ctx.putImageData(imgData, x, y);
   } catch (e) {
     console.warn('[Canvas Engine] Ignorando filtro pixel por política de origen:', e);
+  }
+}
+
+/**
+ * Ejecuta el mismo pipeline de píxeles fuera del hilo principal usando un Web Worker
+ * con transferencia zero-copy (Transferable ArrayBuffer) para no congelar la UI en exportaciones de 24–45 MP.
+ */
+export async function applyCpuToneAndSharpnessAsync(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  adjustments: ImageAdjustments,
+  skipSharpness: boolean = false
+): Promise<void> {
+  if (!hasActiveCpuFilters(adjustments, skipSharpness)) return;
+
+  let imgData: ImageData;
+  try {
+    imgData = ctx.getImageData(x, y, width, height);
+  } catch (e) {
+    console.warn('[Canvas Engine] Ignorando filtro pixel por política de origen:', e);
+    return;
+  }
+
+  const worker = getPixelWorker();
+  if (!worker) {
+    processImagePixels(imgData.data, width, height, adjustments, skipSharpness, syncScratchRef);
+    ctx.putImageData(imgData, x, y);
+    return;
+  }
+
+  const jobId = ++workerJobId;
+  const inputBuffer = imgData.data.buffer;
+
+  try {
+    const processedBuffer = await new Promise<ArrayBuffer>((resolve, reject) => {
+      pendingWorkerJobs.set(jobId, { resolve, reject });
+      worker.postMessage(
+        {
+          type: 'process',
+          id: jobId,
+          buffer: inputBuffer,
+          width,
+          height,
+          adjustments,
+          skipSharpness,
+        },
+        [inputBuffer]
+      );
+    });
+    const outImgData = new ImageData(new Uint8ClampedArray(processedBuffer), width, height);
+    ctx.putImageData(outImgData, x, y);
+  } catch (err) {
+    console.warn('[Canvas Engine] Worker falló, usando fallback síncrono:', err);
+    const freshData = ctx.getImageData(x, y, width, height);
+    processImagePixels(freshData.data, width, height, adjustments, skipSharpness, syncScratchRef);
+    ctx.putImageData(freshData, x, y);
   }
 }
 
@@ -467,12 +475,17 @@ export function renderFastPreview(
   return canvas;
 }
 
-/**
- * Núcleo de renderizado 100% SÍNCRONO para ejecución inmediata en requestAnimationFrame (0ms de latencia async).
- * Si `adjustmentsAlreadyBaked` es true (modo proxy interactivo), la imagen fuente ya contiene luz, color y nitidez,
- * por lo que mover, hacer zoom o rotar se ejecuta en < 0.8ms mediante composición pura de GPU.
- */
-export function drawProcessedPhotoSync(
+interface BaseRenderContext {
+  ctx: CanvasRenderingContext2D;
+  width: number;
+  height: number;
+  extraLeft: number;
+  extraTop: number;
+  resolvedPngFrame: HTMLImageElement | null;
+  resolvedLogo: HTMLImageElement | null;
+}
+
+function drawPhotoBaseAndFrameBack(
   targetCanvas: HTMLCanvasElement,
   img: DrawableSource,
   adjustments: ImageAdjustments,
@@ -480,11 +493,10 @@ export function drawProcessedPhotoSync(
   frame: FrameSettings,
   crop: CropSettings,
   maxDimension: number = 0,
-  skipCpuFilters: boolean = false,
   cachedPngFrame?: HTMLImageElement | null,
   cachedLogo?: HTMLImageElement | null,
   adjustmentsAlreadyBaked: boolean = false
-): void {
+): BaseRenderContext {
   const { width: rawWidth, height: rawHeight } = getSourceDimensions(img);
   const rotationDeg = crop.rotation || 0;
   const straightenDeg = crop.straighten || 0;
@@ -712,10 +724,24 @@ export function drawProcessedPhotoSync(
     ctx.restore();
   }
 
-  // --- 5. TONE-MAPPING DINÁMICO Y NITIDEZ CPU (Omitido si ya está horneado en el proxy o durante drag rápido) ---
-  if (!adjustmentsAlreadyBaked && !skipCpuFilters) {
-    applyCpuToneAndSharpness(ctx, extraLeft, extraTop, width, height, adjustments, false);
-  }
+  return {
+    ctx,
+    width,
+    height,
+    extraLeft,
+    extraTop,
+    resolvedPngFrame,
+    resolvedLogo,
+  };
+}
+
+function drawFrameOverlayAndWatermark(
+  targetCanvas: HTMLCanvasElement,
+  base: BaseRenderContext,
+  watermark: WatermarkSettings,
+  frame: FrameSettings
+): void {
+  const { ctx, width, height, extraLeft, extraTop, resolvedPngFrame, resolvedLogo } = base;
 
   // --- 6. OVERLAY PNG TRANSPARENTE (Marco PNG institucional) ---
   if (frame.style === 'custom-png' && resolvedPngFrame) {
@@ -981,7 +1007,45 @@ export function drawProcessedPhotoSync(
 }
 
 /**
- * Dibuja la composición completa sobre un canvas existente (compatible con flujos asíncronos y exportación).
+ * Núcleo de renderizado 100% SÍNCRONO para ejecución inmediata en requestAnimationFrame (0ms de latencia async).
+ * Si `adjustmentsAlreadyBaked` es true (modo proxy interactivo), la imagen fuente ya contiene luz, color y nitidez,
+ * por lo que mover, hacer zoom o rotar se ejecuta en < 0.8ms mediante composición pura de GPU.
+ */
+export function drawProcessedPhotoSync(
+  targetCanvas: HTMLCanvasElement,
+  img: DrawableSource,
+  adjustments: ImageAdjustments,
+  watermark: WatermarkSettings,
+  frame: FrameSettings,
+  crop: CropSettings,
+  maxDimension: number = 0,
+  skipCpuFilters: boolean = false,
+  cachedPngFrame?: HTMLImageElement | null,
+  cachedLogo?: HTMLImageElement | null,
+  adjustmentsAlreadyBaked: boolean = false
+): void {
+  const base = drawPhotoBaseAndFrameBack(
+    targetCanvas,
+    img,
+    adjustments,
+    watermark,
+    frame,
+    crop,
+    maxDimension,
+    cachedPngFrame,
+    cachedLogo,
+    adjustmentsAlreadyBaked
+  );
+
+  if (!adjustmentsAlreadyBaked && !skipCpuFilters) {
+    applyCpuToneAndSharpness(base.ctx, base.extraLeft, base.extraTop, base.width, base.height, adjustments, false);
+  }
+
+  drawFrameOverlayAndWatermark(targetCanvas, base, watermark, frame);
+}
+
+/**
+ * Dibuja la composición completa sobre un canvas existente (compatible con flujos asíncronos y exportación en Web Worker).
  */
 export async function drawProcessedPhotoToCanvas(
   targetCanvas: HTMLCanvasElement,
@@ -994,7 +1058,8 @@ export async function drawProcessedPhotoToCanvas(
   skipCpuFilters: boolean = false,
   cachedPngFrame?: HTMLImageElement | null,
   cachedLogo?: HTMLImageElement | null,
-  adjustmentsAlreadyBaked: boolean = false
+  adjustmentsAlreadyBaked: boolean = false,
+  useAsyncWorker: boolean = false
 ): Promise<void> {
   const img = typeof imgSource === 'string' ? await loadImage(imgSource) : imgSource;
 
@@ -1016,7 +1081,24 @@ export async function drawProcessedPhotoToCanvas(
     }
   }
 
-  drawProcessedPhotoSync(
+  if (!useAsyncWorker) {
+    drawProcessedPhotoSync(
+      targetCanvas,
+      img,
+      adjustments,
+      watermark,
+      frame,
+      crop,
+      maxDimension,
+      skipCpuFilters,
+      pngFrame,
+      logoImg,
+      adjustmentsAlreadyBaked
+    );
+    return;
+  }
+
+  const base = drawPhotoBaseAndFrameBack(
     targetCanvas,
     img,
     adjustments,
@@ -1024,15 +1106,28 @@ export async function drawProcessedPhotoToCanvas(
     frame,
     crop,
     maxDimension,
-    skipCpuFilters,
     pngFrame,
     logoImg,
     adjustmentsAlreadyBaked
   );
+
+  if (!adjustmentsAlreadyBaked && !skipCpuFilters) {
+    await applyCpuToneAndSharpnessAsync(
+      base.ctx,
+      base.extraLeft,
+      base.extraTop,
+      base.width,
+      base.height,
+      adjustments,
+      false
+    );
+  }
+
+  drawFrameOverlayAndWatermark(targetCanvas, base, watermark, frame);
 }
 
 /**
- * Renderiza la imagen procesada completa creando un nuevo canvas (usado para exportaciones en lote/individual)
+ * Renderiza la imagen procesada completa creando un nuevo canvas en segundo plano (usado para exportaciones en lote/individual)
  */
 export async function renderProcessedPhoto(
   imgSource: HTMLImageElement | string,
@@ -1056,7 +1151,8 @@ export async function renderProcessedPhoto(
     false,
     cachedPngFrame,
     cachedLogo,
-    false
+    false,
+    true
   );
   return canvas;
 }

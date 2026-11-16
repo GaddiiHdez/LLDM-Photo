@@ -21,8 +21,13 @@ import type {
   ExportOptions,
 } from './types/editor';
 
-import { exportSinglePhoto, exportBatchAsZip, exportBatchAsJpgs } from './utils/batchExporter';
-import { evictCachedImage } from './utils/canvasEngine';
+import {
+  exportSinglePhoto,
+  exportBatchAsZip,
+  exportBatchAsJpgs,
+  cleanupNativeExportCache,
+} from './utils/batchExporter';
+import { evictCachedImage, releaseEngineMemory } from './utils/canvasEngine';
 import { getDrawableImageUrl } from './utils/rawDecoder';
 import { analyzeImageHistogram, computeAdaptiveChurchEnhancement } from './utils/rawProcessingEngine';
 import { getDefaultAppSettings, saveDefaultAppSettings, getSavedPngFrames } from './utils/frameStorage';
@@ -242,6 +247,7 @@ export const App: React.FC = () => {
 
   // Export Modal & Progress State
   const [isExportModalOpen, setIsExportModalOpen] = useState<boolean>(false);
+  const [isExitConfirmOpen, setIsExitConfirmOpen] = useState<boolean>(false);
   const [isExporting, setIsExporting] = useState<boolean>(false);
   const [exportProgress, setExportProgress] = useState({ current: 0, total: 0, currentName: '' });
   const [exportOptions, setExportOptions] = useState<ExportOptions>({
@@ -287,63 +293,84 @@ export const App: React.FC = () => {
   // Referencia siempre actualizada del lote (para efectos asíncronos sin cierres obsoletos)
   const photosRef = useRef<PhotoItem[]>([]);
 
+  // Procesa elementos con concurrencia limitada para evitar picos de RAM en Android con lotes grandes / RAW
+  async function mapWithConcurrency<T, R>(
+    items: T[],
+    concurrency: number,
+    worker: (item: T, index: number) => Promise<R>
+  ): Promise<R[]> {
+    const results = new Array<R>(items.length);
+    let nextIndex = 0;
+
+    const runWorker = async () => {
+      while (nextIndex < items.length) {
+        const idx = nextIndex++;
+        results[idx] = await worker(items[idx], idx);
+      }
+    };
+
+    const poolSize = Math.min(concurrency, items.length);
+    await Promise.all(Array.from({ length: poolSize }, () => runWorker()));
+    return results;
+  }
+
   // Handle uploaded files (Soporta archivos RAW .NEF, .CR2, .ARW, dimensiones reales, metadatos EXIF e histograma adaptativo)
   const handleFilesSelected = async (files: FileList | File[]) => {
     const fileArray = Array.from(files);
+    const hasAnyRaw = fileArray.some((f) => /\.(cr2|nef|arw|dng|raf|orf|pef)$/i.test(f.name));
+    const concurrency = hasAnyRaw ? 2 : 3;
 
-    const newPhotos: PhotoItem[] = await Promise.all(
-      fileArray.map(async (file, i) => {
-        const isRaw = /\.(cr2|nef|arw|dng|raf)$/i.test(file.name);
-        const url = await getDrawableImageUrl(file);
-        const id = `${Date.now()}-${i}-${file.name}`;
+    const newPhotos: PhotoItem[] = await mapWithConcurrency(fileArray, concurrency, async (file, i) => {
+      const isRaw = /\.(cr2|nef|arw|dng|raf|orf|pef)$/i.test(file.name);
+      const url = await getDrawableImageUrl(file);
+      const id = `${Date.now()}-${i}-${file.name}`;
 
-        let adaptiveAdjustments = { ...PRESET_ADJUSTMENTS['auto-church'] };
-        let realWidth = 4000;
-        let realHeight = 3000;
+      let adaptiveAdjustments = { ...PRESET_ADJUSTMENTS['auto-church'] };
+      let realWidth = 4000;
+      let realHeight = 3000;
 
-        // 1. Extracción de metadatos EXIF y clasificación de evento eclesiástico
-        const metadata = await extractPhotoMetadata(file);
-        const classification = classifyChurchEvent(metadata.dateTimeOriginal);
-        metadata.detectedEvent = classification.eventTitle;
-        metadata.dateFormatted = classification.formattedDate;
-        metadata.fullDateString = classification.fullDateString;
+      // 1. Extracción de metadatos EXIF y clasificación de evento eclesiástico
+      const metadata = await extractPhotoMetadata(file);
+      const classification = classifyChurchEvent(metadata.dateTimeOriginal);
+      metadata.detectedEvent = classification.eventTitle;
+      metadata.dateFormatted = classification.formattedDate;
+      metadata.fullDateString = classification.fullDateString;
 
-        // 2. Análisis de histograma del sensor y revelado adaptativo
-        const sensorData = await analyzeImageHistogram(url, isRaw);
-        if (sensorData) {
-          realWidth = sensorData.width;
-          realHeight = sensorData.height;
-          // Calibración adaptativa inteligente individual para CADA fotografía (RAW y JPEG)
-          adaptiveAdjustments = computeAdaptiveChurchEnhancement(sensorData);
-        }
+      // 2. Análisis de histograma del sensor y revelado adaptativo
+      const sensorData = await analyzeImageHistogram(url, isRaw);
+      if (sensorData) {
+        realWidth = sensorData.width;
+        realHeight = sensorData.height;
+        // Calibración adaptativa inteligente individual para CADA fotografía (RAW y JPEG)
+        adaptiveAdjustments = computeAdaptiveChurchEnhancement(sensorData);
+      }
 
-        return {
-          id,
-          file,
-          name: file.name,
-          sizeFormatted: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
-          originalUrl: url,
-          thumbnailUrl: sensorData?.thumbnailDataUrl || url,
-          width: realWidth,
-          height: realHeight,
-          isRaw,
-          adjustments: adaptiveAdjustments,
-          crop: {
-            aspectRatio: 'original',
-            orientation: realWidth >= realHeight ? 'landscape' : 'portrait',
-            offsetX: 0,
-            offsetY: 0,
-            zoom: 1.0,
-            rotation: 0,
-            straighten: 0,
-            flipH: false,
-            flipV: false,
-          },
-          preset: 'auto-church',
-          metadata,
-        };
-      })
-    );
+      return {
+        id,
+        file,
+        name: file.name,
+        sizeFormatted: `${(file.size / (1024 * 1024)).toFixed(1)} MB`,
+        originalUrl: url,
+        thumbnailUrl: sensorData?.thumbnailDataUrl || url,
+        width: realWidth,
+        height: realHeight,
+        isRaw,
+        adjustments: adaptiveAdjustments,
+        crop: {
+          aspectRatio: 'original',
+          orientation: realWidth >= realHeight ? 'landscape' : 'portrait',
+          offsetX: 0,
+          offsetY: 0,
+          zoom: 1.0,
+          rotation: 0,
+          straighten: 0,
+          flipH: false,
+          flipV: false,
+        },
+        preset: 'auto-church',
+        metadata,
+      };
+    });
 
     // Auto-completar título y fecha del marco según el evento EXIF detectado
     if (newPhotos.length > 0) {
@@ -724,15 +751,26 @@ export const App: React.FC = () => {
     showToast(`✓ Foto #${fromIndex + 1} movida a la posición #${toIndex + 1}`);
   };
 
-  // Determina si la foto activa tiene cambios respecto al estado original
+  // Determina si la foto activa tiene cambios respecto al estado neutro/original
   const hasModifications = Boolean(
     activePhoto &&
-      (Object.values(activePhoto.adjustments).some((v) => v !== 0) ||
+      (activePhoto.adjustments.brightness !== 0 ||
+        activePhoto.adjustments.contrast !== 0 ||
+        activePhoto.adjustments.saturation !== 0 ||
+        activePhoto.adjustments.warmth !== 0 ||
+        activePhoto.adjustments.shadows !== 0 ||
+        activePhoto.adjustments.highlights !== 0 ||
+        activePhoto.adjustments.sharpness !== 0 ||
+        (activePhoto.adjustments.clarity || 0) !== 0 ||
+        (activePhoto.adjustments.noiseReduction || 0) !== 0 ||
+        activePhoto.adjustments.skinToneGuard === false ||
         (activePhoto.crop?.zoom || 1) !== 1 ||
         (activePhoto.crop?.rotation || 0) !== 0 ||
         (activePhoto.crop?.straighten || 0) !== 0 ||
         (activePhoto.crop?.offsetX || 0) !== 0 ||
         (activePhoto.crop?.offsetY || 0) !== 0 ||
+        Boolean(activePhoto.crop?.flipH) ||
+        Boolean(activePhoto.crop?.flipV) ||
         (activePhoto.crop?.aspectRatio || 'original') !== 'original' ||
         frame.style !== 'none')
   );
@@ -754,8 +792,13 @@ export const App: React.FC = () => {
         p.id === activePhoto.id
           ? {
               ...p,
-              adjustments: { ...PRESET_ADJUSTMENTS['auto-church'] },
-              preset: 'auto-church',
+              adjustments: {
+                ...PRESET_ADJUSTMENTS['custom'],
+                clarity: 0,
+                noiseReduction: 0,
+                skinToneGuard: true,
+              },
+              preset: 'custom',
               crop: {
                 aspectRatio: 'original',
                 orientation: p.width >= p.height ? 'landscape' : 'portrait',
@@ -772,7 +815,7 @@ export const App: React.FC = () => {
       )
     );
     setFrame((prev) => ({ ...prev, style: 'none' }));
-    showToast('✓ Fotografía restaurada a valores iniciales');
+    showToast('✓ Fotografía restaurada a estado original');
   };
 
   // Photo Navigation (< y >)
@@ -854,7 +897,7 @@ export const App: React.FC = () => {
     }
   };
 
-  // Delete individual photo (Liberando memoria Blob URL para evitar fugas de RAM en móvil)
+  // Delete individual photo (Liberando memoria Blob URL, proxies y stack Undo/Redo)
   const handleDeletePhoto = (id: string, e?: React.MouseEvent) => {
     e?.stopPropagation();
     const currentIndex = photos.findIndex((p) => p.id === id);
@@ -863,9 +906,21 @@ export const App: React.FC = () => {
       evictCachedImage(target.originalUrl);
       URL.revokeObjectURL(target.originalUrl);
     }
+    if (target?.thumbnailUrl && target.thumbnailUrl !== target.originalUrl && target.thumbnailUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(target.thumbnailUrl);
+    }
+    historyMapRef.current.delete(id);
+
     const filtered = photos.filter((p) => p.id !== id);
     setPhotos(filtered);
-    if (activePhotoId === id && filtered.length > 0) {
+    if (filtered.length === 0) {
+      historyMapRef.current.clear();
+      setCanUndo(false);
+      setCanRedo(false);
+      releaseEngineMemory(true);
+      clearSessionDraft();
+      setActivePhotoId('');
+    } else if (activePhotoId === id) {
       const nextIdx = Math.min(currentIndex, filtered.length - 1);
       setActivePhotoId(filtered[Math.max(0, nextIdx)].id);
     }
@@ -960,16 +1015,32 @@ export const App: React.FC = () => {
     input.click();
   };
 
-  const handleGoHome = async () => {
+  const handleGoHome = () => {
     if (photos.length === 0) return;
-    const confirmLeave = window.confirm('¿Deseas cerrar la sesión actual y volver al inicio?');
-    if (!confirmLeave) return;
+    setIsExitConfirmOpen(true);
+  };
+
+  const confirmGoHome = async () => {
+    setIsExitConfirmOpen(false);
+    if (historyDebounceTimerRef.current) {
+      clearTimeout(historyDebounceTimerRef.current);
+      historyDebounceTimerRef.current = null;
+    }
+    initialBurstSnapshotRef.current = null;
     photos.forEach((p) => {
       if (p.originalUrl?.startsWith('blob:')) {
         evictCachedImage(p.originalUrl);
         URL.revokeObjectURL(p.originalUrl);
       }
+      if (p.thumbnailUrl && p.thumbnailUrl !== p.originalUrl && p.thumbnailUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(p.thumbnailUrl);
+      }
     });
+    historyMapRef.current.clear();
+    setCanUndo(false);
+    setCanRedo(false);
+    releaseEngineMemory(true);
+    await cleanupNativeExportCache();
     await clearSessionDraft();
     setPhotos([]);
     setActivePhotoId('');
@@ -1060,6 +1131,7 @@ export const App: React.FC = () => {
             onAddMorePhotos={triggerAddMoreFiles}
             activeTab={activeStudioTab}
             onChangeTab={setActiveStudioTab}
+            onNotify={showToast}
           />
         </div>
       )}
@@ -1096,6 +1168,53 @@ export const App: React.FC = () => {
         }}
         initialInfo={updateInfo}
       />
+
+      {/* Bottom Sheet One UI para Confirmar Cierre de Sesión */}
+      {isExitConfirmOpen && (
+        <div className="modal-backdrop oneui-sheet-backdrop" onClick={() => setIsExitConfirmOpen(false)}>
+          <div className="export-modal oneui-sheet card-glass" onClick={(e) => e.stopPropagation()}>
+            <div className="oneui-sheet-handle-row" onClick={() => setIsExitConfirmOpen(false)} title="Cerrar">
+              <div className="oneui-sheet-handle" />
+            </div>
+            <div className="oneui-deck-title-row" style={{ marginBottom: '0.45rem' }}>
+              <div className="oneui-param-title-group">
+                <span className="oneui-param-title" style={{ fontSize: '0.85rem' }}>CERRAR SESIÓN ACTUAL</span>
+                <span className="oneui-param-meta-tag">
+                  {photos.length} {photos.length === 1 ? 'foto' : 'fotos'}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsExitConfirmOpen(false)}
+                className="oneui-reset-tiny-btn"
+                title="Cerrar"
+              >
+                <X size={13} />
+              </button>
+            </div>
+            <p style={{ fontSize: '0.8rem', color: '#94a3b8', lineHeight: 1.45, marginBottom: '0.9rem' }}>
+              Si regresas al inicio se descartará el lote actual y sus ajustes temporales en pantalla.
+            </p>
+            <div className="oneui-export-actions">
+              <button
+                type="button"
+                onClick={confirmGoHome}
+                className="oneui-primary-action-btn"
+                style={{ background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)', color: '#ffffff' }}
+              >
+                <span>Volver al inicio</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsExitConfirmOpen(false)}
+                className="oneui-secondary-action-btn"
+              >
+                <span>Seguir aquí</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Notificación Toast Flotante No-Intrusiva (Popover Top-Layer + Fallback) */}
       <div

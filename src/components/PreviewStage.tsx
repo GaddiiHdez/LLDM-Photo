@@ -14,7 +14,8 @@ import {
   drawProcessedPhotoSync,
   loadImage,
   getCachedImageSync,
-  createBaseProxyCanvas,
+  getCachedBaseProxy,
+  getOrCreateBaseProxy,
   bakeToneToProxyCanvas,
 } from '../utils/canvasEngine';
 import type { PhotoItem, WatermarkSettings, FrameSettings, CropSettings, ImageAdjustments } from '../types/editor';
@@ -48,27 +49,6 @@ const NEUTRAL_ADJUSTMENTS: ImageAdjustments = {
   noiseReduction: 0,
   skinToneGuard: true,
 };
-
-// Caché LRU de proxies base (1280px) en memoria para cambio instantáneo entre fotos del lote
-const baseProxyCache = new Map<string, HTMLCanvasElement>();
-const MAX_PROXY_CACHE = 10;
-
-function getOrCreateBaseProxy(url: string, img: HTMLImageElement): HTMLCanvasElement {
-  const existing = baseProxyCache.get(url);
-  if (existing) {
-    // Mover al final (LRU)
-    baseProxyCache.delete(url);
-    baseProxyCache.set(url, existing);
-    return existing;
-  }
-  const proxy = createBaseProxyCanvas(img, 1280);
-  if (baseProxyCache.size >= MAX_PROXY_CACHE) {
-    const oldestKey = baseProxyCache.keys().next().value;
-    if (oldestKey !== undefined) baseProxyCache.delete(oldestKey);
-  }
-  baseProxyCache.set(url, proxy);
-  return proxy;
-}
 
 function getAdjustmentsKey(url: string, adj: ImageAdjustments, highRes: boolean): string {
   return `${url}|${adj.brightness}|${adj.contrast}|${adj.saturation}|${adj.shadows}|${adj.highlights}|${adj.warmth}|${adj.sharpness}|${adj.clarity || 0}|${adj.noiseReduction || 0}|${adj.skinToneGuard !== false ? 1 : 0}|${highRes ? 'hd' : 'fast'}`;
@@ -159,6 +139,21 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
     }
     return tonedProxyRef.current;
   };
+
+  // Liberar buffers y temporizadores al desmontar el visor
+  useEffect(() => {
+    return () => {
+      if (animFrameIdRef.current) cancelAnimationFrame(animFrameIdRef.current);
+      if (hdBakeTimerRef.current) window.clearTimeout(hdBakeTimerRef.current);
+      if (wheelCommitTimerRef.current) window.clearTimeout(wheelCommitTimerRef.current);
+      if (tonedProxyRef.current) {
+        tonedProxyRef.current.width = 0;
+        tonedProxyRef.current.height = 0;
+        tonedProxyRef.current = null;
+      }
+      baseProxyRef.current = null;
+    };
+  }, []);
 
   // ─── ANÁLISIS DE ALTAS LUCES QUEMADAS (ZEBRA BLINKIES) E HISTOGRAMA RGB ──────
   const updateZebraAndHistogram = useCallback(() => {
@@ -425,7 +420,7 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
     currentTempCropRef.current = null;
 
     // 1. Vía rápida en memoria (0ms si ya visitó la foto o si ya fue decodificada al importar)
-    const cachedProxy = baseProxyCache.get(url);
+    const cachedProxy = getCachedBaseProxy(url);
     if (cachedProxy) {
       baseProxyRef.current = cachedProxy;
       baseProxyUrlRef.current = url;

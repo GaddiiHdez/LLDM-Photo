@@ -3,7 +3,7 @@ import { saveAs } from 'file-saver';
 import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
-import { renderProcessedPhoto, canvasToBlob, loadImage } from './canvasEngine';
+import { renderProcessedPhoto, canvasToBlob, loadImage, releaseScratchBuffer } from './canvasEngine';
 import { MediaSaver } from './mediaSaver';
 import type { PhotoItem, WatermarkSettings, FrameSettings, ExportOptions } from '../types/editor';
 
@@ -51,6 +51,23 @@ function blobToBase64(blob: Blob): Promise<string> {
 }
 
 /**
+ * Limpia archivos temporales de exportaciones anteriores en Directory.Cache para no acumular espacio.
+ * Se invoca antes de una nueva exportación nativa o al cerrar sesión (deja intacto el lote recién compartido).
+ */
+export async function cleanupNativeExportCache(): Promise<void> {
+  if (!Capacitor.isNativePlatform()) return;
+  try {
+    await Filesystem.rmdir({
+      path: 'BereaSnap_export',
+      directory: Directory.Cache,
+      recursive: true,
+    });
+  } catch {
+    // La carpeta no existe aún o ya fue eliminada
+  }
+}
+
+/**
  * Guarda un archivo en almacenamiento nativo de Android (Carpeta Documents/BereaSnap)
  * o abre la hoja nativa de Compartir de Android/iOS. En Web usa descarga directa o Web Share API.
  */
@@ -76,9 +93,10 @@ async function deliverExportedFile(
         });
         savedUri = res.uri;
       } catch {
-        // Fallback a Directory.Cache si el permiso de Documents está restringido en alguna versión de Android
+        // Fallback a Directory.Cache dentro de BereaSnap_export para poder limpiarlo después
+        await cleanupNativeExportCache();
         const resCache = await Filesystem.writeFile({
-          path: fileName,
+          path: `BereaSnap_export/${fileName}`,
           data: base64Data,
           directory: Directory.Cache,
           recursive: true,
@@ -173,6 +191,7 @@ export async function exportSinglePhoto(
       canvas.height = 0;
       canvas = null;
     }
+    releaseScratchBuffer();
   }
 }
 
@@ -218,6 +237,10 @@ export async function exportBatchAsJpgs(
   const nativeShareUris: string[] = [];
   const webShareFiles: File[] = [];
   let processedCount = 0;
+
+  if (isNative) {
+    await cleanupNativeExportCache();
+  }
 
   for (let i = 0; i < photos.length; i++) {
     const photo = photos[i];
@@ -284,8 +307,11 @@ export async function exportBatchAsJpgs(
   }
 
   if (processedCount === 0) {
+    releaseScratchBuffer();
     throw new Error('No se pudo procesar ninguna fotografía del lote.');
   }
+
+  releaseScratchBuffer();
 
   if (isNative) {
     if (nativeShareUris.length > 0) {
@@ -420,8 +446,11 @@ export async function exportBatchAsZip(
   }
 
   if (processedCount === 0) {
+    releaseScratchBuffer();
     throw new Error('No se pudo procesar ninguna fotografía del lote.');
   }
+
+  releaseScratchBuffer();
 
   const zipContent = await zip.generateAsync({
     type: 'blob',

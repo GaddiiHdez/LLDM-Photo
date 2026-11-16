@@ -4,6 +4,21 @@ Todas las actualizaciones y mejoras notables de BereaSnap están documentadas en
 
 ---
 
+## [1.6.0] - 2026-11-15
+
+### ⚡ Rendimiento, Memoria y Estabilidad en Android
+* **Exportación fluida en segundo plano (Web Worker)**: El procesado pesado de luces, sombras, claridad, reducción de ruido y nitidez ahora corre fuera del hilo principal al exportar en alta resolución, evitando que la app se congele con lotes grandes.
+* **Auto-guardado incremental de sesión**: Las fotos cargadas se almacenan una sola vez en IndexedDB y solo se actualizan los ajustes ligeros al editar, evitando reescrituras pesadas cada vez que mueves un slider.
+* **Apertura más ligera para lotes y archivos RAW**: Los archivos `.NEF`, `.CR2`, `.ARW` y `.DNG` ahora se leen por bloques de 4 MB sin duplicar copias en RAM, y la importación múltiple limita la concurrencia (2–3 fotos a la vez) para prevenir cierres por falta de memoria.
+* **Limpieza automática de memoria y caché**: Se liberan buffers temporales tras exportar, cachés de vista previa al borrar fotos o salir, y archivos temporales de compartición en Android.
+
+### 🎨 Mejoras de Interfaz y Calidad
+* **Confirmación One UI al cerrar sesión**: Al volver al inicio se muestra una hoja inferior estilo AMOLED en lugar de la alerta genérica del navegador, y las notificaciones de filtros ahora usan toasts integrados.
+* **Detección exacta de cambios ("Revertir")**: Corregido el estado inicial de modificación provocado por *Skin Tone Guard*, permitiendo restaurar la foto exactamente a valores neutros.
+* **Arquitectura modular y pruebas automáticas**: Panel de herramientas dividido por pestañas y nueva suite de pruebas unitarias para validaciones clave.
+
+---
+
 ## [1.5.4] - 2026-10-25
 
 ### 🎨 Barra Superior y Ventana de Guardado Rediseñadas
