@@ -60,6 +60,35 @@
 
   --scrollbar-track: rgba(4, 7, 13, 0.6);
   --scrollbar-thumb: rgba(255, 255, 255, 0.16);
+
+  /* One UI Tokens (Oscuro AMOLED por defecto) */
+  --oneui-header-bg: #000000;
+  --oneui-sheet-bg: #0d0d12;
+  --oneui-dock-bg: #000000;
+  --oneui-popover-bg: rgba(16, 16, 20, 0.98);
+  --oneui-surface-subtle: rgba(255, 255, 255, 0.05);
+  --oneui-surface-card: rgba(255, 255, 255, 0.04);
+  --oneui-surface-hover: rgba(255, 255, 255, 0.1);
+  --oneui-border: rgba(255, 255, 255, 0.09);
+  --oneui-border-subtle: rgba(255, 255, 255, 0.06);
+  --oneui-text: #f8fafc;
+  --oneui-text-secondary: #94a3b8;
+  --oneui-text-muted: #64748b;
+  --oneui-accent: #f59e0b;
+  --oneui-accent-text: #fbbf24;
+  --oneui-accent-contrast: #000000;
+  --oneui-dial-active-bg: #18181d;
+  --oneui-thumb-bg: #141418;
+  --oneui-pill-bg: rgba(9, 13, 22, 0.78);
+  --oneui-pill-border: rgba(255, 255, 255, 0.16);
+  --oneui-pill-text: #f8fafc;
+  --oneui-hist-bg: rgba(10, 10, 14, 0.9);
+  --oneui-toast-bg: rgba(15, 23, 42, 0.96);
+  --oneui-toast-text: #f8fafc;
+  --oneui-sheet-shadow: 0 -10px 28px rgba(0, 0, 0, 0.78);
+  --oneui-cta-bg: #ffffff;
+  --oneui-cta-text: #000000;
+  --oneui-cta-shadow: 0 4px 20px rgba(255, 255, 255, 0.16);
 }
 
 /* ========================================================
@@ -110,6 +139,35 @@ body[data-theme="light"],
 
   --scrollbar-track: #f1f5f9;
   --scrollbar-thumb: rgba(0, 0, 0, 0.2);
+
+  /* One UI Tokens (Blanco Galería) */
+  --oneui-header-bg: #ffffff;
+  --oneui-sheet-bg: #ffffff;
+  --oneui-dock-bg: #ffffff;
+  --oneui-popover-bg: rgba(255, 255, 255, 0.98);
+  --oneui-surface-subtle: rgba(15, 23, 42, 0.05);
+  --oneui-surface-card: #f8fafc;
+  --oneui-surface-hover: rgba(15, 23, 42, 0.09);
+  --oneui-border: rgba(15, 23, 42, 0.12);
+  --oneui-border-subtle: rgba(15, 23, 42, 0.08);
+  --oneui-text: #0f172a;
+  --oneui-text-secondary: #475569;
+  --oneui-text-muted: #64748b;
+  --oneui-accent: #d97706;
+  --oneui-accent-text: #b45309;
+  --oneui-accent-contrast: #ffffff;
+  --oneui-dial-active-bg: #fef3c7;
+  --oneui-thumb-bg: #e2e8f0;
+  --oneui-pill-bg: rgba(255, 255, 255, 0.9);
+  --oneui-pill-border: rgba(15, 23, 42, 0.16);
+  --oneui-pill-text: #0f172a;
+  --oneui-hist-bg: rgba(255, 255, 255, 0.94);
+  --oneui-toast-bg: #ffffff;
+  --oneui-toast-text: #0f172a;
+  --oneui-sheet-shadow: 0 -8px 26px rgba(15, 23, 42, 0.12);
+  --oneui-cta-bg: #0f172a;
+  --oneui-cta-text: #ffffff;
+  --oneui-cta-shadow: 0 6px 20px rgba(15, 23, 42, 0.18);
 }
 
 /* ========================================================
@@ -160,6 +218,35 @@ body[data-theme="dark"],
 
   --scrollbar-track: rgba(4, 7, 13, 0.6);
   --scrollbar-thumb: rgba(255, 255, 255, 0.16);
+
+  /* One UI Tokens (Oscuro AMOLED por defecto) */
+  --oneui-header-bg: #000000;
+  --oneui-sheet-bg: #0d0d12;
+  --oneui-dock-bg: #000000;
+  --oneui-popover-bg: rgba(16, 16, 20, 0.98);
+  --oneui-surface-subtle: rgba(255, 255, 255, 0.05);
+  --oneui-surface-card: rgba(255, 255, 255, 0.04);
+  --oneui-surface-hover: rgba(255, 255, 255, 0.1);
+  --oneui-border: rgba(255, 255, 255, 0.09);
+  --oneui-border-subtle: rgba(255, 255, 255, 0.06);
+  --oneui-text: #f8fafc;
+  --oneui-text-secondary: #94a3b8;
+  --oneui-text-muted: #64748b;
+  --oneui-accent: #f59e0b;
+  --oneui-accent-text: #fbbf24;
+  --oneui-accent-contrast: #000000;
+  --oneui-dial-active-bg: #18181d;
+  --oneui-thumb-bg: #141418;
+  --oneui-pill-bg: rgba(9, 13, 22, 0.78);
+  --oneui-pill-border: rgba(255, 255, 255, 0.16);
+  --oneui-pill-text: #f8fafc;
+  --oneui-hist-bg: rgba(10, 10, 14, 0.9);
+  --oneui-toast-bg: rgba(15, 23, 42, 0.96);
+  --oneui-toast-text: #f8fafc;
+  --oneui-sheet-shadow: 0 -10px 28px rgba(0, 0, 0, 0.78);
+  --oneui-cta-bg: #ffffff;
+  --oneui-cta-text: #000000;
+  --oneui-cta-shadow: 0 4px 20px rgba(255, 255, 255, 0.16);
 }
 
 * {
@@ -209,6 +296,8 @@ body {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  height: 100dvh;
+  max-height: 100dvh;
   overflow: hidden;
   background: var(--bg-primary);
 }
@@ -1400,31 +1489,31 @@ input[type="range"] {
 /* Badge Flotante "ORIGINAL" */
 .original-compare-badge {
   position: absolute;
-  top: 1.25rem;
-  left: 50%;
-  transform: translateX(-50%);
-  background: rgba(239, 68, 68, 0.9);
+  top: 0.55rem;
+  left: 0.65rem;
+  background: rgba(220, 38, 38, 0.92);
   color: #ffffff;
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   font-weight: 800;
-  padding: 0.35rem 0.85rem;
+  padding: 0.32rem 0.72rem;
   border-radius: 9999px;
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 0.4rem;
-  letter-spacing: 0.06em;
-  box-shadow: 0 8px 24px rgba(239, 68, 68, 0.4);
-  z-index: 20;
+  gap: 0.35rem;
+  letter-spacing: 0.05em;
+  box-shadow: 0 6px 18px rgba(220, 38, 38, 0.38);
+  z-index: 26;
   backdrop-filter: blur(12px);
   animation: pulseBadge 1.8s infinite ease-in-out;
+  pointer-events: none;
 }
 
 @keyframes pulseBadge {
   0%, 100% {
-    transform: translateX(-50%) scale(1);
+    transform: scale(1);
   }
   50% {
-    transform: translateX(-50%) scale(1.04);
+    transform: scale(1.03);
   }
 }
 
@@ -3213,7 +3302,7 @@ input[type="range"] {
    REFORMA UX/UI NATIVA: LAUNCHPAD, TOP BAR & TOAST POPOVER
    ======================================================== */
 
-/* 1. Pantalla de Inicio Nativa (Home Launchpad One UI AMOLED) */
+/* 1. Pantalla de Inicio Nativa (Home Launchpad One UI AMOLED / Claro) */
 .home-launchpad {
   flex: 1;
   display: flex;
@@ -3221,17 +3310,18 @@ input[type="range"] {
   align-items: center;
   justify-content: center;
   position: relative;
-  min-height: 100%;
+  min-height: 0;
   width: 100%;
-  padding: 2rem 1.5rem 1.25rem 1.5rem;
-  background-color: #000000;
-  overflow: hidden;
+  padding: calc(3.25rem + env(safe-area-inset-top, 0px)) 1.25rem calc(1.25rem + env(safe-area-inset-bottom, 0px)) 1.25rem;
+  background-color: var(--bg-primary);
+  overflow-y: auto;
+  overflow-x: hidden;
   box-sizing: border-box;
 }
 
 .home-launchpad.drag-active {
-  background: radial-gradient(circle at center, rgba(245, 158, 11, 0.08) 0%, #000000 70%);
-  outline: 2px dashed rgba(245, 158, 11, 0.4);
+  background: radial-gradient(circle at center, rgba(245, 158, 11, 0.1) 0%, var(--bg-primary) 70%);
+  outline: 2px dashed rgba(245, 158, 11, 0.5);
   outline-offset: -12px;
 }
 
@@ -3253,7 +3343,7 @@ input[type="range"] {
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-bottom: 2rem;
+  margin-bottom: 1.75rem;
 }
 
 .launchpad-icon-ring {
@@ -3285,12 +3375,12 @@ input[type="range"] {
   font-weight: 800;
   letter-spacing: -0.03em;
   margin: 0 0 0.4rem 0;
-  color: #ffffff;
+  color: var(--oneui-text);
 }
 
 .launchpad-subtitle {
   font-size: 0.86rem;
-  color: rgba(255, 255, 255, 0.55);
+  color: var(--oneui-text-secondary);
   line-height: 1.4;
   margin: 0;
   max-width: 290px;
@@ -3299,15 +3389,15 @@ input[type="range"] {
 /* Card de Borrador de Sesión Recuperable (One UI) */
 .oneui-draft-restore-card {
   width: 100%;
-  background: rgba(245, 158, 11, 0.08);
-  border: 1px solid rgba(245, 158, 11, 0.28);
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.35);
   border-radius: 18px;
   padding: 0.85rem 1rem;
   margin-bottom: 1.5rem;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow-lg);
   backdrop-filter: blur(16px);
   animation: fadeIn 0.25s ease-out;
 }
@@ -3328,12 +3418,12 @@ input[type="range"] {
 .draft-card-text strong {
   font-size: 0.82rem;
   font-weight: 700;
-  color: #fef3c7;
+  color: var(--oneui-text);
 }
 
 .draft-card-text span {
   font-size: 0.72rem;
-  color: rgba(254, 243, 199, 0.7);
+  color: var(--oneui-text-secondary);
 }
 
 .draft-card-actions {
@@ -3344,19 +3434,20 @@ input[type="range"] {
 
 .draft-action-btn.restore {
   flex: 1;
+  min-height: 44px;
   background: linear-gradient(135deg, #f59e0b, #d97706);
   border: none;
   color: #000000;
-  font-size: 0.76rem;
+  font-size: 0.78rem;
   font-weight: 700;
-  padding: 0.45rem 0.8rem;
+  padding: 0.45rem 0.9rem;
   border-radius: 999px;
   cursor: pointer;
   transition: transform 0.15s ease, filter 0.15s ease;
 }
 
 .draft-action-btn.restore:hover {
-  filter: brightness(1.1);
+  filter: brightness(1.08);
   transform: translateY(-1px);
 }
 
@@ -3368,12 +3459,14 @@ input[type="range"] {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  min-width: 44px;
+  min-height: 44px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.5);
+  background: var(--oneui-surface-subtle);
+  border: 1px solid var(--oneui-border);
+  color: var(--oneui-text-secondary);
   cursor: pointer;
   transition: all 0.15s ease;
 }
@@ -3390,24 +3483,24 @@ input[type="range"] {
   align-items: center;
   justify-content: center;
   gap: 0.65rem;
+  min-height: 48px;
   padding: 0.85rem 2.5rem;
   border-radius: 9999px;
-  background: #ffffff;
-  color: #000000;
+  background: var(--oneui-cta-bg);
+  color: var(--oneui-cta-text);
   font-weight: 700;
   font-size: 0.98rem;
   border: none;
   cursor: pointer;
-  box-shadow: 0 4px 20px rgba(255, 255, 255, 0.15);
-  transition: transform 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+  box-shadow: var(--oneui-cta-shadow);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, filter 0.15s ease;
   width: 100%;
-  max-width: 230px;
+  max-width: 240px;
 }
 
 .oneui-launchpad-btn:hover {
-  background: #f1f5f9;
+  filter: brightness(0.94);
   transform: translateY(-1px);
-  box-shadow: 0 6px 24px rgba(255, 255, 255, 0.25);
 }
 
 .oneui-launchpad-btn:active {
@@ -3428,16 +3521,16 @@ input[type="range"] {
   font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 0.05em;
-  color: rgba(255, 255, 255, 0.5);
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--oneui-text-secondary);
+  background: var(--oneui-surface-subtle);
+  border: 1px solid var(--oneui-border);
   border-radius: 9999px;
 }
 
 .launchpad-drag-hint {
   margin-top: 0.85rem;
   font-size: 0.75rem;
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--oneui-text-muted);
   letter-spacing: 0.02em;
 }
 
@@ -3446,7 +3539,7 @@ input[type="range"] {
   padding-top: 1.5rem;
   padding-bottom: 0.5rem;
   font-size: 0.72rem;
-  color: rgba(255, 255, 255, 0.25);
+  color: var(--oneui-text-muted);
   letter-spacing: 0.06em;
   font-weight: 500;
 }
@@ -3553,26 +3646,31 @@ input[type="range"] {
   box-shadow: 0 0 12px rgba(245, 158, 11, 0.35);
 }
 
-/* 3. Píldora Flotante Discreta de Lupa en Lienzo */
+/* 3. Píldora Flotante Discreta de Lupa y Telemetría en Lienzo */
 .floating-stage-pills {
   position: absolute;
-  top: 0.55rem;
-  right: 0.65rem;
+  top: 0.45rem;
+  right: 0.55rem;
   z-index: 25;
   display: flex;
-  gap: 0.35rem;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.32rem;
+  max-width: calc(100% - 1.1rem);
+  pointer-events: auto;
 }
 
 .stage-pill-btn {
   display: inline-flex;
   align-items: center;
   gap: 0.28rem;
-  padding: 0.22rem 0.55rem;
+  min-height: 36px;
+  padding: 0.25rem 0.62rem;
   border-radius: 9999px;
-  background: rgba(9, 13, 22, 0.72);
+  background: var(--oneui-pill-bg);
   backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  color: #f8fafc;
+  border: 1px solid var(--oneui-pill-border);
+  color: var(--oneui-pill-text);
   font-family: var(--font-mono);
   font-size: 0.68rem;
   font-weight: 700;
@@ -3581,13 +3679,13 @@ input[type="range"] {
 }
 
 .stage-pill-btn:hover {
-  border-color: #38bdf8;
+  border-color: var(--color-brand-light);
 }
 
 .stage-pill-btn.active {
   background: rgba(245, 158, 11, 0.22);
-  border-color: rgba(245, 158, 11, 0.55);
-  color: #f59e0b;
+  border-color: rgba(245, 158, 11, 0.6);
+  color: var(--oneui-accent-text);
 }
 
 /* Badge de Alerta: Altas Luces Quemadas */
@@ -3595,16 +3693,17 @@ input[type="range"] {
   display: inline-flex;
   align-items: center;
   gap: 0.32rem;
-  padding: 0.22rem 0.55rem;
+  min-height: 36px;
+  padding: 0.22rem 0.6rem;
   border-radius: 9999px;
   background: rgba(239, 68, 68, 0.22);
   backdrop-filter: blur(8px);
-  border: 1px solid rgba(239, 68, 68, 0.6);
-  color: #fca5a5;
+  border: 1px solid rgba(239, 68, 68, 0.65);
+  color: var(--color-danger);
   font-family: var(--font-mono);
   font-size: 0.68rem;
   font-weight: 700;
-  box-shadow: 0 0 12px rgba(239, 68, 68, 0.35);
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.28);
   animation: pulseClipping 2s infinite ease-in-out;
 }
 
@@ -3631,18 +3730,18 @@ input[type="range"] {
   mix-blend-mode: hard-light;
 }
 
-/* Histograma RGB Flotante Compacto */
+/* Histograma RGB Flotante Compacto — reserva espacio debajo de píldoras superiores */
 .floating-rgb-histogram {
   position: absolute;
-  top: 0.75rem;
-  left: 0.75rem;
-  background: rgba(10, 10, 14, 0.88) !important;
-  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  top: 3.1rem;
+  left: 0.65rem;
+  background: var(--oneui-hist-bg) !important;
+  border: 1px solid var(--oneui-border) !important;
   border-radius: 12px;
   padding: 0.4rem 0.5rem;
   z-index: 25;
   backdrop-filter: blur(14px);
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.6);
+  box-shadow: var(--shadow-lg);
   animation: fadeIn 0.18s ease-out;
 }
 
@@ -3653,7 +3752,7 @@ input[type="range"] {
   margin-bottom: 0.3rem;
   font-size: 0.62rem;
   font-weight: 700;
-  color: #94a3b8;
+  color: var(--oneui-text-secondary);
   letter-spacing: 0.05em;
 }
 
@@ -3663,45 +3762,49 @@ input[type="range"] {
   justify-content: center;
   background: none;
   border: none;
-  color: #64748b;
+  color: var(--oneui-text-muted);
   cursor: pointer;
-  padding: 2px;
-  border-radius: 4px;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 4px;
+  border-radius: 6px;
   transition: all 0.15s ease;
 }
 
 .histogram-close-btn:hover {
-  color: #ffffff;
-  background: rgba(255, 255, 255, 0.1);
+  color: var(--oneui-text);
+  background: var(--oneui-surface-hover);
 }
 
 .histogram-canvas {
   display: block;
   border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--oneui-border-subtle);
 }
 
 /* 4. Toast Popover Top-Layer + Fallback */
 .studio-toast-popover {
   display: none;
   position: fixed;
-  top: calc(3.6rem + env(safe-area-inset-top, 0px));
+  top: calc(3.85rem + env(safe-area-inset-top, 0px));
   left: 50%;
   transform: translateX(-50%);
+  max-width: min(92vw, 460px);
   margin: 0;
   z-index: 9999;
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem 0.85rem;
   border-radius: 9999px;
-  background: rgba(15, 23, 42, 0.95);
+  background: var(--oneui-toast-bg);
   backdrop-filter: blur(12px);
-  border: 1px solid rgba(16, 185, 129, 0.5);
-  color: #f8fafc;
+  border: 1px solid rgba(16, 185, 129, 0.55);
+  color: var(--oneui-toast-text);
   font-size: 0.76rem;
   font-weight: 700;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.55);
-  white-space: nowrap;
+  box-shadow: var(--shadow-lg);
+  white-space: normal;
+  text-align: center;
   transition-behavior: allow-discrete;
 }
 
@@ -3713,17 +3816,21 @@ input[type="range"] {
 .toast-close-btn {
   background: transparent;
   border: none;
-  color: #94a3b8;
+  color: var(--oneui-text-secondary);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  padding: 0.1rem;
+  justify-content: center;
+  min-width: 28px;
+  min-height: 28px;
+  padding: 0.15rem;
+  flex-shrink: 0;
 }
 
 /* ========================================================
-   LAYOUT MÓVIL NATIVO SIN SCROLL INTERNO (<= 768px)
+   LAYOUT MÓVIL Y ORIENTACIÓN RESPONSIVE (PORTRAIT / LANDSCAPE)
    ======================================================== */
-@media (max-width: 768px) {
+@media (max-width: 920px), (max-height: 580px) {
   html, body {
     height: 100%;
     overflow: hidden;
@@ -3739,18 +3846,6 @@ input[type="range"] {
     flex-direction: column;
   }
 
-  /* Header Compacto con Safe-Area Android */
-  .app-header {
-    height: calc(2.9rem + env(safe-area-inset-top, 0px));
-    padding: env(safe-area-inset-top, 0px) 0.55rem 0 0.55rem;
-    flex-shrink: 0;
-  }
-
-  .brand-logo {
-    width: 1.85rem;
-    height: 1.85rem;
-  }
-
   .header-filename-desktop,
   .btn-label-desktop {
     display: none;
@@ -3760,16 +3855,19 @@ input[type="range"] {
     display: inline;
   }
 
-  .header-actions {
-    gap: 0.25rem;
+  /* Reservar espacio superior para píldoras Zebra/RGB/Zoom y badge ORIGINAL */
+  .canvas-wrapper {
+    padding: 2.9rem 0.45rem 0.55rem 0.45rem !important;
   }
 
-  .header-btn {
-    padding: 0.34rem 0.55rem;
-    font-size: 0.7rem;
+  /* En pantallas táctiles compactas ocultamos flechas laterales (swipe + carrete) */
+  .canvas-nav-btn {
+    display: none;
   }
+}
 
-  /* Cuerpo Principal: Columna Visual (Lienzo + Carrete) arriba y Tool Deck abajo */
+/* Portrait / Módulos verticales (< 600px ancho o portrait <= 920px) */
+@media (max-width: 599px), (max-width: 920px) and (orientation: portrait) {
   .studio-body {
     flex: 1;
     min-height: 0;
@@ -3780,100 +3878,156 @@ input[type="range"] {
   }
 
   .studio-main-column {
-    flex: 1 1 auto;
+    flex: 1 1 0;
     min-height: 0;
+    min-width: 0;
     display: flex;
     flex-direction: column;
     overflow: hidden;
     width: 100%;
   }
 
-  /* Lienzo Fotográfico Inmersivo */
   .preview-stage {
-    flex: 1 1 auto;
+    flex: 1 1 0;
+    min-height: 0;
+    height: 100%;
+  }
+
+  .sidebar-controls.oneui-bottom-system {
+    position: relative !important;
+    flex: 0 0 auto !important;
+    width: 100% !important;
+    height: auto !important;
+    flex-direction: column !important;
+    border-left: none !important;
+    border-top: none !important;
+    background: var(--oneui-dock-bg) !important;
+    z-index: 40 !important;
+  }
+
+  .oneui-bottom-system .oneui-floating-card {
+    width: 100% !important;
+    max-width: 100% !important;
+    max-height: min(46dvh, 340px) !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    overscroll-behavior: contain;
+    margin-bottom: 0 !important;
+    border-radius: 20px 20px 0 0 !important;
+    border-left: none !important;
+    border-right: none !important;
+    border-bottom: none !important;
+    border-top: 1px solid var(--oneui-border) !important;
+    background: var(--oneui-sheet-bg) !important;
+    box-shadow: var(--oneui-sheet-shadow) !important;
+    padding: 0.35rem 0.85rem 0.5rem 0.85rem !important;
+  }
+
+  .oneui-bottom-system .oneui-dock {
+    width: 100% !important;
+    background: var(--oneui-dock-bg) !important;
+    border-top: 1px solid var(--oneui-border-subtle) !important;
+  }
+}
+
+/* Landscape móvil y escritorios/tablets (>= 600px en landscape o >= 921px ancho) */
+@media (orientation: landscape) and (min-width: 600px), (min-width: 921px) {
+  .studio-body {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: row !important;
+    align-items: stretch !important;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .studio-main-column {
+    flex: 1 1 0 !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    height: 100% !important;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .preview-stage {
+    flex: 1 1 0;
     min-height: 0;
     height: 100%;
   }
 
   .canvas-wrapper {
-    padding: 0.3rem;
+    padding: 2.95rem 0.75rem 0.65rem 0.75rem;
   }
 
-  /* En móvil ocultamos las flechas laterales sobre la foto porque el carrete está fijo abajo + swipe táctil */
-  .canvas-nav-btn {
+  .sidebar-controls.oneui-bottom-system {
+    position: relative !important;
+    flex: 0 0 auto !important;
+    width: auto !important;
+    max-width: 50vw !important;
+    height: 100% !important;
+    display: flex !important;
+    flex-direction: row !important;
+    align-items: stretch !important;
+    justify-content: flex-end !important;
+    padding-bottom: 0 !important;
+    border-top: none !important;
+    border-left: 1px solid var(--oneui-border) !important;
+    background: var(--oneui-dock-bg) !important;
+    z-index: 40 !important;
+  }
+
+  .oneui-bottom-system .oneui-floating-card {
+    width: clamp(275px, 38vw, 390px) !important;
+    max-width: none !important;
+    height: 100% !important;
+    max-height: 100% !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    overscroll-behavior: contain;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+    border-right: 1px solid var(--oneui-border) !important;
+    background: var(--oneui-sheet-bg) !important;
+    padding: 0.55rem 0.85rem calc(0.65rem + env(safe-area-inset-bottom, 0px)) 0.85rem !important;
+  }
+
+  .oneui-bottom-system .oneui-sheet-handle-row {
     display: none;
   }
 
-  /* Carrete Persistente en Móvil */
-  .filmstrip-dock {
-    height: 3.1rem;
-    padding: 0 0.45rem;
+  .oneui-bottom-system .oneui-dock {
+    width: 68px !important;
+    min-width: 68px !important;
+    height: 100% !important;
+    flex-direction: column !important;
+    justify-content: space-evenly !important;
+    padding: 0.35rem 0.15rem calc(0.35rem + env(safe-area-inset-bottom, 0px)) 0.15rem !important;
+    border-top: none !important;
+    background: var(--oneui-dock-bg) !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
   }
 
-  .filmstrip-thumb,
-  .filmstrip-add-tile {
-    width: 2.3rem;
-    height: 2.3rem;
-    min-width: 2.3rem;
-  }
-
-  .filmstrip-action-label {
-    display: none;
-  }
-
-  .filmstrip-action-btn {
-    width: 2.05rem;
-    height: 2.05rem;
-    padding: 0;
-  }
-
-  /* Tool Deck Inferior Compacto — CERO SCROLL VERTICAL */
-  .sidebar-controls {
-    flex: 0 0 auto;
+  .oneui-bottom-system .oneui-dock-btn {
     width: 100%;
-    height: auto;
-    border-left: none;
-    border-top: 1px solid var(--border-color);
-    display: flex;
-    flex-direction: column;
-    order: 2;
-    overflow: hidden;
-    background: var(--bg-card);
-    z-index: 20;
+    min-height: 48px;
+    padding: 0.25rem 0.15rem;
   }
 
-  .sidebar-content {
-    order: 1;
-    flex: 0 0 auto;
-    overflow: hidden;
-    padding: 0.42rem 0.55rem 0.35rem 0.55rem;
+  .oneui-bottom-system .oneui-frame-dual-inputs {
+    grid-template-columns: 1fr;
   }
 
-  /* Barra de 5 Pestañas Fija Abajo con Safe-Area Android */
-  .sidebar-tabs {
-    order: 2;
-    flex-shrink: 0;
-    display: flex;
-    padding: 0.25rem 0.35rem calc(0.28rem + env(safe-area-inset-bottom, 0px)) 0.35rem;
-    background: var(--bg-surface);
-    border-top: 1px solid var(--border-color);
-    border-bottom: none;
-    gap: 0.2rem;
-    justify-content: space-around;
-  }
-
-  .sidebar-tab {
-    flex: 1;
-    padding: 0.35rem 0.15rem;
-    font-size: 0.64rem;
-    flex-direction: column;
-    gap: 0.16rem;
-    justify-content: center;
-    border-radius: 0.4rem;
+  .oneui-bottom-system .oneui-ratios-carousel {
+    flex-wrap: wrap;
+    overflow-x: visible;
   }
 }
-
-
 
 /* ========================================================
    LAUNCHPAD: PIE Y FORMATOS ADMITIDOS
@@ -3885,26 +4039,25 @@ input[type="range"] {
   justify-content: center;
   text-align: center;
   font-size: 0.72rem;
-  color: var(--text-muted, #94a3b8);
+  color: var(--oneui-text-secondary);
   letter-spacing: 0.02em;
-  opacity: 0.85;
+  opacity: 0.9;
 }
 
-
 /* ========================================================
-   REDISENO SAMSUNG ONE UI / ANDROID NATIVO (AMOLED)
+   REDISENO SAMSUNG ONE UI / ANDROID NATIVO (CLARO Y AMOLED)
    ======================================================== */
 
 .oneui-header {
-  background-color: #000000 !important;
+  background-color: var(--oneui-header-bg) !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06) !important;
-  min-height: 50px;
-  height: calc(50px + env(safe-area-inset-top, 0px));
+  border-bottom: 1px solid var(--oneui-border) !important;
+  min-height: 52px;
+  height: calc(52px + env(safe-area-inset-top, 0px));
   padding-top: env(safe-area-inset-top, 0px) !important;
-  padding-left: 0.45rem !important;
-  padding-right: 0.45rem !important;
+  padding-left: 0.35rem !important;
+  padding-right: 0.35rem !important;
   box-sizing: border-box !important;
   display: flex;
   align-items: center;
@@ -3913,18 +4066,19 @@ input[type="range"] {
   max-width: 100vw !important;
   overflow: visible !important;
   flex-shrink: 0;
+  color: var(--oneui-text);
 }
 
 .oneui-back-home-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
+  min-width: 40px;
+  min-height: 44px;
   border-radius: 50%;
   border: none;
   background: transparent;
-  color: #ffffff;
+  color: var(--oneui-text);
   cursor: pointer;
   transition: all 0.15s ease;
   padding: 0;
@@ -3932,7 +4086,7 @@ input[type="range"] {
 }
 
 .oneui-back-home-btn:hover {
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--oneui-surface-hover);
 }
 
 .oneui-back-home-btn:active {
@@ -3956,21 +4110,21 @@ input[type="range"] {
 }
 
 .oneui-header.is-empty .oneui-icon-btn {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--oneui-surface-subtle);
+  border: 1px solid var(--oneui-border);
   backdrop-filter: blur(12px);
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--oneui-text-secondary);
 }
 
 .oneui-header.is-empty .oneui-icon-btn:hover {
-  background: rgba(255, 255, 255, 0.12);
-  color: #ffffff;
+  background: var(--oneui-surface-hover);
+  color: var(--oneui-text);
 }
 
 .oneui-header-left {
   display: flex;
   align-items: center;
-  gap: 0.28rem;
+  gap: 0.16rem;
   flex-shrink: 1;
   min-width: 0;
 }
@@ -3979,12 +4133,13 @@ input[type="range"] {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
-  height: 30px;
+  min-width: 38px;
+  min-height: 44px;
   border-radius: 50%;
   background: transparent;
   border: 1px solid transparent;
-  color: #475569;
+  color: var(--oneui-text-muted);
+  opacity: 0.45;
   cursor: default;
   transition: all 0.15s ease;
   padding: 0;
@@ -3992,16 +4147,17 @@ input[type="range"] {
 }
 
 .oneui-history-btn.active {
-  color: #e2e8f0;
+  opacity: 1;
+  color: var(--oneui-text);
   cursor: pointer;
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(255, 255, 255, 0.08);
+  background: var(--oneui-surface-subtle);
+  border-color: var(--oneui-border);
 }
 
 .oneui-history-btn.active:hover {
-  background: rgba(245, 158, 11, 0.15);
-  border-color: rgba(245, 158, 11, 0.35);
-  color: #f59e0b;
+  background: rgba(245, 158, 11, 0.16);
+  border-color: rgba(245, 158, 11, 0.4);
+  color: var(--oneui-accent);
   transform: translateY(-1px);
 }
 
@@ -4013,42 +4169,44 @@ input[type="range"] {
   display: flex;
   align-items: center;
   gap: 0.35rem;
+  min-height: 44px;
   background: none;
   border: none;
-  color: #64748b;
+  color: var(--oneui-text-muted);
   font-size: 0.82rem;
   font-weight: 600;
   cursor: default;
-  padding: 0.35rem 0.5rem;
+  padding: 0.35rem 0.55rem;
   border-radius: 999px;
   transition: all 0.15s ease;
   flex-shrink: 0;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 720px) {
   .desktop-only-btn {
     display: none !important;
   }
 }
 
 .oneui-revert-btn.active {
-  color: #f8fafc;
+  color: var(--oneui-text);
   cursor: pointer;
 }
 
 .oneui-revert-btn.active:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--oneui-surface-hover);
 }
 
 .oneui-counter-pill {
   display: flex;
   align-items: center;
   gap: 0.28rem;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  padding: 0.2rem 0.48rem;
+  min-height: 36px;
+  background: var(--oneui-surface-subtle);
+  border: 1px solid var(--oneui-border);
+  padding: 0.2rem 0.52rem;
   border-radius: 999px;
-  color: #f8fafc;
+  color: var(--oneui-text);
   font-size: 0.72rem;
   font-weight: 700;
   cursor: pointer;
@@ -4057,14 +4215,14 @@ input[type="range"] {
 }
 
 .oneui-counter-pill:hover {
-  background: rgba(255, 255, 255, 0.14);
+  background: var(--oneui-surface-hover);
 }
 
 .badge-raw-tiny {
   font-size: 0.6rem;
   font-weight: 800;
   background: rgba(245, 158, 11, 0.2);
-  color: #fbbf24;
+  color: var(--oneui-accent-text);
   padding: 1px 4px;
   border-radius: 4px;
 }
@@ -4072,16 +4230,17 @@ input[type="range"] {
 .oneui-header-right {
   display: flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: 0.16rem;
   flex-shrink: 0 !important;
 }
 
 .oneui-save-action-btn {
   background: none;
   border: none;
-  color: #ffffff;
+  color: var(--oneui-text);
   font-size: 0.82rem;
   font-weight: 700;
+  min-height: 44px;
   padding: 0.32rem 0.55rem;
   border-radius: 999px;
   cursor: pointer;
@@ -4094,7 +4253,7 @@ input[type="range"] {
 }
 
 .oneui-save-action-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--oneui-surface-hover);
 }
 
 .oneui-save-action-btn:active {
@@ -4102,15 +4261,15 @@ input[type="range"] {
 }
 
 .oneui-icon-btn {
-  width: 31px;
-  height: 31px;
+  min-width: 38px;
+  min-height: 44px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   background: none;
   border: none;
-  color: #94a3b8;
+  color: var(--oneui-text-secondary);
   cursor: pointer;
   padding: 0;
   flex-shrink: 0;
@@ -4119,16 +4278,16 @@ input[type="range"] {
 
 .oneui-icon-btn:hover,
 .oneui-icon-btn.active {
-  background: rgba(255, 255, 255, 0.1);
-  color: #f8fafc;
+  background: var(--oneui-surface-hover);
+  color: var(--oneui-text);
 }
 
 .oneui-update-dot-btn {
-  width: 32px;
-  height: 32px;
+  min-width: 38px;
+  min-height: 44px;
   border-radius: 50%;
-  background: rgba(245, 158, 11, 0.15);
-  border: 1px solid rgba(245, 158, 11, 0.3);
+  background: rgba(245, 158, 11, 0.16);
+  border: 1px solid rgba(245, 158, 11, 0.35);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -4143,18 +4302,19 @@ input[type="range"] {
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
-  width: 250px;
-  background: rgba(16, 16, 20, 0.98);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  width: 256px;
+  background: var(--oneui-popover-bg);
+  border: 1px solid var(--oneui-border);
   border-radius: 1rem;
   padding: 0.4rem;
-  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.85);
+  box-shadow: var(--shadow-lg);
   z-index: 200;
   backdrop-filter: blur(20px);
 }
 
 .oneui-menu-item {
   width: 100%;
+  min-height: 44px;
   display: flex;
   align-items: center;
   gap: 0.65rem;
@@ -4162,14 +4322,14 @@ input[type="range"] {
   border-radius: 0.65rem;
   background: none;
   border: none;
-  color: #f8fafc;
+  color: var(--oneui-text);
   cursor: pointer;
   text-align: left;
   transition: background 0.12s ease;
 }
 
 .oneui-menu-item:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--oneui-surface-hover);
 }
 
 .oneui-menu-item .menu-item-text {
@@ -4180,16 +4340,17 @@ input[type="range"] {
 .oneui-menu-item .menu-item-text strong {
   font-size: 0.78rem;
   font-weight: 600;
+  color: var(--oneui-text);
 }
 
 .oneui-menu-item .menu-item-text span {
   font-size: 0.66rem;
-  color: #94a3b8;
+  color: var(--oneui-text-secondary);
 }
 
 .oneui-menu-divider {
   height: 1px;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--oneui-border);
   margin: 0.3rem 0;
 }
 
@@ -4203,67 +4364,19 @@ input[type="range"] {
   padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
-@media (max-width: 900px) {
-  .oneui-bottom-system {
-    position: fixed !important;
-    bottom: 0 !important;
-    left: 0 !important;
-    right: 0 !important;
-    pointer-events: none !important;
-    z-index: 100 !important;
-  }
-
-  .oneui-floating-card,
-  .oneui-dock {
-    pointer-events: auto !important;
-  }
-
-  /* Bottom sheet sin separaciones torpes ni márgenes flotantes en móvil */
-  .oneui-floating-card {
-    width: 100% !important;
-    max-width: 100% !important;
-    margin-bottom: 0 !important;
-    border-radius: 20px 20px 0 0 !important;
-    border-left: none !important;
-    border-right: none !important;
-    border-bottom: none !important;
-    border-top: 1px solid rgba(255, 255, 255, 0.09) !important;
-    background: #0d0d12 !important;
-    box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.75) !important;
-    padding: 0.3rem 0.85rem 0.45rem 0.85rem !important;
-  }
-
-  .oneui-dock {
-    width: 100% !important;
-    background: #0d0d12 !important;
-    border-top: 1px solid rgba(255, 255, 255, 0.05) !important;
-  }
-
-  .canvas-wrapper {
-    transition: padding-bottom 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
-  }
-
-  .studio-body.has-deck-open .canvas-wrapper {
-    padding-bottom: 175px !important;
-  }
-
-  .studio-body:not(.has-deck-open) .canvas-wrapper {
-    padding-bottom: 65px !important;
-  }
-}
-
 .oneui-floating-card {
   width: calc(100% - 1.25rem);
   max-width: 520px;
-  background: rgba(18, 18, 22, 0.95) !important;
+  background: var(--oneui-sheet-bg) !important;
   backdrop-filter: blur(24px) !important;
-  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border: 1px solid var(--oneui-border) !important;
   border-radius: 1.5rem !important;
-  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.85);
+  box-shadow: var(--oneui-sheet-shadow);
   margin-bottom: 0.5rem;
-  padding: 0.4rem 0.9rem 0.55rem 0.9rem;
+  padding: 0.45rem 0.9rem 0.6rem 0.9rem;
   pointer-events: auto;
   transition: transform 0.2s ease, opacity 0.2s ease;
+  color: var(--oneui-text);
 }
 
 /* Manija táctil estilo One UI en la parte superior del sheet */
@@ -4272,21 +4385,22 @@ input[type="range"] {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0.15rem 0 0.3rem 0;
+  min-height: 24px;
+  padding: 0.25rem 0 0.35rem 0;
   cursor: pointer;
 }
 
 .oneui-sheet-handle {
-  width: 34px;
+  width: 36px;
   height: 4px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.2);
+  background: var(--oneui-border);
   transition: background 0.15s ease, transform 0.15s ease;
 }
 
 .oneui-sheet-handle-row:hover .oneui-sheet-handle,
 .oneui-sheet-handle-row:active .oneui-sheet-handle {
-  background: rgba(255, 255, 255, 0.45);
+  background: var(--oneui-text-muted);
   transform: scaleY(1.25);
 }
 
@@ -4300,6 +4414,8 @@ input[type="range"] {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 0.45rem;
+  flex-wrap: wrap;
   margin-bottom: 0.45rem;
   padding: 0 0.2rem;
 }
@@ -4308,7 +4424,7 @@ input[type="range"] {
   font-size: 0.72rem;
   font-weight: 800;
   letter-spacing: 0.08em;
-  color: #f8fafc;
+  color: var(--oneui-text);
   text-transform: uppercase;
 }
 
@@ -4316,19 +4432,25 @@ input[type="range"] {
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  padding: 0.18rem 0.45rem;
+  min-height: 32px;
+  background: var(--oneui-surface-subtle);
+  border: 1px solid var(--oneui-border);
+  padding: 0.2rem 0.55rem;
   border-radius: 999px;
-  color: #94a3b8;
+  color: var(--oneui-text-secondary);
   font-size: 0.68rem;
   cursor: pointer;
   transition: all 0.12s ease;
 }
 
 .oneui-reset-tiny-btn:hover {
-  background: rgba(255, 255, 255, 0.12);
-  color: #ffffff;
+  background: var(--oneui-surface-hover);
+  color: var(--oneui-text);
+}
+
+.oneui-reset-tiny-btn:hover {
+  background: var(--oneui-surface-hover);
+  color: var(--oneui-text);
 }
 
 /* Diales Horizontales One UI */
@@ -4336,7 +4458,7 @@ input[type="range"] {
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  gap: 0.5rem;
+  gap: 0.45rem;
   overflow-x: auto;
   padding: 0.3rem 0.1rem;
   scrollbar-width: none;
@@ -4348,12 +4470,13 @@ input[type="range"] {
 
 .oneui-auto-pill {
   flex-shrink: 0;
-  height: 38px;
+  min-height: 40px;
+  min-width: 44px;
   padding: 0 0.85rem;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  color: #f8fafc;
+  background: var(--oneui-surface-subtle);
+  border: 1px solid var(--oneui-border);
+  color: var(--oneui-text);
   font-size: 0.74rem;
   font-weight: 700;
   cursor: pointer;
@@ -4364,13 +4487,15 @@ input[type="range"] {
 }
 
 .oneui-auto-pill.active {
-  background: linear-gradient(135deg, rgba(245, 158, 11, 0.25), rgba(245, 158, 11, 0.1));
-  border-color: #f59e0b;
-  color: #fbbf24;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.25), rgba(245, 158, 11, 0.12));
+  border-color: var(--oneui-accent);
+  color: var(--oneui-accent-text);
 }
 
 .oneui-dial-item {
   flex-shrink: 0;
+  min-width: 44px;
+  min-height: 44px;
   background: none;
   border: none;
   padding: 0;
@@ -4381,26 +4506,26 @@ input[type="range"] {
 }
 
 .oneui-dial-circle {
-  width: 38px;
-  height: 38px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: var(--oneui-surface-subtle);
+  border: 1px solid var(--oneui-border);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #94a3b8;
+  color: var(--oneui-text-secondary);
   position: relative;
   transition: transform 0.15s ease, background 0.15s ease;
 }
 
 .oneui-dial-circle:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #ffffff;
+  background: var(--oneui-surface-hover);
+  color: var(--oneui-text);
 }
 
 .oneui-dial-circle.modified {
-  border-color: rgba(245, 158, 11, 0.4);
+  border-color: rgba(245, 158, 11, 0.55);
 }
 
 .oneui-mod-dot {
@@ -4410,15 +4535,15 @@ input[type="range"] {
   width: 5px;
   height: 5px;
   border-radius: 50%;
-  background: #f59e0b;
+  background: var(--oneui-accent);
 }
 
 .oneui-active-dial-circle {
   width: 48px;
   height: 48px;
   border-radius: 50%;
-  background: #18181d;
-  border: 2px solid #f59e0b;
+  background: var(--oneui-dial-active-bg);
+  border: 2px solid var(--oneui-accent);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -4431,13 +4556,13 @@ input[type="range"] {
   position: absolute;
   inset: 0;
   border-radius: 50%;
-  opacity: 0.18;
+  opacity: 0.22;
 }
 
 .oneui-dial-num {
   font-size: 0.88rem;
   font-weight: 800;
-  color: #ffffff;
+  color: var(--oneui-text);
   position: relative;
   z-index: 2;
   font-family: 'Outfit', sans-serif;
@@ -4446,8 +4571,8 @@ input[type="range"] {
 /* 3. Regla Graduada T�ctil One UI (Haptic Ruler) */
 .oneui-ruler-container {
   width: 100%;
-  height: 42px;
-  margin-top: 0.4rem;
+  height: 44px;
+  margin-top: 0.35rem;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -4456,7 +4581,7 @@ input[type="range"] {
 .oneui-haptic-ruler {
   width: 100%;
   max-width: 380px;
-  height: 38px;
+  height: 40px;
   position: relative;
   display: flex;
   align-items: center;
@@ -4521,17 +4646,20 @@ input[type="range"] {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 0.75rem;
-  margin-bottom: 0.4rem;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  margin-bottom: 0.45rem;
 }
 
 .oneui-geom-circle-btn {
-  width: 38px;
-  height: 38px;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  color: #94a3b8;
+  background: var(--oneui-surface-subtle);
+  border: 1px solid var(--oneui-border);
+  color: var(--oneui-text-secondary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -4540,20 +4668,20 @@ input[type="range"] {
 }
 
 .oneui-geom-circle-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #ffffff;
+  background: var(--oneui-surface-hover);
+  color: var(--oneui-text);
 }
 
 .oneui-geom-circle-btn.active {
-  background: #f59e0b;
-  color: #000000;
-  border-color: #f59e0b;
+  background: var(--oneui-accent);
+  color: var(--oneui-accent-contrast);
+  border-color: var(--oneui-accent);
 }
 
 .oneui-geom-circle-btn.accent {
-  background: rgba(56, 189, 248, 0.15);
-  border-color: rgba(56, 189, 248, 0.3);
-  color: #38bdf8;
+  background: rgba(56, 189, 248, 0.16);
+  border-color: rgba(56, 189, 248, 0.35);
+  color: var(--color-brand-light);
 }
 
 .oneui-ratios-carousel {
@@ -4561,7 +4689,7 @@ input[type="range"] {
   align-items: center;
   gap: 0.35rem;
   overflow-x: auto;
-  padding: 0.2rem 0;
+  padding: 0.25rem 0;
   scrollbar-width: none;
 }
 
@@ -4571,12 +4699,14 @@ input[type="range"] {
 
 .oneui-ratio-pill-btn {
   flex-shrink: 0;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  color: #94a3b8;
+  min-height: 36px;
+  min-width: 44px;
+  background: var(--oneui-surface-subtle);
+  border: 1px solid var(--oneui-border);
+  color: var(--oneui-text-secondary);
   font-size: 0.72rem;
   font-weight: 600;
-  padding: 0.22rem 0.6rem;
+  padding: 0.28rem 0.68rem;
   border-radius: 999px;
   cursor: pointer;
   transition: all 0.12s ease;
@@ -4584,14 +4714,14 @@ input[type="range"] {
 }
 
 .oneui-ratio-pill-btn:hover {
-  background: rgba(255, 255, 255, 0.09);
-  color: #e2e8f0;
+  background: var(--oneui-surface-hover);
+  color: var(--oneui-text);
 }
 
 .oneui-ratio-pill-btn.active {
-  background: #f59e0b;
-  color: #000000;
-  border-color: #f59e0b;
+  background: var(--oneui-accent);
+  color: var(--oneui-accent-contrast);
+  border-color: var(--oneui-accent);
   font-weight: 700;
 }
 
@@ -4601,51 +4731,54 @@ input[type="range"] {
   align-items: center;
   gap: 0.45rem;
   overflow-x: auto;
-  padding: 0.15rem 0.1rem;
+  padding: 0.2rem 0.1rem;
   scrollbar-width: none;
 }
 
 .oneui-preset-card {
   flex: 0 0 auto;
-  width: 4.8rem;
-  padding: 0.35rem 0.35rem;
+  width: 4.9rem;
+  min-height: 54px;
+  padding: 0.4rem 0.35rem;
   border-radius: 0.65rem;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1.5px solid rgba(255, 255, 255, 0.07);
+  background: var(--oneui-surface-card);
+  border: 1.5px solid var(--oneui-border);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 0.2rem;
+  justify-content: center;
+  gap: 0.22rem;
   cursor: pointer;
-  color: #94a3b8;
+  color: var(--oneui-text-secondary);
   transition: all 0.15s ease;
   position: relative;
 }
 
 .oneui-preset-card:hover {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--oneui-surface-hover);
+  color: var(--oneui-text);
 }
 
 .oneui-preset-card.active {
-  background: rgba(245, 158, 11, 0.1);
-  border-color: #f59e0b;
-  color: #ffffff;
+  background: rgba(245, 158, 11, 0.12);
+  border-color: var(--oneui-accent);
+  color: var(--oneui-text);
   box-shadow: 0 0 10px rgba(245, 158, 11, 0.2);
 }
 
 .oneui-preset-icon-wrap {
-  width: 26px;
-  height: 26px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--oneui-surface-subtle);
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .oneui-preset-card.active .oneui-preset-icon-wrap {
-  background: #f59e0b;
-  color: #000000;
+  background: var(--oneui-accent);
+  color: var(--oneui-accent-contrast);
 }
 
 .oneui-preset-card strong {
@@ -4672,44 +4805,46 @@ input[type="range"] {
   font-family: 'JetBrains Mono', monospace;
   font-size: 0.62rem;
   font-weight: 500;
-  color: #94a3b8;
+  color: var(--oneui-text-secondary);
   letter-spacing: 0.01em;
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--oneui-surface-card);
   padding: 0.1rem 0.45rem;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--oneui-border-subtle);
 }
 
 .oneui-frame-cards-row {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   gap: 0.45rem;
   overflow-x: auto;
-  padding: 0.1rem 0 0.25rem 0;
+  padding: 0.15rem 0 0.3rem 0;
   scrollbar-width: none;
 }
 
 .oneui-frame-card {
   flex: 0 0 auto;
-  width: 5rem;
-  padding: 0.3rem 0.35rem;
+  width: 5.25rem;
+  min-height: 54px;
+  padding: 0.35rem 0.35rem;
   border-radius: 0.65rem;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1.5px solid rgba(255, 255, 255, 0.07);
+  background: var(--oneui-surface-card);
+  border: 1.5px solid var(--oneui-border);
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 0.2rem;
   cursor: pointer;
-  color: #94a3b8;
+  color: var(--oneui-text-secondary);
   position: relative;
   transition: all 0.15s ease;
 }
 
 .oneui-frame-card.active {
-  border-color: #f59e0b;
-  color: #ffffff;
-  background: rgba(245, 158, 11, 0.06);
+  border-color: var(--oneui-accent);
+  color: var(--oneui-text);
+  background: rgba(245, 158, 11, 0.1);
   box-shadow: 0 0 10px rgba(245, 158, 11, 0.22);
 }
 
@@ -4718,7 +4853,7 @@ input[type="range"] {
   height: 28px;
   border-radius: 0.35rem;
   overflow: hidden;
-  background: #141418;
+  background: var(--oneui-thumb-bg);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -4731,7 +4866,7 @@ input[type="range"] {
 }
 
 .oneui-frame-card span {
-  font-size: 0.6rem;
+  font-size: 0.62rem;
   font-weight: 600;
   text-align: center;
   white-space: nowrap;
@@ -4740,12 +4875,36 @@ input[type="range"] {
   max-width: 100%;
 }
 
+.frame-card-del-btn {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid var(--oneui-border);
+  background: var(--oneui-sheet-bg);
+  color: var(--oneui-text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.12s ease;
+}
+
+.frame-card-del-btn:hover {
+  background: rgba(239, 68, 68, 0.18);
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
+
 /* Sección de Edición Dinámica del Marco (Doble Input + Chips) */
 .oneui-frame-editor-section {
   display: flex;
   flex-direction: column;
-  gap: 0.35rem;
-  margin-top: 0.25rem;
+  gap: 0.4rem;
+  margin-top: 0.3rem;
 }
 
 .oneui-frame-dual-inputs {
@@ -4754,20 +4913,27 @@ input[type="range"] {
   gap: 0.4rem;
 }
 
+@media (max-width: 420px) {
+  .oneui-frame-dual-inputs {
+    grid-template-columns: 1fr;
+  }
+}
+
 .oneui-dual-input-box {
   display: flex;
   align-items: center;
   gap: 0.35rem;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  min-height: 38px;
+  background: var(--oneui-surface-card);
+  border: 1px solid var(--oneui-border);
   border-radius: 0.65rem;
-  padding: 0.3rem 0.55rem;
+  padding: 0.32rem 0.55rem;
   transition: all 0.15s ease;
 }
 
 .oneui-dual-input-box:focus-within {
-  border-color: #f59e0b;
-  background: rgba(245, 158, 11, 0.04);
+  border-color: var(--oneui-accent);
+  background: rgba(245, 158, 11, 0.05);
   box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.25);
 }
 
@@ -4777,24 +4943,23 @@ input[type="range"] {
   background: none;
   border: none;
   outline: none;
-  color: #f8fafc;
-  font-size: 0.74rem;
+  color: var(--oneui-text);
+  font-size: 0.76rem;
   font-family: inherit;
   font-weight: 500;
 }
 
 .oneui-mini-input::placeholder {
-  color: #64748b;
+  color: var(--oneui-text-muted);
   font-size: 0.7rem;
 }
 
 .oneui-chips-row {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 0.35rem;
-  overflow-x: auto;
   padding: 0.1rem 0;
-  scrollbar-width: none;
 }
 
 .oneui-chips-row.compact {
@@ -4803,12 +4968,17 @@ input[type="range"] {
 
 .oneui-chip-btn {
   flex-shrink: 0;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  color: #94a3b8;
-  font-size: 0.66rem;
+  min-height: 36px;
+  min-width: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--oneui-surface-subtle);
+  border: 1px solid var(--oneui-border);
+  color: var(--oneui-text-secondary);
+  font-size: 0.68rem;
   font-weight: 600;
-  padding: 0.18rem 0.5rem;
+  padding: 0.22rem 0.62rem;
   border-radius: 999px;
   cursor: pointer;
   transition: all 0.12s ease;
@@ -4816,41 +4986,41 @@ input[type="range"] {
 }
 
 .oneui-chip-btn:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: #e2e8f0;
+  background: var(--oneui-surface-hover);
+  color: var(--oneui-text);
 }
 
 .oneui-chip-btn.active {
-  background: #f59e0b;
-  color: #000000;
-  border-color: #f59e0b;
+  background: var(--oneui-accent);
+  color: var(--oneui-accent-contrast);
+  border-color: var(--oneui-accent);
   font-weight: 700;
 }
 
 .oneui-chip-btn.auto-exif {
-  background: rgba(245, 158, 11, 0.12);
-  border-color: rgba(245, 158, 11, 0.3);
-  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.14);
+  border-color: rgba(245, 158, 11, 0.35);
+  color: var(--oneui-accent-text);
   display: inline-flex;
   align-items: center;
   gap: 0.25rem;
 }
 
 .oneui-chip-btn.auto-exif:hover {
-  background: rgba(245, 158, 11, 0.2);
-  border-color: #f59e0b;
+  background: rgba(245, 158, 11, 0.22);
+  border-color: var(--oneui-accent);
 }
 
 /* 7. Bottom Navigation Dock One UI */
 .oneui-dock {
   width: 100%;
-  height: 56px;
-  background: #000000 !important;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  min-height: 58px;
+  background: var(--oneui-dock-bg) !important;
+  border-top: 1px solid var(--oneui-border-subtle);
   display: flex;
   align-items: center;
   justify-content: space-around;
-  padding: 0 0.5rem calc(env(safe-area-inset-bottom, 0px));
+  padding: 0.15rem 0.35rem calc(0.15rem + env(safe-area-inset-bottom, 0px)) 0.35rem;
   pointer-events: auto;
 }
 
@@ -4860,11 +5030,15 @@ input[type="range"] {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 2px;
   cursor: pointer;
-  padding: 0.3rem 0.6rem;
-  color: #94a3b8;
+  min-width: 48px;
+  min-height: 48px;
+  padding: 0.25rem 0.4rem;
+  color: var(--oneui-text-secondary);
   transition: all 0.15s ease;
+  border-radius: 0.65rem;
 }
 
 .oneui-dock-icon-circle {
@@ -4878,18 +5052,18 @@ input[type="range"] {
 }
 
 .oneui-dock-btn.active {
-  color: #ffffff;
+  color: var(--oneui-text);
 }
 
 .oneui-dock-btn.active .oneui-dock-icon-circle {
-  background: rgba(255, 255, 255, 0.12);
-  color: #f59e0b;
+  background: var(--oneui-surface-hover);
+  color: var(--oneui-accent);
 }
 
 .oneui-dock-btn.auto-highlight .oneui-dock-icon-circle.highlight {
   background: linear-gradient(135deg, rgba(245, 158, 11, 0.35), rgba(56, 189, 248, 0.35));
-  border: 1px solid rgba(245, 158, 11, 0.4);
-  color: #fef08a;
+  border: 1px solid rgba(245, 158, 11, 0.45);
+  color: var(--oneui-accent-text);
 }
 
 .oneui-dock-label {
@@ -4925,9 +5099,9 @@ input[type="range"] {
   border: 2px solid transparent;
   padding: 0;
   overflow: hidden;
-  background: #111;
+  background: var(--oneui-thumb-bg);
   cursor: pointer;
-  touch-action: pan-x; /* Permite desplazamiento táctil fluido horizontal */
+  touch-action: pan-x;
   user-select: none;
   -webkit-user-select: none;
   transition: transform 0.15s ease, border-color 0.15s ease;
@@ -4942,7 +5116,7 @@ input[type="range"] {
 }
 
 .oneui-filmstrip-thumb.active {
-  border-color: #f59e0b;
+  border-color: var(--oneui-accent);
   box-shadow: 0 0 14px rgba(245, 158, 11, 0.45);
   transform: scale(1.05);
 }
@@ -4950,14 +5124,14 @@ input[type="range"] {
 .oneui-filmstrip-thumb.is-dragging {
   opacity: 0.55;
   transform: scale(1.1) rotate(2deg);
-  border-color: #38bdf8;
+  border-color: var(--color-brand-light);
   box-shadow: 0 8px 24px rgba(56, 189, 248, 0.5);
   z-index: 10;
-  touch-action: none; /* Bloquea el scroll del navegador solo mientras se reordena activamente */
+  touch-action: none;
 }
 
 .oneui-filmstrip-thumb.drop-target {
-  border-color: #38bdf8;
+  border-color: var(--color-brand-light);
   transform: scale(1.08);
 }
 
@@ -4992,9 +5166,9 @@ input[type="range"] {
   height: 58px;
   flex-shrink: 0;
   border-radius: 0.85rem;
-  border: 2px dashed rgba(255, 255, 255, 0.25);
-  background: rgba(255, 255, 255, 0.04);
-  color: rgba(255, 255, 255, 0.6);
+  border: 2px dashed var(--oneui-border);
+  background: var(--oneui-surface-card);
+  color: var(--oneui-text-secondary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -5003,33 +5177,48 @@ input[type="range"] {
 }
 
 .oneui-filmstrip-add-tile:hover {
-  background: rgba(255, 255, 255, 0.1);
-  border-color: #f59e0b;
-  color: #f59e0b;
+  background: var(--oneui-surface-hover);
+  border-color: var(--oneui-accent);
+  color: var(--oneui-accent);
 }
 
 /* ============================================================
    9. ONE UI BOTTOM SHEET MODALS (EXPORT, UPDATES, ACTIONS)
    ============================================================ */
-@media (max-width: 900px) {
+.modal-backdrop.oneui-sheet-backdrop {
+  padding: 0.75rem;
+}
+
+.export-modal.oneui-sheet,
+.oneui-bottom-sheet {
+  max-height: calc(100dvh - 1.5rem);
+  overflow-y: auto;
+  background: var(--oneui-sheet-bg) !important;
+  color: var(--oneui-text) !important;
+  border: 1px solid var(--oneui-border) !important;
+}
+
+@media (max-width: 920px) {
   .modal-backdrop.oneui-sheet-backdrop {
     align-items: flex-end !important;
     padding: 0 !important;
-    background: rgba(0, 0, 0, 0.72) !important;
+    background: rgba(0, 0, 0, 0.58) !important;
     backdrop-filter: blur(8px) !important;
   }
 
   .export-modal.oneui-sheet,
   .oneui-bottom-sheet {
     width: 100% !important;
-    max-width: 100% !important;
+    max-width: min(100%, 560px) !important;
+    max-height: 92dvh !important;
+    overflow-y: auto !important;
     border-radius: 24px 24px 0 0 !important;
     border-left: none !important;
     border-right: none !important;
     border-bottom: none !important;
-    border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
-    background: #0d0d12 !important;
-    box-shadow: 0 -12px 36px rgba(0, 0, 0, 0.9) !important;
+    border-top: 1px solid var(--oneui-border) !important;
+    background: var(--oneui-sheet-bg) !important;
+    box-shadow: var(--oneui-sheet-shadow) !important;
     padding: 0.45rem 1.15rem calc(1.15rem + env(safe-area-inset-bottom, 0px)) 1.15rem !important;
     animation: oneuiSheetSlideUp 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
   }
@@ -5057,26 +5246,27 @@ input[type="range"] {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
+  min-height: 52px;
   gap: 0.2rem;
   padding: 0.55rem 0.75rem;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1.5px solid rgba(255, 255, 255, 0.08);
+  background: var(--oneui-surface-card);
+  border: 1.5px solid var(--oneui-border);
   border-radius: 0.85rem;
   cursor: pointer;
-  color: #94a3b8;
+  color: var(--oneui-text-secondary);
   transition: all 0.15s ease;
   text-align: left;
 }
 
 .oneui-segmented-card:hover {
-  background: rgba(255, 255, 255, 0.07);
-  color: #ffffff;
+  background: var(--oneui-surface-hover);
+  color: var(--oneui-text);
 }
 
 .oneui-segmented-card.active {
-  border-color: #f59e0b;
-  background: rgba(245, 158, 11, 0.08);
-  color: #ffffff;
+  border-color: var(--oneui-accent);
+  background: rgba(245, 158, 11, 0.1);
+  color: var(--oneui-text);
   box-shadow: 0 0 12px rgba(245, 158, 11, 0.2);
 }
 
@@ -5097,7 +5287,7 @@ input[type="range"] {
 
 .oneui-segmented-desc {
   font-size: 0.64rem;
-  opacity: 0.75;
+  opacity: 0.82;
   line-height: 1.25;
 }
 
@@ -5112,6 +5302,7 @@ input[type="range"] {
   display: flex;
   align-items: center;
   justify-content: center;
+  min-height: 48px;
   gap: 0.45rem;
   background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
   color: #000000;
@@ -5134,10 +5325,11 @@ input[type="range"] {
   display: flex;
   align-items: center;
   justify-content: center;
+  min-height: 48px;
   gap: 0.45rem;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  color: #e2e8f0;
+  background: var(--oneui-surface-subtle);
+  border: 1px solid var(--oneui-border);
+  color: var(--oneui-text);
   font-weight: 700;
   font-size: 0.84rem;
   padding: 0.7rem 1rem;
@@ -5147,8 +5339,8 @@ input[type="range"] {
 }
 
 .oneui-secondary-action-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #ffffff;
+  background: var(--oneui-surface-hover);
+  color: var(--oneui-text);
 }
 
 /* ============================================================
@@ -5160,14 +5352,14 @@ input[type="range"] {
 .oneui-update-sheet {
   width: 100%;
   max-width: 480px;
-  max-height: 88vh;
+  max-height: 88dvh;
   display: flex;
   flex-direction: column;
-  background: #0d0d12 !important;
-  border: 1px solid rgba(255, 255, 255, 0.12) !important;
+  background: var(--oneui-sheet-bg) !important;
+  border: 1px solid var(--oneui-border) !important;
   border-radius: 24px 24px 0 0 !important;
-  box-shadow: 0 -16px 48px rgba(0, 0, 0, 0.9) !important;
-  color: #ffffff;
+  box-shadow: var(--oneui-sheet-shadow) !important;
+  color: var(--oneui-text);
   overflow: hidden;
   animation: sheetSlideUp 0.28s cubic-bezier(0.16, 1, 0.3, 1);
 }
@@ -5177,7 +5369,7 @@ input[type="range"] {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-bottom: 1px solid var(--oneui-border-subtle);
 }
 
 .update-brand-group {
@@ -5206,7 +5398,7 @@ input[type="range"] {
 .update-brand-title strong {
   font-size: 0.95rem;
   font-weight: 800;
-  color: #ffffff;
+  color: var(--oneui-text);
 }
 
 .update-version-tag {
@@ -5214,8 +5406,8 @@ input[type="range"] {
   font-family: var(--font-mono);
   padding: 2px 7px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
-  color: #94a3b8;
+  background: var(--oneui-surface-subtle);
+  color: var(--oneui-text-secondary);
   font-weight: 700;
 }
 
@@ -5254,13 +5446,13 @@ input[type="range"] {
   display: block;
   font-size: 0.88rem;
   font-weight: 700;
-  color: #fef08a;
+  color: var(--oneui-accent-text);
   margin-bottom: 2px;
 }
 
 .update-hero-banner-text span {
   font-size: 0.74rem;
-  color: #cbd5e1;
+  color: var(--oneui-text-secondary);
   line-height: 1.35;
 }
 
@@ -5274,20 +5466,20 @@ input[type="range"] {
 .update-meta-card {
   padding: 0.65rem 0.85rem;
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: var(--oneui-surface-card);
+  border: 1px solid var(--oneui-border);
 }
 
 .update-meta-card.highlight {
-  background: rgba(245, 158, 11, 0.07);
-  border-color: rgba(245, 158, 11, 0.28);
+  background: rgba(245, 158, 11, 0.08);
+  border-color: rgba(245, 158, 11, 0.35);
 }
 
 .update-meta-card .label {
   display: block;
   font-size: 0.64rem;
   text-transform: uppercase;
-  color: #64748b;
+  color: var(--oneui-text-muted);
   font-weight: 700;
   letter-spacing: 0.04em;
   margin-bottom: 2px;
@@ -5297,11 +5489,11 @@ input[type="range"] {
   font-size: 0.86rem;
   font-weight: 700;
   font-family: var(--font-mono);
-  color: #ffffff;
+  color: var(--oneui-text);
 }
 
 .update-meta-card.highlight .value {
-  color: #f59e0b;
+  color: var(--oneui-accent-text);
 }
 
 /* Caja de Notas de Novedades */
@@ -5315,17 +5507,17 @@ input[type="range"] {
   font-size: 0.72rem;
   font-weight: 700;
   text-transform: uppercase;
-  color: #94a3b8;
+  color: var(--oneui-text-secondary);
   letter-spacing: 0.04em;
 }
 
 .update-notes-content {
   padding: 0.85rem 1rem;
   border-radius: 16px;
-  background: #000000;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: var(--oneui-surface-card);
+  border: 1px solid var(--oneui-border);
   font-size: 0.74rem;
-  color: #cbd5e1;
+  color: var(--oneui-text);
   max-height: 155px;
   overflow-y: auto;
   line-height: 1.5;
@@ -5336,7 +5528,7 @@ input[type="range"] {
 .update-download-card {
   padding: 1.1rem 1rem;
   border-radius: 18px;
-  background: #000000;
+  background: var(--oneui-surface-card);
   border: 1px solid rgba(245, 158, 11, 0.35);
   box-shadow: 0 4px 24px rgba(245, 158, 11, 0.12);
   display: flex;
@@ -5352,21 +5544,21 @@ input[type="range"] {
 
 .update-download-header strong {
   font-size: 0.82rem;
-  color: #fef08a;
+  color: var(--oneui-accent-text);
 }
 
 .update-download-header span {
   font-size: 0.78rem;
   font-family: var(--font-mono);
   font-weight: 700;
-  color: #f59e0b;
+  color: var(--oneui-accent);
 }
 
 .update-progress-track {
   width: 100%;
   height: 8px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--oneui-surface-subtle);
   overflow: hidden;
   position: relative;
 }
@@ -5426,22 +5618,22 @@ input[type="range"] {
   width: 52px;
   height: 52px;
   border-radius: 50%;
-  background: rgba(16, 185, 129, 0.1);
-  border: 1px solid rgba(16, 185, 129, 0.3);
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.35);
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #10b981;
+  color: var(--color-success);
 }
 
 .update-status-clean strong {
   font-size: 0.95rem;
-  color: #ffffff;
+  color: var(--oneui-text);
 }
 
 .update-status-clean span {
   font-size: 0.76rem;
-  color: #94a3b8;
+  color: var(--oneui-text-secondary);
   max-width: 300px;
   line-height: 1.4;
 }
@@ -5449,10 +5641,40 @@ input[type="range"] {
 /* Footer de acciones One UI */
 .update-sheet-actions {
   padding: 0.85rem 1.25rem calc(0.85rem + env(safe-area-inset-bottom, 0px)) 1.25rem;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-  background: rgba(0, 0, 0, 0.3);
+  border-top: 1px solid var(--oneui-border-subtle);
+  background: var(--oneui-surface-card);
   display: flex;
   gap: 0.65rem;
+}
+
+/* Utilidades de acciones en cabecera de deck */
+.oneui-deck-actions-right {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+.oneui-sync-pill-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-height: 36px;
+  padding: 0.22rem 0.65rem;
+  border-radius: 999px;
+  background: var(--oneui-surface-subtle);
+  border: 1px solid var(--oneui-border);
+  color: var(--oneui-text);
+  font-size: 0.68rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.oneui-sync-pill-btn:hover {
+  background: rgba(245, 158, 11, 0.16);
+  border-color: var(--oneui-accent);
+  color: var(--oneui-accent-text);
 }
 
 .oneui-rule-of-thirds-grid {
@@ -5532,4 +5754,362 @@ input[type="range"] {
 .oneui-rule-of-thirds-grid .grid-dot.dot-4 {
   left: 66.666%;
   top: 66.666%;
+}
+
+/* ============================================================
+   11. FASE 3: AJUSTES AGRUPADOS, ENCUADRE ETIQUETADO Y FILTROS
+   ============================================================ */
+.oneui-param-val-pill {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 800;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  background: var(--oneui-surface-subtle);
+  border: 1px solid var(--oneui-border);
+  color: var(--oneui-text-secondary);
+}
+
+.oneui-param-val-pill.modified {
+  background: rgba(245, 158, 11, 0.16);
+  border-color: rgba(245, 158, 11, 0.45);
+  color: var(--oneui-accent-text);
+}
+
+.oneui-group-chips-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-bottom: 0.25rem;
+}
+
+.oneui-group-chip {
+  min-height: 28px;
+  padding: 0.16rem 0.58rem;
+  border-radius: 999px;
+  border: 1px solid var(--oneui-border);
+  background: transparent;
+  color: var(--oneui-text-secondary);
+  font-size: 0.66rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.oneui-group-chip:hover {
+  background: var(--oneui-surface-hover);
+  color: var(--oneui-text);
+}
+
+.oneui-group-chip.active {
+  background: var(--oneui-surface-hover);
+  border-color: var(--oneui-accent);
+  color: var(--oneui-accent-text);
+}
+
+.oneui-helper-tip {
+  margin-top: 0.25rem;
+  font-size: 0.66rem;
+  line-height: 1.3;
+  color: var(--oneui-text-secondary);
+  text-align: center;
+  padding: 0 0.25rem;
+}
+
+.oneui-haptic-ruler:focus-visible {
+  outline: 2px solid var(--oneui-accent);
+  outline-offset: 2px;
+  border-radius: 0.5rem;
+}
+
+.oneui-geom-labeled-btn {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.18rem;
+  min-width: 52px;
+  min-height: 54px;
+  padding: 0.2rem 0.35rem;
+  background: none;
+  border: none;
+  color: var(--oneui-text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.oneui-geom-circle-inner {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--oneui-surface-subtle);
+  border: 1px solid var(--oneui-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.oneui-geom-btn-label {
+  font-size: 0.61rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.oneui-geom-labeled-btn:hover {
+  color: var(--oneui-text);
+}
+
+.oneui-geom-labeled-btn:hover .oneui-geom-circle-inner {
+  background: var(--oneui-surface-hover);
+}
+
+.oneui-geom-labeled-btn.active {
+  color: var(--oneui-accent-text);
+}
+
+.oneui-geom-labeled-btn.active .oneui-geom-circle-inner {
+  background: var(--oneui-accent);
+  color: var(--oneui-accent-contrast);
+  border-color: var(--oneui-accent);
+}
+
+.oneui-geom-labeled-btn.accent .oneui-geom-circle-inner {
+  background: rgba(56, 189, 248, 0.16);
+  border-color: rgba(56, 189, 248, 0.35);
+  color: var(--color-brand-light);
+}
+
+.oneui-crop-zoom-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.3rem;
+  padding: 0.15rem 0.2rem;
+}
+
+.oneui-crop-zoom-label {
+  font-size: 0.66rem;
+  font-weight: 600;
+  color: var(--oneui-text-secondary);
+  white-space: nowrap;
+}
+
+.oneui-crop-zoom-range {
+  flex: 1;
+  min-width: 0;
+  accent-color: var(--oneui-accent);
+  height: 24px;
+  cursor: pointer;
+}
+
+.oneui-crop-zoom-val {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--oneui-text);
+  min-width: 38px;
+  text-align: right;
+}
+
+.oneui-presets-section-label {
+  display: block;
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--oneui-text-muted);
+  margin: 0.2rem 0 0.15rem 0.15rem;
+}
+
+.oneui-preset-thumb {
+  width: 100%;
+  height: 36px;
+  border-radius: 0.42rem;
+  overflow: hidden;
+  background: var(--oneui-thumb-bg);
+}
+
+.oneui-preset-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.oneui-preset-card.custom {
+  padding: 0;
+  overflow: visible;
+}
+
+.oneui-preset-select-btn {
+  width: 100%;
+  background: none;
+  border: none;
+  color: inherit;
+  padding: 0.35rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.22rem;
+  cursor: pointer;
+}
+
+.oneui-preset-del {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--oneui-sheet-bg);
+  border: 1px solid var(--oneui-border);
+  color: var(--oneui-text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+}
+
+.oneui-preset-del:hover {
+  background: rgba(239, 68, 68, 0.2);
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
+
+.oneui-inline-save {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: var(--oneui-surface-card);
+  border: 1px solid var(--oneui-accent);
+  border-radius: 999px;
+  padding: 0.18rem 0.35rem 0.18rem 0.6rem;
+}
+
+.oneui-mini-action-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 1px solid var(--oneui-border);
+  background: var(--oneui-surface-subtle);
+  color: var(--oneui-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.oneui-mini-action-btn.primary {
+  background: var(--oneui-accent);
+  color: var(--oneui-accent-contrast);
+  border-color: var(--oneui-accent);
+}
+
+/* ============================================================
+   12. FASE 4: SEPARACIÓN MARCO / TEXTO / LOGO Y POSICIÓN 3x3
+   ============================================================ */
+.oneui-frame-sections-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.oneui-subcard-panel {
+  background: var(--oneui-surface-card);
+  border: 1px solid var(--oneui-border-subtle);
+  border-radius: 0.9rem;
+  padding: 0.42rem 0.55rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.oneui-subcard-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+  min-height: 28px;
+}
+
+.oneui-frame-select-btn {
+  width: 100%;
+  background: none;
+  border: none;
+  color: inherit;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  cursor: pointer;
+}
+
+.oneui-fit-mismatch-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  padding: 0.32rem 0.45rem;
+  border-radius: 0.65rem;
+  background: rgba(245, 158, 11, 0.1);
+  border: 1px solid rgba(245, 158, 11, 0.32);
+  font-size: 0.66rem;
+  color: var(--oneui-text);
+}
+
+.oneui-wm-controls-layout {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.oneui-wm-pos-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  gap: 3px;
+  width: 76px;
+  height: 54px;
+  padding: 5px;
+  border-radius: 0.65rem;
+  background: var(--oneui-thumb-bg);
+  border: 1px solid var(--oneui-border);
+}
+
+.oneui-wm-pos-dot {
+  width: 100%;
+  height: 100%;
+  border-radius: 4px;
+  border: 1px solid var(--oneui-border);
+  background: var(--oneui-surface-subtle);
+  cursor: pointer;
+  padding: 0;
+  transition: all 0.12s ease;
+}
+
+.oneui-wm-pos-dot:hover {
+  background: var(--oneui-surface-hover);
+}
+
+.oneui-wm-pos-dot.active {
+  background: var(--oneui-accent);
+  border-color: var(--oneui-accent);
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.5);
+}
+
+.oneui-wm-pos-spacer {
+  display: block;
+}
+
+.oneui-wm-sliders-col {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
 }

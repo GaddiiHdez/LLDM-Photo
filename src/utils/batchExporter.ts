@@ -13,12 +13,49 @@ const DEFAULT_EXPORT_OPTIONS: ExportOptions = {
   deliveryFormat: 'jpg',
 };
 
-export type ExportOutcome = 'gallery' | 'share' | 'download' | 'file';
+export type ExportOutcome = 'gallery' | 'share' | 'download' | 'file' | 'documents' | 'cancelled';
+
+export interface SingleExportResult {
+  outcome: ExportOutcome;
+  destination: string;
+  downscaled: boolean;
+  fileName: string;
+  shareUri?: string;
+}
 
 export interface BatchExportResult {
   total: number;
   saved: number;
+  failedCount: number;
+  downscaledCount: number;
+  failedNames: string[];
   outcome: ExportOutcome;
+  destination: string;
+  shareUris?: string[];
+}
+
+function isShareCancelError(err: unknown): boolean {
+  const msg = String((err as Error)?.message || err || '').toLowerCase();
+  const name = String((err as Error)?.name || '').toLowerCase();
+  return name === 'aborterror' || msg.includes('cancel') || msg.includes('abort') || msg.includes('dismiss');
+}
+
+/**
+ * Abre el selector nativo para compartir URIs ya guardadas sin volver a renderizar.
+ */
+export async function shareSavedUris(uris: string[], title: string): Promise<'shared' | 'cancelled'> {
+  if (!Capacitor.isNativePlatform() || uris.length === 0) return 'cancelled';
+  try {
+    await Share.share({
+      title,
+      files: uris,
+      dialogTitle: 'Compartir archivos de BereaSnap',
+    });
+    return 'shared';
+  } catch (err) {
+    if (isShareCancelError(err)) return 'cancelled';
+    throw err;
+  }
 }
 
 /**
@@ -52,7 +89,6 @@ function blobToBase64(blob: Blob): Promise<string> {
 
 /**
  * Limpia archivos temporales de exportaciones anteriores en Directory.Cache para no acumular espacio.
- * Se invoca antes de una nueva exportación nativa o al cerrar sesión (deja intacto el lote recién compartido).
  */
 export async function cleanupNativeExportCache(): Promise<void> {
   if (!Capacitor.isNativePlatform()) return;
@@ -68,32 +104,38 @@ export async function cleanupNativeExportCache(): Promise<void> {
 }
 
 /**
- * Guarda un archivo en almacenamiento nativo de Android (Carpeta Documents/BereaSnap)
- * o abre la hoja nativa de Compartir de Android/iOS. En Web usa descarga directa o Web Share API.
+ * Persiste un archivo en Documentos/BereaSnap (Android) o descarga en Web, y abre Share solo si se pidió 'share'.
  */
 async function deliverExportedFile(
   blob: Blob,
   fileName: string,
   mimeType: string,
   mode: 'download' | 'share' = 'download'
-): Promise<string | null> {
+): Promise<{ outcome: ExportOutcome; destination: string; uri?: string }> {
   if (Capacitor.isNativePlatform()) {
-    try {
-      const base64Data = await blobToBase64(blob);
-      const subPath = `BereaSnap/${fileName}`;
+    const base64Data = await blobToBase64(blob);
+    let savedUri: string;
+    let destination = `Documentos/BereaSnap/${fileName}`;
 
-      // Intentar guardar en Documents/BereaSnap para que quede persistente en el teléfono
-      let savedUri: string;
+    try {
+      const res = await Filesystem.writeFile({
+        path: `BereaSnap/${fileName}`,
+        data: base64Data,
+        directory: Directory.Documents,
+        recursive: true,
+      });
+      savedUri = res.uri;
+    } catch {
       try {
-        const res = await Filesystem.writeFile({
-          path: subPath,
+        const resData = await Filesystem.writeFile({
+          path: `BereaSnap/${fileName}`,
           data: base64Data,
-          directory: Directory.Documents,
+          directory: Directory.Data,
           recursive: true,
         });
-        savedUri = res.uri;
+        savedUri = resData.uri;
+        destination = `Almacenamiento interno/BereaSnap/${fileName}`;
       } catch {
-        // Fallback a Directory.Cache dentro de BereaSnap_export para poder limpiarlo después
         await cleanupNativeExportCache();
         const resCache = await Filesystem.writeFile({
           path: `BereaSnap_export/${fileName}`,
@@ -102,33 +144,30 @@ async function deliverExportedFile(
           recursive: true,
         });
         savedUri = resCache.uri;
+        destination = `Caché temporal/${fileName}`;
       }
-
-      if (mode === 'share') {
-        await Share.share({
-          title: fileName,
-          text: 'Fotografía editada con BereaSnap',
-          url: savedUri,
-          dialogTitle: 'Compartir o Guardar Fotografía',
-        });
-      } else {
-        // En Android también abrimos el diálogo nativo para que el usuario pueda enviarla a Galería/WhatsApp con 1 toque
-        await Share.share({
-          title: fileName,
-          url: savedUri,
-          dialogTitle: `Guardado en Documentos/BereaSnap (${fileName})`,
-        });
-      }
-
-      return savedUri;
-    } catch (err) {
-      console.error('[Native Export] Error guardando/compartiendo en Android:', err);
-      saveAs(blob, fileName);
-      return null;
     }
+
+    if (mode === 'share') {
+      try {
+        await Share.share({
+          title: fileName,
+          text: 'Editada con BereaSnap',
+          url: savedUri,
+          dialogTitle: 'Compartir archivo',
+        });
+        return { outcome: 'share', destination, uri: savedUri };
+      } catch (shareErr) {
+        if (isShareCancelError(shareErr)) {
+          return { outcome: 'cancelled', destination, uri: savedUri };
+        }
+        throw shareErr;
+      }
+    }
+
+    return { outcome: 'documents', destination, uri: savedUri };
   }
 
-  // En navegador Web / Móvil si se pidió "share" y el navegador soporta Web Share API de archivos
   if (mode === 'share' && typeof navigator !== 'undefined' && navigator.canShare) {
     try {
       const file = new File([blob], fileName, { type: mimeType });
@@ -138,20 +177,21 @@ async function deliverExportedFile(
           text: 'Editada con BereaSnap',
           files: [file],
         });
-        return null;
+        return { outcome: 'share', destination: 'Hoja de compartir' };
       }
     } catch (err) {
-      // Si el usuario cancela el share o falla, continuar o ignorar
-      if ((err as Error)?.name === 'AbortError') return null;
+      if (isShareCancelError(err)) {
+        return { outcome: 'cancelled', destination: 'Hoja de compartir' };
+      }
     }
   }
 
   saveAs(blob, fileName);
-  return null;
+  return { outcome: 'download', destination: `Descargas/${fileName}` };
 }
 
 /**
- * Exporta o comparte una sola foto procesada
+ * Exporta o comparte una sola foto procesada con reintento seguro a 1600px si falta RAM.
  */
 export async function exportSinglePhoto(
   photo: PhotoItem,
@@ -159,32 +199,63 @@ export async function exportSinglePhoto(
   frame: FrameSettings,
   options: ExportOptions = DEFAULT_EXPORT_OPTIONS,
   mode: 'download' | 'share' = 'download'
-): Promise<ExportOutcome> {
+): Promise<SingleExportResult> {
   const maxDim = options.qualityPreset === 'social' ? 2048 : 0;
   const jpegQuality = options.qualityPreset === 'social' ? 0.85 : 0.96;
   const prefix = (options.filenamePrefix || 'BereaSnap').trim().replace(/[^a-zA-Z0-9_-]/g, '_');
 
   let canvas: HTMLCanvasElement | null = null;
+  let downscaled = false;
   try {
-    canvas = await renderProcessedPhoto(
-      photo.originalUrl,
-      photo.adjustments,
-      watermark,
-      frame,
-      photo.crop,
-      maxDim
-    );
-    const blob = await canvasToBlob(canvas, jpegQuality);
+    let blob: Blob;
+    try {
+      canvas = await renderProcessedPhoto(
+        photo.originalUrl,
+        photo.adjustments,
+        watermark,
+        frame,
+        photo.crop,
+        maxDim
+      );
+      blob = await canvasToBlob(canvas, jpegQuality);
+    } catch (fullErr) {
+      console.warn(`Error renderizando ${photo.name} en máxima resolución, reintentando a 1600px:`, fullErr);
+      if (canvas) {
+        canvas.width = 0;
+        canvas.height = 0;
+      }
+      canvas = await renderProcessedPhoto(
+        photo.originalUrl,
+        photo.adjustments,
+        watermark,
+        frame,
+        photo.crop,
+        1600
+      );
+      blob = await canvasToBlob(canvas, 0.85);
+      downscaled = true;
+    }
+
     const cleanName = photo.name.replace(/\.[^/.]+$/, '');
     const fileName = `${prefix}_${cleanName}.jpg`;
 
-    // Guardado directo en la Galería de Android (sin menús intermedios)
     if (mode === 'download' && (await saveBlobToGallery(blob, fileName))) {
-      return 'gallery';
+      return {
+        outcome: 'gallery',
+        destination: 'Galería › Álbum BereaSnap',
+        downscaled,
+        fileName,
+      };
     }
 
-    await deliverExportedFile(blob, fileName, 'image/jpeg', mode);
-    return mode === 'share' ? 'share' : Capacitor.isNativePlatform() ? 'file' : 'download';
+    const delivered = await deliverExportedFile(blob, fileName, 'image/jpeg', mode);
+    return {
+      outcome: delivered.outcome,
+      destination: delivered.destination,
+      downscaled,
+      fileName,
+      shareUri: delivered.uri,
+    };
   } finally {
     if (canvas) {
       canvas.width = 0;
@@ -196,10 +267,8 @@ export async function exportSinglePhoto(
 }
 
 /**
- * Procesa en lote todas las fotos y las entrega como archivos JPG individuales:
- * - Android (descargar): directo a la Galería, álbum "BereaSnap".
- * - Android (compartir) o si la Galería no está disponible: menú nativo con todas las fotos a la vez.
- * - Web: descarga de cada JPG (o hoja de compartir si el navegador lo soporta).
+ * Procesa en lote todas las fotos y las entrega como archivos JPG individuales,
+ * reportando fallos parciales y copias reducidas a 1600px sin abortar todo el lote.
  */
 export async function exportBatchAsJpgs(
   photos: PhotoItem[],
@@ -233,6 +302,8 @@ export async function exportBatchAsJpgs(
   }
 
   let savedToGallery = 0;
+  let downscaledCount = 0;
+  const failedNames: string[] = [];
   let galleryAvailable = isNative && mode === 'download';
   const nativeShareUris: string[] = [];
   const webShareFiles: File[] = [];
@@ -265,6 +336,7 @@ export async function exportBatchAsJpgs(
           photo.originalUrl, photo.adjustments, watermark, frame, photo.crop, 1600, cachedPngFrame, cachedLogo
         );
         blob = await canvasToBlob(canvas, 0.85);
+        downscaledCount++;
       }
 
       const cleanName = photo.name.replace(/\.[^/.]+$/, '');
@@ -292,11 +364,12 @@ export async function exportBatchAsJpgs(
         webShareFiles.push(new File([blob], fileName, { type: 'image/jpeg' }));
       } else {
         saveAs(blob, fileName);
-        await new Promise((resolve) => setTimeout(resolve, 280));
+        await new Promise((resolve) => setTimeout(resolve, 260));
       }
       processedCount++;
     } catch (retryErr) {
       console.error(`Fallo definitivo en foto ${photo.name}:`, retryErr);
+      failedNames.push(photo.name);
     } finally {
       if (canvas) {
         canvas.width = 0;
@@ -306,43 +379,99 @@ export async function exportBatchAsJpgs(
     }
   }
 
+  releaseScratchBuffer();
+
   if (processedCount === 0) {
-    releaseScratchBuffer();
     throw new Error('No se pudo procesar ninguna fotografía del lote.');
   }
 
-  releaseScratchBuffer();
-
   if (isNative) {
     if (nativeShareUris.length > 0) {
-      await Share.share({
-        title: `${prefix} (${nativeShareUris.length} fotos)`,
-        files: nativeShareUris,
-        dialogTitle: 'Guardar o compartir fotografías',
-      });
-      return { total: photos.length, saved: processedCount, outcome: 'share' };
+      try {
+        await Share.share({
+          title: `${prefix} (${nativeShareUris.length} fotos)`,
+          files: nativeShareUris,
+          dialogTitle: 'Compartir fotografías',
+        });
+        return {
+          total: photos.length,
+          saved: processedCount,
+          failedCount: failedNames.length,
+          downscaledCount,
+          failedNames,
+          outcome: 'share',
+          destination: 'Hoja de compartir Android',
+          shareUris: nativeShareUris,
+        };
+      } catch (shareErr) {
+        if (isShareCancelError(shareErr)) {
+          return {
+            total: photos.length,
+            saved: processedCount,
+            failedCount: failedNames.length,
+            downscaledCount,
+            failedNames,
+            outcome: 'cancelled',
+            destination: 'Envío cancelado',
+            shareUris: nativeShareUris,
+          };
+        }
+        throw shareErr;
+      }
     }
-    return { total: photos.length, saved: savedToGallery, outcome: 'gallery' };
+    return {
+      total: photos.length,
+      saved: savedToGallery,
+      failedCount: failedNames.length,
+      downscaledCount,
+      failedNames,
+      outcome: 'gallery',
+      destination: 'Galería › Álbum BereaSnap',
+    };
   }
 
   if (mode === 'share' && webShareFiles.length > 0 && typeof navigator !== 'undefined' && navigator.canShare?.({ files: webShareFiles })) {
     try {
       await navigator.share({ title: prefix, files: webShareFiles });
-      return { total: photos.length, saved: processedCount, outcome: 'share' };
+      return {
+        total: photos.length,
+        saved: processedCount,
+        failedCount: failedNames.length,
+        downscaledCount,
+        failedNames,
+        outcome: 'share',
+        destination: 'Hoja de compartir',
+      };
     } catch (err) {
-      if ((err as Error)?.name === 'AbortError') {
-        return { total: photos.length, saved: processedCount, outcome: 'share' };
+      if (isShareCancelError(err)) {
+        return {
+          total: photos.length,
+          saved: processedCount,
+          failedCount: failedNames.length,
+          downscaledCount,
+          failedNames,
+          outcome: 'cancelled',
+          destination: 'Envío cancelado',
+        };
       }
     }
   }
   if (mode === 'share') {
     webShareFiles.forEach((f) => saveAs(f, f.name));
   }
-  return { total: photos.length, saved: processedCount, outcome: 'download' };
+  return {
+    total: photos.length,
+    saved: processedCount,
+    failedCount: failedNames.length,
+    downscaledCount,
+    failedNames,
+    outcome: 'download',
+    destination: 'Carpeta de Descargas',
+  };
 }
 
 /**
- * Procesa en lote todas las fotos y las comprime en un archivo .ZIP listo para guardar o compartir
+ * Procesa en lote todas las fotos, las comprime en un archivo .ZIP persistente y devuelve resumen completo
  */
 export async function exportBatchAsZip(
   photos: PhotoItem[],
@@ -351,7 +480,7 @@ export async function exportBatchAsZip(
   onProgress: (current: number, total: number, currentName: string) => void,
   options: ExportOptions = DEFAULT_EXPORT_OPTIONS,
   mode: 'download' | 'share' = 'download'
-): Promise<void> {
+): Promise<BatchExportResult> {
   const zip = new JSZip();
   const prefix = (options.filenamePrefix || 'BereaSnap').trim().replace(/[^a-zA-Z0-9_-]/g, '_');
   const maxDim = options.qualityPreset === 'social' ? 2048 : 0;
@@ -359,7 +488,6 @@ export async function exportBatchAsZip(
 
   const folder = zip.folder(`${prefix}_Editadas`);
 
-  // Precargar elementos estáticos una sola vez para no recargarlos en cada iteración
   let cachedPngFrame: HTMLImageElement | null = null;
   if (frame.style === 'custom-png' && frame.pngDataUrl) {
     try {
@@ -379,38 +507,31 @@ export async function exportBatchAsZip(
   }
 
   let processedCount = 0;
+  let downscaledCount = 0;
+  const failedNames: string[] = [];
 
   for (let i = 0; i < photos.length; i++) {
     const photo = photos[i];
     onProgress(i + 1, photos.length, photo.name);
-
-    // Ceder el hilo de la UI y permitir Garbage Collection en memoria móvil
     await new Promise((resolve) => setTimeout(resolve, 40));
 
     let canvas: HTMLCanvasElement | null = null;
     try {
-      canvas = await renderProcessedPhoto(
-        photo.originalUrl,
-        photo.adjustments,
-        watermark,
-        frame,
-        photo.crop,
-        maxDim,
-        cachedPngFrame,
-        cachedLogo
-      );
-
-      const blob = await canvasToBlob(canvas, jpegQuality);
-      const cleanName = photo.name.replace(/\.[^/.]+$/, '');
-      const paddedIndex = String(i + 1).padStart(2, '0');
-      const fileName = `${prefix}_${paddedIndex}_${cleanName}.jpg`;
-
-      folder?.file(fileName, blob);
-      processedCount++;
-    } catch (error) {
-      console.error(`Error procesando foto ${photo.name} a resolución completa:`, error);
-      // Reintento de emergencia a 1600px en caso de pico de memoria en dispositivo de baja gama
+      let blob: Blob;
       try {
+        canvas = await renderProcessedPhoto(
+          photo.originalUrl,
+          photo.adjustments,
+          watermark,
+          frame,
+          photo.crop,
+          maxDim,
+          cachedPngFrame,
+          cachedLogo
+        );
+        blob = await canvasToBlob(canvas, jpegQuality);
+      } catch (error) {
+        console.error(`Error procesando foto ${photo.name} a resolución completa:`, error);
         if (canvas) {
           canvas.width = 0;
           canvas.height = 0;
@@ -425,18 +546,20 @@ export async function exportBatchAsZip(
           cachedPngFrame,
           cachedLogo
         );
-        const fallbackBlob = await canvasToBlob(canvas, 0.85);
-        const cleanName = photo.name.replace(/\.[^/.]+$/, '');
-        const paddedIndex = String(i + 1).padStart(2, '0');
-        const fileName = `${prefix}_${paddedIndex}_${cleanName}.jpg`;
-
-        folder?.file(fileName, fallbackBlob);
-        processedCount++;
-      } catch (retryErr) {
-        console.error(`Fallo definitivo en foto ${photo.name}:`, retryErr);
+        blob = await canvasToBlob(canvas, 0.85);
+        downscaledCount++;
       }
+
+      const cleanName = photo.name.replace(/\.[^/.]+$/, '');
+      const paddedIndex = String(i + 1).padStart(2, '0');
+      const fileName = `${prefix}_${paddedIndex}_${cleanName}.jpg`;
+
+      folder?.file(fileName, blob);
+      processedCount++;
+    } catch (retryErr) {
+      console.error(`Fallo definitivo en foto ${photo.name}:`, retryErr);
+      failedNames.push(photo.name);
     } finally {
-      // Liberar inmediatamente el buffer de memoria del Canvas en el motor gráfico
       if (canvas) {
         canvas.width = 0;
         canvas.height = 0;
@@ -445,21 +568,31 @@ export async function exportBatchAsZip(
     }
   }
 
+  releaseScratchBuffer();
+
   if (processedCount === 0) {
-    releaseScratchBuffer();
     throw new Error('No se pudo procesar ninguna fotografía del lote.');
   }
-
-  releaseScratchBuffer();
 
   const zipContent = await zip.generateAsync({
     type: 'blob',
     compression: 'DEFLATE',
-    compressionOptions: { level: 4 }, // Nivel 4 para balance velocidad/memoria en móvil
+    compressionOptions: { level: 4 },
   });
 
   const dateStr = new Date().toISOString().split('T')[0];
   const zipFileName = `${prefix}_Lote_${dateStr}.zip`;
 
-  await deliverExportedFile(zipContent, zipFileName, 'application/zip', mode);
+  const delivered = await deliverExportedFile(zipContent, zipFileName, 'application/zip', mode);
+
+  return {
+    total: photos.length,
+    saved: processedCount,
+    failedCount: failedNames.length,
+    downscaledCount,
+    failedNames,
+    outcome: delivered.outcome,
+    destination: delivered.destination,
+    shareUris: delivered.uri ? [delivered.uri] : undefined,
+  };
 }

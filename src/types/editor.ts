@@ -115,6 +115,7 @@ export interface ExportOptions {
 
 export interface PhotoMetadata {
   dateTimeOriginal?: Date;
+  dateSource?: 'exif' | 'file-mtime';
   dateFormatted?: string;
   timeFormatted?: string;
   fullDateString?: string;

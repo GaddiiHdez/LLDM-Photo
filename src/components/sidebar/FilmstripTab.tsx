@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Plus, Trash2, RefreshCw } from 'lucide-react';
+import { Plus, Trash2, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
 import type { PhotoItem } from '../../types/editor';
 
 interface FilmstripTabProps {
@@ -151,13 +151,43 @@ export const FilmstripTab: React.FC<FilmstripTabProps> = ({
         });
       }
     }
-  }, [photo?.id, isActiveTab]);
+  }, [photo, photo?.id, isActiveTab]);
+
+  const activeIndex = (photos || []).findIndex((p) => p.id === photo?.id);
+  const canMoveLeft = onMovePhoto && activeIndex > 0;
+  const canMoveRight = onMovePhoto && activeIndex >= 0 && activeIndex < (photos?.length || 0) - 1;
 
   return (
     <div className="oneui-deck-inner">
       <div className="oneui-deck-title-row">
-        <span className="oneui-param-title">CARRETE DE SESIÓN ({photos?.length || 0})</span>
+        <span className="oneui-param-title">CARRETE ({photos?.length || 0})</span>
         <div className="oneui-deck-actions-right">
+          {onMovePhoto && (photos?.length || 0) > 1 && (
+            <>
+              <button
+                type="button"
+                disabled={!canMoveLeft}
+                onClick={() => canMoveLeft && onMovePhoto(activeIndex, activeIndex - 1)}
+                className="oneui-reset-tiny-btn"
+                style={{ opacity: canMoveLeft ? 1 : 0.4 }}
+                title="Mover foto activa hacia la izquierda"
+                aria-label="Mover foto hacia la izquierda"
+              >
+                <ChevronLeft size={13} />
+              </button>
+              <button
+                type="button"
+                disabled={!canMoveRight}
+                onClick={() => canMoveRight && onMovePhoto(activeIndex, activeIndex + 1)}
+                className="oneui-reset-tiny-btn"
+                style={{ opacity: canMoveRight ? 1 : 0.4 }}
+                title="Mover foto activa hacia la derecha"
+                aria-label="Mover foto hacia la derecha"
+              >
+                <ChevronRight size={13} />
+              </button>
+            </>
+          )}
           {onAddMorePhotos && (
             <button
               type="button"
@@ -174,7 +204,7 @@ export const FilmstripTab: React.FC<FilmstripTabProps> = ({
               type="button"
               onClick={() => onReplacePhoto(photo.id)}
               className="oneui-sync-pill-btn"
-              title="Sustituir foto activa por otra"
+              title="Sustituir foto activa por otra conservando posición y ajustes"
             >
               <RefreshCw size={11} />
               <span>Sustituir</span>
@@ -185,7 +215,8 @@ export const FilmstripTab: React.FC<FilmstripTabProps> = ({
               type="button"
               onClick={() => onDeletePhoto(photo.id)}
               className="oneui-reset-tiny-btn text-danger"
-              title="Eliminar foto activa"
+              title="Eliminar foto activa del carrete"
+              aria-label="Eliminar foto activa"
             >
               <Trash2 size={11} />
               <span>Borrar</span>

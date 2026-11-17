@@ -87,9 +87,44 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
   const [showZebras, setShowZebras] = useState(showZebraClipping);
   const [showHistogram, setShowHistogram] = useState(false);
   const [clippingStats, setClippingStats] = useState<{ clippedPct: number; isClipping: boolean } | null>(null);
+  const [canvasBox, setCanvasBox] = useState<{ left: number; top: number; width: number; height: number } | null>(null);
 
   const zebraCanvasRef = useRef<HTMLCanvasElement>(null);
   const histogramCanvasRef = useRef<HTMLCanvasElement>(null);
+
+  const syncCanvasOverlayBox = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const next = {
+      left: canvas.offsetLeft,
+      top: canvas.offsetTop,
+      width: canvas.offsetWidth,
+      height: canvas.offsetHeight,
+    };
+    setCanvasBox((prev) =>
+      prev &&
+      prev.left === next.left &&
+      prev.top === next.top &&
+      prev.width === next.width &&
+      prev.height === next.height
+        ? prev
+        : next
+    );
+  }, []);
+
+  useEffect(() => {
+    const container = canvasContainerRef.current;
+    const canvas = canvasRef.current;
+    if (!container || !canvas) return;
+    syncCanvasOverlayBox();
+    if (typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(() => {
+      syncCanvasOverlayBox();
+    });
+    ro.observe(container);
+    ro.observe(canvas);
+    return () => ro.disconnect();
+  }, [syncCanvasOverlayBox]);
 
   // Sincronizar prop si cambia externamente
   useEffect(() => {
@@ -375,7 +410,8 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
 
     // Actualizar indicador de luces quemadas y curvas de histograma
     updateZebraAndHistogram();
-  }, [updateZebraAndHistogram]);
+    requestAnimationFrame(syncCanvasOverlayBox);
+  }, [updateZebraAndHistogram, syncCanvasOverlayBox]);
 
   // Actualizar cebras o histograma al cambiar sus botones
   useEffect(() => {
@@ -1025,25 +1061,25 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
             className="eyedropper-banner"
             style={{
               position: 'absolute',
-              top: '0.65rem',
+              top: '3.05rem',
               left: '50%',
               transform: 'translateX(-50%)',
               zIndex: 40,
               display: 'inline-flex',
               alignItems: 'center',
               gap: '0.45rem',
-              padding: '0.35rem 0.7rem',
+              padding: '0.35rem 0.75rem',
               borderRadius: '999px',
-              background: 'rgba(13, 13, 18, 0.92)',
-              border: '1px solid rgba(245, 158, 11, 0.5)',
-              color: '#fef08a',
+              background: 'var(--oneui-toast-bg)',
+              border: '1px solid rgba(245, 158, 11, 0.55)',
+              color: 'var(--oneui-accent-text)',
               fontSize: '0.72rem',
               fontWeight: 700,
               whiteSpace: 'nowrap',
-              boxShadow: '0 8px 24px rgba(0, 0, 0, 0.65)',
+              boxShadow: 'var(--shadow-lg)',
             }}
           >
-            <Pipette size={13} style={{ color: '#f59e0b' }} />
+            <Pipette size={13} style={{ color: 'var(--oneui-accent)' }} />
             <span>Toca un tono blanco o gris neutro</span>
             {onCancelEyedropper && (
               <button
@@ -1053,21 +1089,22 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
                   onCancelEyedropper();
                 }}
                 style={{
-                  background: 'rgba(255,255,255,0.1)',
+                  background: 'var(--oneui-surface-hover)',
                   border: 'none',
                   borderRadius: '50%',
-                  width: 18,
-                  height: 18,
+                  width: 24,
+                  height: 24,
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  color: '#fff',
+                  color: 'var(--oneui-text)',
                   cursor: 'pointer',
                   padding: 0,
                 }}
                 title="Cancelar gotero"
+                aria-label="Cancelar gotero de balance de blancos"
               >
-                <X size={11} />
+                <X size={12} />
               </button>
             )}
           </div>
@@ -1088,8 +1125,10 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
             onClick={() => setShowZebras((z) => !z)}
             className={`stage-pill-btn ${showZebras ? 'active' : ''}`}
             title="Activar / Desactivar indicador de altas luces quemadas (Zebra)"
+            aria-label="Indicador de altas luces quemadas Zebra"
+            aria-pressed={showZebras}
           >
-            <Zap size={12} style={{ color: showZebras ? '#f59e0b' : 'inherit' }} />
+            <Zap size={12} style={{ color: showZebras ? 'var(--oneui-accent)' : 'inherit' }} />
             <span>Zebra</span>
           </button>
 
@@ -1099,8 +1138,10 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
             onClick={() => setShowHistogram((h) => !h)}
             className={`stage-pill-btn ${showHistogram ? 'active' : ''}`}
             title="Mostrar / Ocultar histograma RGB multiespectral"
+            aria-label="Histograma RGB"
+            aria-pressed={showHistogram}
           >
-            <BarChart2 size={12} style={{ color: showHistogram ? '#f59e0b' : 'inherit' }} />
+            <BarChart2 size={12} style={{ color: showHistogram ? 'var(--oneui-accent)' : 'inherit' }} />
             <span>RGB</span>
           </button>
 
@@ -1109,7 +1150,8 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
             type="button"
             onClick={() => setZoomLevel((z) => (z === 1 ? 1.5 : z === 1.5 ? 2 : 1))}
             className="stage-pill-btn"
-            title="Cambiar lupa de inspección"
+            title="Cambiar lupa de inspección del visor"
+            aria-label={`Zoom del visor ${Math.round(zoomLevel * 100)} por ciento`}
           >
             {zoomLevel > 1 ? <ZoomOut size={12} /> : <ZoomIn size={12} />}
             <span>{Math.round(zoomLevel * 100)}%</span>
@@ -1126,8 +1168,9 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
                 onClick={() => setShowHistogram(false)}
                 className="histogram-close-btn"
                 title="Cerrar histograma"
+                aria-label="Cerrar histograma RGB"
               >
-                <X size={10} />
+                <X size={12} />
               </button>
             </div>
             <canvas ref={histogramCanvasRef} width={136} height={52} className="histogram-canvas" />
@@ -1191,16 +1234,27 @@ export const PreviewStage: React.FC<PreviewStageProps> = ({
             className="oneui-zebra-overlay"
             style={{
               display: showZebras ? 'block' : 'none',
-              maxWidth: zoomLevel === 1 ? '100%' : 'none',
-              maxHeight: zoomLevel === 1 ? '100%' : 'none',
-              width: zoomLevel === 1 ? 'auto' : `${(canvasRef.current?.width || 960) * zoomLevel}px`,
-              height: 'auto',
+              left: canvasBox ? `${canvasBox.left}px` : 0,
+              top: canvasBox ? `${canvasBox.top}px` : 0,
+              width: canvasBox ? `${canvasBox.width}px` : '100%',
+              height: canvasBox ? `${canvasBox.height}px` : '100%',
               borderRadius: '0.45rem',
             }}
           />
-          {/* Cuadrícula de Composición: Regla de Tercios 3x3 */}
-          {isCropMode && (
-            <div className="oneui-rule-of-thirds-grid" title="Guía de composición eclesiástica: Regla de Tercios 3x3">
+          {/* Cuadrícula de Composición: Regla de Tercios 3x3 alineada a bordes visibles */}
+          {isCropMode && canvasBox && canvasBox.width > 0 && canvasBox.height > 0 && (
+            <div
+              className="oneui-rule-of-thirds-grid"
+              style={{
+                left: `${canvasBox.left}px`,
+                top: `${canvasBox.top}px`,
+                width: `${canvasBox.width}px`,
+                height: `${canvasBox.height}px`,
+                right: 'auto',
+                bottom: 'auto',
+              }}
+              title="Guía de composición: Regla de Tercios 3x3"
+            >
               <div className="grid-line vertical line-1" />
               <div className="grid-line vertical line-2" />
               <div className="grid-line horizontal line-1" />

@@ -114,6 +114,20 @@ export function deleteSavedLogo(id: string): SavedLogo[] {
 }
 
 /**
+ * Renombra un logo personalizado del catálogo
+ */
+export function renameSavedLogo(id: string, newName: string): SavedLogo[] {
+  const trimmed = newName.trim();
+  const current = readInitialLogos();
+  if (!trimmed) return current;
+  const target = current.find((l) => l.id === id);
+  if (target?.isOfficial) return current;
+  const updated = current.map((l) => (l.id === id ? { ...l, name: trimmed } : l));
+  persistLogos(updated);
+  return updated;
+}
+
+/**
  * Establece un logo como predeterminado por defecto
  */
 export function setDefaultLogo(id: string): SavedLogo[] {

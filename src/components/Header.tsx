@@ -137,6 +137,7 @@ export const Header: React.FC<HeaderProps> = ({
                 disabled={!hasModifications}
                 className={`oneui-revert-btn desktop-only-btn ${hasModifications ? 'active' : ''}`}
                 title="Revertir todos los cambios de esta fotografía"
+                aria-label="Revertir fotografía original"
               >
                 <RotateCcw size={15} />
                 <span className="oneui-btn-text">Revertir</span>
@@ -149,6 +150,7 @@ export const Header: React.FC<HeaderProps> = ({
               onClick={onOpenGrid}
               className="oneui-counter-pill"
               title="Ver carrete de sesión"
+              aria-label={`Carrete de sesión, foto ${currentPhotoIndex + 1} de ${totalPhotos}`}
             >
               <LayoutGrid size={12} style={{ color: 'var(--color-accent)' }} />
               <span>
@@ -170,6 +172,8 @@ export const Header: React.FC<HeaderProps> = ({
                 onClick={() => onToggleOriginal()}
                 className={`oneui-icon-btn ${showOriginal ? 'active' : ''}`}
                 title="Comparar con original"
+                aria-label={showOriginal ? 'Ver foto editada' : 'Comparar con original'}
+                aria-pressed={showOriginal}
               >
                 {showOriginal ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
@@ -181,6 +185,7 @@ export const Header: React.FC<HeaderProps> = ({
               onClick={onExportBatch}
               className="oneui-save-action-btn"
               title="Guardar fotografía o lote"
+              aria-label="Guardar fotografía o lote"
             >
               <span>Guardar</span>
             </button>
@@ -192,6 +197,7 @@ export const Header: React.FC<HeaderProps> = ({
                 onClick={onSingleShare}
                 className="oneui-icon-btn"
                 title="Compartir foto actual"
+                aria-label="Compartir foto actual"
               >
                 <Share2 size={16} />
               </button>
@@ -206,6 +212,7 @@ export const Header: React.FC<HeaderProps> = ({
             onClick={onOpenAbout}
             className="oneui-update-dot-btn"
             title="¡Nueva actualización disponible! Toca para instalar"
+            aria-label="Actualización disponible"
           >
             <Sparkles size={13} style={{ color: '#fbbf24' }} />
           </button>
@@ -253,8 +260,8 @@ export const Header: React.FC<HeaderProps> = ({
                     >
                       <CheckCheck size={15} style={{ color: '#34d399' }} />
                       <div className="menu-item-text">
-                        <strong>Sincronizar lote</strong>
-                        <span>Copiar ajustes actuales a todas</span>
+                        <strong>Aplicar luz y color a todas</strong>
+                        <span>Copia ajustes y filtro (conserva encuadres)</span>
                       </div>
                     </button>
                   )}
@@ -272,8 +279,8 @@ export const Header: React.FC<HeaderProps> = ({
                     >
                       <RotateCcw size={15} style={{ color: '#fbbf24' }} />
                       <div className="menu-item-text">
-                        <strong>Revertir foto original</strong>
-                        <span>Restablecer todos los ajustes de esta foto</span>
+                        <strong>Restablecer foto / estudio</strong>
+                        <span>Revertir ajustes de esta foto o quitar marco</span>
                       </div>
                     </button>
                   )}

@@ -1,7 +1,34 @@
 import React, { useState, useEffect } from 'react';
 import { Capacitor } from '@capacitor/core';
-import { Sparkles, RefreshCw, Download, Share2, X, CheckCircle2, Zap, ShieldCheck, Images, Image as ImageIcon, FileArchive } from 'lucide-react';
+import {
+  Sparkles,
+  RefreshCw,
+  Download,
+  Share2,
+  X,
+  CheckCircle2,
+  Zap,
+  ShieldCheck,
+  Images,
+  Image as ImageIcon,
+  FileArchive,
+  AlertTriangle,
+  FolderOpen,
+} from 'lucide-react';
 import type { ExportOptions } from '../types/editor';
+
+export interface ExportSummaryInfo {
+  scope: 'single' | 'batch';
+  format: 'jpg' | 'zip';
+  saved: number;
+  total: number;
+  downscaledCount: number;
+  failedCount: number;
+  failedNames?: string[];
+  destination: string;
+  outcome: 'gallery' | 'share' | 'download' | 'file' | 'documents' | 'cancelled';
+  shareUris?: string[];
+}
 
 interface ExportModalProps {
   isOpen: boolean;
@@ -11,6 +38,9 @@ interface ExportModalProps {
   currentPhotoIndex?: number;
   currentName: string;
   options: ExportOptions;
+  lastSummary?: ExportSummaryInfo | null;
+  onDismissSummary?: () => void;
+  onShareAfterSave?: (summary: ExportSummaryInfo) => void;
   onChangeOptions: (opts: ExportOptions) => void;
   onStartExport: (mode: 'download' | 'share') => void;
   onSingleExport?: (mode: 'download' | 'share') => void;
@@ -25,6 +55,9 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   currentPhotoIndex = 0,
   currentName,
   options,
+  lastSummary = null,
+  onDismissSummary,
+  onShareAfterSave,
   onChangeOptions,
   onStartExport,
   onSingleExport,
@@ -38,7 +71,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
     }
   }, [isOpen, total]);
 
-  if (!isOpen) return null;
+  if (!isOpen && !lastSummary) return null;
 
   const percentage = total > 0 ? Math.round((current / total) * 100) : 0;
   const isNative = Capacitor.isNativePlatform();
@@ -60,24 +93,123 @@ export const ExportModal: React.FC<ExportModalProps> = ({
       onStartExport(mode);
     } else if (onSingleExport) {
       onSingleExport(mode);
-      onClose();
     } else {
       onStartExport(mode);
     }
   };
 
+  const closeAll = () => {
+    if (lastSummary && onDismissSummary) {
+      onDismissSummary();
+    } else {
+      onClose();
+    }
+  };
+
   return (
-    <div className="modal-backdrop oneui-sheet-backdrop" onClick={!isProcessing ? onClose : undefined}>
+    <div className="modal-backdrop oneui-sheet-backdrop" onClick={!isProcessing ? closeAll : undefined}>
       <div
         className="export-modal oneui-sheet card-glass"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Manija One UI para deslizar o cerrar */}
-        <div className="oneui-sheet-handle-row" onClick={onClose} title="Cerrar">
-          <div className="oneui-sheet-handle" />
-        </div>
+        <button
+          type="button"
+          className="oneui-sheet-handle-row"
+          style={{ background: 'none', border: 'none' }}
+          onClick={!isProcessing ? closeAll : undefined}
+          title="Cerrar"
+          aria-label="Cerrar panel de exportación"
+        >
+          <span className="oneui-sheet-handle" />
+        </button>
 
-        {!isProcessing ? (
+        {lastSummary && !isProcessing ? (
+          <div style={{ padding: '0.25rem 0 0.25rem 0' }}>
+            <div className="oneui-deck-title-row" style={{ marginBottom: '0.55rem' }}>
+              <div className="oneui-param-title-group">
+                <span className="oneui-param-title" style={{ fontSize: '0.85rem' }}>
+                  {lastSummary.outcome === 'cancelled'
+                    ? lastSummary.format === 'zip'
+                      ? 'ARCHIVO ZIP CONSERVADO'
+                      : 'ENVÍO CANCELADO'
+                    : lastSummary.format === 'zip'
+                      ? 'ARCHIVO ZIP LISTO'
+                      : 'EXPORTACIÓN COMPLETADA'}
+                </span>
+                <span className="oneui-param-meta-tag">
+                  {lastSummary.saved}/{lastSummary.total} fotos
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={closeAll}
+                className="oneui-reset-tiny-btn"
+                aria-label="Cerrar resumen"
+              >
+                <X size={13} />
+              </button>
+            </div>
+
+            <div className="oneui-subcard-panel" style={{ gap: '0.45rem', padding: '0.75rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <CheckCircle2 size={18} style={{ color: 'var(--color-success)', flexShrink: 0 }} />
+                <strong style={{ fontSize: '0.84rem', color: 'var(--oneui-text)' }}>
+                  {lastSummary.saved === 1
+                    ? '1 fotografía procesada correctamente'
+                    : `${lastSummary.saved} de ${lastSummary.total} fotografías procesadas`}
+                </strong>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.45rem', fontSize: '0.76rem', color: 'var(--oneui-text-secondary)' }}>
+                <FolderOpen size={14} style={{ color: 'var(--oneui-accent)', flexShrink: 0, marginTop: 2 }} />
+                <span>
+                  Ubicación: <strong style={{ color: 'var(--oneui-text)' }}>{lastSummary.destination}</strong>
+                </span>
+              </div>
+              {lastSummary.downscaledCount > 0 && (
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.45rem', fontSize: '0.72rem', color: 'var(--oneui-accent-text)' }}>
+                  <AlertTriangle size={13} style={{ flexShrink: 0, marginTop: 2 }} />
+                  <span>
+                    {lastSummary.downscaledCount} foto(s) se guardaron a 1600px por límite de memoria del dispositivo.
+                  </span>
+                </div>
+              )}
+              {lastSummary.failedCount > 0 && (
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.45rem', fontSize: '0.72rem', color: 'var(--color-danger)' }}>
+                  <AlertTriangle size={13} style={{ flexShrink: 0, marginTop: 2 }} />
+                  <span>
+                    No se pudieron exportar {lastSummary.failedCount} foto(s)
+                    {lastSummary.failedNames && lastSummary.failedNames.length > 0
+                      ? `: ${lastSummary.failedNames.slice(0, 3).join(', ')}`
+                      : '.'}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            <div className="oneui-export-actions">
+              {onShareAfterSave && lastSummary.outcome !== 'share' ? (
+                <button
+                  type="button"
+                  onClick={() => onShareAfterSave(lastSummary)}
+                  className="oneui-secondary-action-btn"
+                >
+                  <Share2 size={15} />
+                  <span>Compartir</span>
+                </button>
+              ) : (
+                <span />
+              )}
+              <button
+                type="button"
+                onClick={closeAll}
+                className="oneui-primary-action-btn"
+              >
+                <span>Listo</span>
+              </button>
+            </div>
+          </div>
+        ) : !isProcessing ? (
           <>
             <div className="oneui-deck-title-row" style={{ marginBottom: '0.65rem' }}>
               <div className="oneui-param-title-group">
@@ -287,7 +419,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
               </p>
             )}
 
-            <div className="progress-bar-container" style={{ height: '6px', borderRadius: '3px', background: 'rgba(255,255,255,0.08)' }}>
+            <div className="progress-bar-container" style={{ height: '6px', borderRadius: '3px', background: 'var(--oneui-surface-subtle)' }}>
               <div
                 className="progress-bar-fill"
                 style={{
@@ -303,7 +435,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                 <Sparkles size={11} style={{ color: '#f59e0b', display: 'inline', marginRight: 4, verticalAlign: -1 }} />
                 Revelado y marco
               </span>
-              <strong style={{ color: '#ffffff' }}>{percentage}%</strong>
+              <strong style={{ color: 'var(--oneui-text)' }}>{percentage}%</strong>
             </div>
           </div>
         )}

@@ -26,24 +26,35 @@ interface DevelopTabProps {
   onToggleEyedropper?: () => void;
 }
 
+type ParamGroup = 'all' | 'light' | 'color' | 'detail';
+
+const GROUP_LABELS: { id: ParamGroup; label: string }[] = [
+  { id: 'all', label: 'Todos' },
+  { id: 'light', label: 'Luz' },
+  { id: 'color', label: 'Color' },
+  { id: 'detail', label: 'Detalle' },
+];
+
 const LIGHT_PARAMS: {
   key: keyof ImageAdjustments;
+  group: Exclude<ParamGroup, 'all'>;
+  groupTitle: string;
   label: string;
   icon: React.FC<{ size?: number; className?: string }>;
   min: number;
   max: number;
   step: number;
 }[] = [
-  { key: 'brightness', label: 'Exposición', icon: SunMedium, min: -100, max: 100, step: 1 },
-  { key: 'contrast', label: 'Contraste', icon: Contrast, min: -100, max: 100, step: 1 },
-  { key: 'clarity', label: 'Claridad', icon: Sparkles, min: -100, max: 100, step: 1 },
-  { key: 'highlights', label: 'Altas Luces', icon: Sun, min: -100, max: 100, step: 1 },
-  { key: 'shadows', label: 'Sombras', icon: Moon, min: -100, max: 100, step: 1 },
-  { key: 'saturation', label: 'Saturación', icon: Droplets, min: -100, max: 100, step: 1 },
-  { key: 'warmth', label: 'Calidez', icon: Thermometer, min: -100, max: 100, step: 1 },
-  { key: 'tint', label: 'Matiz', icon: Palette, min: -100, max: 100, step: 1 },
-  { key: 'noiseReduction', label: 'Reducir Ruido', icon: Shield, min: 0, max: 100, step: 1 },
-  { key: 'sharpness', label: 'Nitidez', icon: Focus, min: 0, max: 100, step: 1 },
+  { key: 'brightness', group: 'light', groupTitle: 'Luz', label: 'Exposición', icon: SunMedium, min: -100, max: 100, step: 1 },
+  { key: 'contrast', group: 'light', groupTitle: 'Luz', label: 'Contraste', icon: Contrast, min: -100, max: 100, step: 1 },
+  { key: 'highlights', group: 'light', groupTitle: 'Luz', label: 'Altas Luces', icon: Sun, min: -100, max: 100, step: 1 },
+  { key: 'shadows', group: 'light', groupTitle: 'Luz', label: 'Sombras', icon: Moon, min: -100, max: 100, step: 1 },
+  { key: 'clarity', group: 'light', groupTitle: 'Luz', label: 'Claridad', icon: Sparkles, min: -100, max: 100, step: 1 },
+  { key: 'saturation', group: 'color', groupTitle: 'Color', label: 'Saturación', icon: Droplets, min: -100, max: 100, step: 1 },
+  { key: 'warmth', group: 'color', groupTitle: 'Color', label: 'Calidez', icon: Thermometer, min: -100, max: 100, step: 1 },
+  { key: 'tint', group: 'color', groupTitle: 'Color', label: 'Matiz', icon: Palette, min: -100, max: 100, step: 1 },
+  { key: 'noiseReduction', group: 'detail', groupTitle: 'Detalle', label: 'Reducir Ruido', icon: Shield, min: 0, max: 100, step: 1 },
+  { key: 'sharpness', group: 'detail', groupTitle: 'Detalle', label: 'Nitidez', icon: Focus, min: 0, max: 100, step: 1 },
 ];
 
 export const DevelopTab: React.FC<DevelopTabProps> = ({
@@ -55,9 +66,21 @@ export const DevelopTab: React.FC<DevelopTabProps> = ({
   onToggleEyedropper,
 }) => {
   const [activeLightParam, setActiveLightParam] = useState<keyof ImageAdjustments>('brightness');
+  const [activeGroup, setActiveGroup] = useState<ParamGroup>('all');
 
   const activeParamConfig = LIGHT_PARAMS.find((p) => p.key === activeLightParam) || LIGHT_PARAMS[0];
+  const visibleParams = activeGroup === 'all' ? LIGHT_PARAMS : LIGHT_PARAMS.filter((p) => p.group === activeGroup);
   const activeValue = Number(photo.adjustments[activeLightParam] ?? 0);
+  const formattedActiveVal = activeValue > 0 ? `+${activeValue}` : `${activeValue}`;
+  const skinGuardEnabled = photo.adjustments.skinToneGuard !== false;
+
+  const handleSelectGroup = (group: ParamGroup) => {
+    setActiveGroup(group);
+    if (group !== 'all' && activeParamConfig.group !== group) {
+      const firstInGroup = LIGHT_PARAMS.find((p) => p.group === group);
+      if (firstInGroup) setActiveLightParam(firstInGroup.key);
+    }
+  };
 
   const handleSliderChange = (key: keyof ImageAdjustments, value: number) => {
     onUpdateAdjustments({
@@ -70,34 +93,32 @@ export const DevelopTab: React.FC<DevelopTabProps> = ({
     <div className="oneui-deck-inner">
       <div className="oneui-deck-title-row">
         <div className="oneui-param-title-group">
-          <span className="oneui-param-title">{activeParamConfig.label.toUpperCase()}</span>
-          {photo.metadata?.cameraModel && (
-            <span className="oneui-param-meta-tag">
-              {photo.metadata.cameraModel}
-              {photo.metadata.focalLength ? ` • ${photo.metadata.focalLength}` : ''}
-              {photo.metadata.fNumber ? ` • f/${photo.metadata.fNumber}` : ''}
-              {photo.metadata.iso ? ` • ISO ${photo.metadata.iso}` : ''}
-            </span>
-          )}
+          <span className="oneui-param-title">
+            {activeParamConfig.groupTitle.toUpperCase()} • {activeParamConfig.label.toUpperCase()}
+          </span>
+          <span className={`oneui-param-val-pill ${activeValue !== 0 ? 'modified' : ''}`}>
+            {formattedActiveVal}
+          </span>
         </div>
         <div className="oneui-deck-actions-right">
-          {activeValue !== 0 && (
-            <button
-              type="button"
-              onClick={() => handleSliderChange(activeLightParam, 0)}
-              className="oneui-reset-tiny-btn"
-              title="Restablecer este parámetro a 0"
-            >
-              <RotateCcw size={11} />
-              <span>0</span>
-            </button>
-          )}
+          <button
+            type="button"
+            disabled={activeValue === 0}
+            onClick={() => handleSliderChange(activeLightParam, 0)}
+            className="oneui-reset-tiny-btn"
+            style={{ opacity: activeValue !== 0 ? 1 : 0.45 }}
+            title="Restablecer este parámetro a 0"
+            aria-label={`Restablecer ${activeParamConfig.label} a cero`}
+          >
+            <RotateCcw size={11} />
+            <span>0</span>
+          </button>
           {onApplySettingsToAll && (
             <button
               type="button"
               onClick={onApplySettingsToAll}
               className="oneui-sync-pill-btn"
-              title="Copiar estos ajustes de luz a todas las fotos"
+              title="Copiar estos ajustes de luz y color a todas las fotos (conserva encuadres)"
             >
               <Copy size={11} />
               <span>A todas</span>
@@ -106,14 +127,35 @@ export const DevelopTab: React.FC<DevelopTabProps> = ({
         </div>
       </div>
 
+      {/* Grupos de Ajustes + Ayuda rápida */}
+      <div className="oneui-group-chips-row">
+        {GROUP_LABELS.map((g) => (
+          <button
+            key={g.id}
+            type="button"
+            onClick={() => handleSelectGroup(g.id)}
+            className={`oneui-group-chip ${activeGroup === g.id ? 'active' : ''}`}
+          >
+            {g.label}
+          </button>
+        ))}
+        {photo.metadata?.cameraModel && (
+          <span className="oneui-param-meta-tag" style={{ marginLeft: 'auto' }}>
+            {photo.metadata.cameraModel}
+            {photo.metadata.iso ? ` • ISO ${photo.metadata.iso}` : ''}
+          </span>
+        )}
+      </div>
+
       <div className="oneui-dials-strip">
         <button
           type="button"
           onClick={() => onApplyPreset('auto-church')}
           className={`oneui-auto-pill ${photo.preset === 'auto-church' ? 'active' : ''}`}
-          title="Auto-exposición y balance inteligente"
+          title="Auto-Tono inteligente para luz interior y rostros"
+          aria-pressed={photo.preset === 'auto-church'}
         >
-          <span>Auto</span>
+          <span>Auto-Tono</span>
         </button>
 
         <button
@@ -121,13 +163,14 @@ export const DevelopTab: React.FC<DevelopTabProps> = ({
           onClick={() =>
             onUpdateAdjustments({
               ...photo.adjustments,
-              skinToneGuard: photo.adjustments.skinToneGuard === false ? true : false,
+              skinToneGuard: !skinGuardEnabled,
             })
           }
-          className={`oneui-auto-pill ${photo.adjustments.skinToneGuard !== false ? 'active' : ''}`}
-          title="Protector Inteligente de Tono de Piel: Evita que los rostros queden anaranjados al subir calidez"
+          className={`oneui-auto-pill ${skinGuardEnabled ? 'active' : ''}`}
+          title="Protector de piel: evita rostros naranjas al subir calidez"
+          aria-pressed={skinGuardEnabled}
         >
-          <Shield size={10} style={{ display: 'inline', marginRight: 2 }} />
+          <Shield size={11} style={{ marginRight: 3 }} />
           <span>Piel IA</span>
         </button>
 
@@ -136,14 +179,15 @@ export const DevelopTab: React.FC<DevelopTabProps> = ({
             type="button"
             onClick={onToggleEyedropper}
             className={`oneui-auto-pill ${isEyedropperActive ? 'active' : ''}`}
-            title="Gotero de Balance de Blancos: toca un tono blanco o gris neutro en la foto"
+            title="Gotero de balance: toca una zona blanca o gris neutra en la foto"
+            aria-pressed={isEyedropperActive}
           >
-            <Pipette size={10} style={{ display: 'inline', marginRight: 2 }} />
+            <Pipette size={11} style={{ marginRight: 3 }} />
             <span>Gotero WB</span>
           </button>
         )}
 
-        {LIGHT_PARAMS.map((p) => {
+        {visibleParams.map((p) => {
           const Icon = p.icon;
           const isSelected = activeLightParam === p.key;
           const val = Number(photo.adjustments[p.key] ?? 0);
@@ -157,6 +201,8 @@ export const DevelopTab: React.FC<DevelopTabProps> = ({
               onDoubleClick={() => handleSliderChange(p.key, 0)}
               className={`oneui-dial-item ${isSelected ? 'active' : ''}`}
               title={`${p.label}: ${val > 0 ? `+${val}` : val}`}
+              aria-label={`${p.label}: ${val > 0 ? `+${val}` : val}`}
+              aria-pressed={isSelected}
             >
               {isSelected ? (
                 <div className="oneui-active-dial-circle">
@@ -164,8 +210,8 @@ export const DevelopTab: React.FC<DevelopTabProps> = ({
                     className="oneui-dial-pie"
                     style={{
                       background: val !== 0
-                        ? `conic-gradient(#f59e0b ${Math.abs(val) * 1.8}deg, rgba(255,255,255,0.1) 0deg)`
-                        : 'rgba(255,255,255,0.1)',
+                        ? `conic-gradient(var(--oneui-accent) ${Math.abs(val) * 1.8}deg, var(--oneui-surface-subtle) 0deg)`
+                        : 'var(--oneui-surface-subtle)',
                     }}
                   />
                   <span className="oneui-dial-num">{val > 0 ? `+${val}` : val}</span>
@@ -189,8 +235,19 @@ export const DevelopTab: React.FC<DevelopTabProps> = ({
           step={activeParamConfig.step}
           onChange={(val) => handleSliderChange(activeLightParam, val)}
           accentColor="#f59e0b"
+          ariaLabel={`${activeParamConfig.label} (${formattedActiveVal})`}
         />
       </div>
+
+      {(isEyedropperActive || activeLightParam === 'warmth' || activeLightParam === 'tint') && (
+        <p className="oneui-helper-tip">
+          {isEyedropperActive
+            ? 'Gotero WB activo: toca una superficie blanca o gris neutra en la foto para calibrar.'
+            : skinGuardEnabled
+            ? 'Piel IA activa: protege los rostros para evitar saturación naranja excesiva.'
+            : 'Piel IA desactivada: la calidez afecta por igual rostros y fondo.'}
+        </p>
+      )}
     </div>
   );
 };

@@ -29,7 +29,7 @@ export const CropTab: React.FC<CropTabProps> = ({
 
   const ratioList: { id: AspectRatioType; label: string }[] = [
     { id: 'original', label: 'Original' },
-    ...(hasPngFrame ? [{ id: 'frame' as AspectRatioType, label: 'Marco' }] : []),
+    ...(hasPngFrame ? [{ id: 'frame' as AspectRatioType, label: 'Al marco' }] : []),
     { id: '1:1', label: '1:1' },
     { id: '4:5', label: '4:5' },
     { id: '9:16', label: '9:16' },
@@ -46,14 +46,23 @@ export const CropTab: React.FC<CropTabProps> = ({
     });
   };
 
+  const cropZoom = Number(photo.crop?.zoom || 1);
+
   return (
     <div className="oneui-deck-inner">
       <div className="oneui-deck-title-row">
-        <span className="oneui-param-title">
-          {activeCropMode === 'straighten'
-            ? `ENDEREZAR ${photo.crop?.straighten ? `${photo.crop.straighten > 0 ? '+' : ''}${Number(photo.crop.straighten.toFixed(1))}°` : '0°'}`
-            : 'PROPORCIÓN DE ENCUADRE'}
-        </span>
+        <div className="oneui-param-title-group">
+          <span className="oneui-param-title">
+            {activeCropMode === 'straighten'
+              ? 'NIVELAR HORIZONTE'
+              : 'PROPORCIÓN Y RECORTE'}
+          </span>
+          <span className="oneui-param-val-pill">
+            {activeCropMode === 'straighten'
+              ? `${(photo.crop?.straighten || 0) > 0 ? '+' : ''}${Number((photo.crop?.straighten || 0).toFixed(1))}°`
+              : `${cropZoom.toFixed(2)}x`}
+          </span>
+        </div>
 
         <div className="oneui-deck-actions-right">
           <button
@@ -61,6 +70,7 @@ export const CropTab: React.FC<CropTabProps> = ({
             onClick={() => {
               onUpdateCrop({
                 ...photo.crop,
+                aspectRatio: 'original',
                 offsetX: 0,
                 offsetY: 0,
                 zoom: 1.0,
@@ -71,7 +81,7 @@ export const CropTab: React.FC<CropTabProps> = ({
               });
             }}
             className="oneui-reset-tiny-btn"
-            title="Restablecer encuadre"
+            title="Restablecer proporción, giro y recorte"
           >
             <RotateCcw size={11} />
             <span>Reset</span>
@@ -83,38 +93,56 @@ export const CropTab: React.FC<CropTabProps> = ({
         <button
           type="button"
           onClick={() => setActiveCropMode(activeCropMode === 'straighten' ? 'ratios' : 'straighten')}
-          className={`oneui-geom-circle-btn ${activeCropMode === 'straighten' ? 'active' : ''}`}
+          className={`oneui-geom-labeled-btn ${activeCropMode === 'straighten' ? 'active' : ''}`}
           title="Nivelar horizonte con regla"
+          aria-label="Nivelar horizonte"
+          aria-pressed={activeCropMode === 'straighten'}
         >
-          <Compass size={17} />
+          <span className="oneui-geom-circle-inner">
+            <Compass size={16} />
+          </span>
+          <span className="oneui-geom-btn-label">Nivelar</span>
         </button>
 
         <button
           type="button"
           onClick={() => handleCropChange('rotation', ((photo.crop?.rotation || 0) + 90) % 360)}
-          className={`oneui-geom-circle-btn ${photo.crop?.rotation ? 'active' : ''}`}
+          className={`oneui-geom-labeled-btn ${photo.crop?.rotation ? 'active' : ''}`}
           title="Girar 90° a la derecha"
+          aria-label="Girar 90 grados"
         >
-          <RotateCw size={17} />
+          <span className="oneui-geom-circle-inner">
+            <RotateCw size={16} />
+          </span>
+          <span className="oneui-geom-btn-label">Girar 90°</span>
         </button>
 
         <button
           type="button"
           onClick={() => handleCropChange('flipH', !photo.crop?.flipH)}
-          className={`oneui-geom-circle-btn ${photo.crop?.flipH ? 'active' : ''}`}
+          className={`oneui-geom-labeled-btn ${photo.crop?.flipH ? 'active' : ''}`}
           title="Voltear en espejo horizontal"
+          aria-label="Voltear horizontalmente"
+          aria-pressed={!!photo.crop?.flipH}
         >
-          <FlipHorizontal2 size={17} />
+          <span className="oneui-geom-circle-inner">
+            <FlipHorizontal2 size={16} />
+          </span>
+          <span className="oneui-geom-btn-label">Espejo</span>
         </button>
 
         {onSmartCrop && (
           <button
             type="button"
             onClick={onSmartCrop}
-            className="oneui-geom-circle-btn accent"
+            className="oneui-geom-labeled-btn accent"
             title="Reencuadre inteligente centrado en rostros"
+            aria-label="Reencuadre inteligente"
           >
-            <Wand2 size={16} />
+            <span className="oneui-geom-circle-inner">
+              <Wand2 size={15} />
+            </span>
+            <span className="oneui-geom-btn-label">Auto IA</span>
           </button>
         )}
 
@@ -122,10 +150,14 @@ export const CropTab: React.FC<CropTabProps> = ({
           <button
             type="button"
             onClick={onApplyCropToAll}
-            className="oneui-geom-circle-btn"
-            title="Sincronizar encuadre con todo el lote"
+            className="oneui-geom-labeled-btn"
+            title="Aplicar proporción, giro y espejo a todo el lote"
+            aria-label="Aplicar encuadre a todas"
           >
-            <CheckCheck size={16} />
+            <span className="oneui-geom-circle-inner">
+              <CheckCheck size={15} />
+            </span>
+            <span className="oneui-geom-btn-label">Al lote</span>
           </button>
         )}
       </div>
@@ -139,24 +171,43 @@ export const CropTab: React.FC<CropTabProps> = ({
             step={0.1}
             onChange={(val) => handleCropChange('straighten', val)}
             accentColor="#38bdf8"
+            ariaLabel="Nivelar horizonte en grados"
           />
         </div>
       ) : (
-        <div className="oneui-ratios-carousel">
-          {ratioList.map((r) => {
-            const isSelected = (photo.crop?.aspectRatio || 'original') === r.id;
-            return (
-              <button
-                key={r.id}
-                type="button"
-                onClick={() => handleCropChange('aspectRatio', r.id)}
-                className={`oneui-ratio-pill-btn ${isSelected ? 'active' : ''}`}
-              >
-                <span>{r.label}</span>
-              </button>
-            );
-          })}
-        </div>
+        <>
+          <div className="oneui-ratios-carousel">
+            {ratioList.map((r) => {
+              const isSelected = (photo.crop?.aspectRatio || 'original') === r.id;
+              return (
+                <button
+                  key={r.id}
+                  type="button"
+                  onClick={() => handleCropChange('aspectRatio', r.id)}
+                  className={`oneui-ratio-pill-btn ${isSelected ? 'active' : ''}`}
+                  aria-pressed={isSelected}
+                >
+                  <span>{r.label}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="oneui-crop-zoom-row">
+            <span className="oneui-crop-zoom-label">Zoom de recorte</span>
+            <input
+              type="range"
+              min={1}
+              max={2.5}
+              step={0.05}
+              value={cropZoom}
+              onChange={(e) => handleCropChange('zoom', parseFloat(e.target.value))}
+              aria-label="Zoom de recorte de salida"
+              className="oneui-crop-zoom-range"
+            />
+            <span className="oneui-crop-zoom-val">{cropZoom.toFixed(2)}x</span>
+          </div>
+        </>
       )}
     </div>
   );

@@ -4,6 +4,34 @@ Todas las actualizaciones y mejoras notables de BereaSnap están documentadas en
 
 ---
 
+## [1.8.0] - 2026-11-16
+
+### 📱 Diseño Responsive, Temas y Visor Preciso
+* **Modo Horizontal (Landscape) y Portrait Estables**: Panel lateral y rail vertical derecho al girar la pantalla, hoja inferior táctil estable en vertical (`360px+`), objetivos táctiles `>= 44px` y barra de estado nativa sincronizada con **Blanco Galería** y **Negro AMOLED** en todos los paneles.
+* **Cuadrícula y Capa Cebra Alineadas al Pixel**: La regla de tercios, el histograma flotante y la alerta de altas luces (`Zebra`) ahora se ajustan exactamente al área visible de la fotografía tras cualquier recorte o zoom.
+
+### 🔁 Historial Completo, Lotes Seguros y EXIF Transparente
+* **Deshacer / Rehacer Unificado (hasta 40 pasos)**: Incluye cambios globales de **Marco**, **Texto** y **Logo / Firma**, además de revertir acciones aplicadas a todo el lote con un solo toque en `↺`.
+* **Confirmación Previa al Sincronizar Lote**: Antes de copiar luz, color, nitidez y filtro al resto de fotos se muestra un resumen que garantiza conservar intactos los encuadres individuales de cada fotografía.
+* **Detección EXIF vs Fecha de Archivo**: Indica claramente si la fecha sugerida proviene de los metadatos EXIF reales de la cámara o de la fecha aproximada del archivo, y solo auto-rellena el marco al abrir una sesión nueva.
+
+### 🎨 Herramientas Más Claras y Miniaturas en Vivo
+* **Revelado Agrupado y Accesible**: Parámetros organizados por categorías (*Todos / Luz / Color / Detalle*), regla háptica compatible con teclado/lector de pantalla y botón rápido de reinicio a `0`.
+* **Encuadre con Etiquetas y Zoom de Recorte**: Acciones etiquetadas (*Nivelar*, *Girar 90°*, *Espejo*, *Auto IA*, *Al lote*), proporción `Al marco` y control dedicado `Zoom de recorte`.
+* **Miniaturas Reales en Filtros**: Previsualización en vivo de *Estilos base* y *Mis filtros* sobre la foto activa.
+
+### 🖼️ Marcos sin Deformación, Logo Visual y Carrete Tactil
+* **Marcos Centenario Borde a Borde**: Eliminadas las bandas laterales en recortes `4:5` y similares; incorpora aviso con botón `Adaptar al marco` y zonas laterales seguras alrededor del emblema central.
+* **Selector Visual 3×3 para Logo y Nombres Editables**: Renombra marcos o logos propios y posiciona tu marca de agua en una cuadrícula visual.
+* **Reordenamiento Accesible en Carrete**: Botones explícitos `←` / `→` junto al arrastre táctil prolongado.
+
+### 💾 Exportación Fiable, Presets JSON y Auto-guardado
+* **Resumen de Exportación y Cancelación Limpia**: Muestra ubicación exacta (*Galería › Álbum BereaSnap* o *Documentos/BereaSnap/...*), cantidad procesada y opción de compartir; cancelar el diálogo de compartir conserva el archivo sin falsos errores.
+* **Exportación e Importación Nativa de Filtros `.json`**: Respalda y comparte tus filtros personalizados en `Documentos/BereaSnap/` con validación segura.
+* **Volcado en Segundo Plano y Validación de Lote**: Guarda borradores al suspender la app y omite archivos vacíos o incompatibles sin interrumpir el resto del lote.
+
+---
+
 ## [1.7.0] - 2026-11-15
 
 ### 📲 Integración Nativa con Galería Android

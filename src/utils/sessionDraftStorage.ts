@@ -184,12 +184,14 @@ export async function restoreSessionDraft(): Promise<{
     const restoredPhotos: PhotoItem[] = [];
 
     for (const dp of draft.photos) {
+      if (!dp || typeof dp.id !== 'string' || typeof dp.name !== 'string') continue;
+
       const blob =
         dp.blob instanceof Blob
           ? dp.blob
           : await idbGet<Blob>(`${BLOB_KEY_PREFIX}${dp.id}`);
 
-      if (!(blob instanceof Blob)) continue;
+      if (!(blob instanceof Blob) || blob.size === 0) continue;
 
       const file = new File([blob], dp.name, { type: blob.type || 'image/jpeg' });
       const originalUrl = dp.isRaw
@@ -201,14 +203,36 @@ export async function restoreSessionDraft(): Promise<{
         file,
         name: dp.name,
         sizeFormatted: dp.sizeFormatted || `${(blob.size / (1024 * 1024)).toFixed(1)} MB`,
-        width: dp.width,
-        height: dp.height,
+        width: typeof dp.width === 'number' && dp.width > 0 ? dp.width : 4000,
+        height: typeof dp.height === 'number' && dp.height > 0 ? dp.height : 3000,
         originalUrl,
         thumbnailUrl: originalUrl,
-        adjustments: dp.adjustments,
-        crop: dp.crop,
-        preset: dp.preset,
-        isRaw: dp.isRaw,
+        adjustments: {
+          brightness: dp.adjustments?.brightness ?? 0,
+          contrast: dp.adjustments?.contrast ?? 0,
+          saturation: dp.adjustments?.saturation ?? 0,
+          warmth: dp.adjustments?.warmth ?? 0,
+          tint: dp.adjustments?.tint ?? 0,
+          shadows: dp.adjustments?.shadows ?? 0,
+          highlights: dp.adjustments?.highlights ?? 0,
+          sharpness: dp.adjustments?.sharpness ?? 0,
+          clarity: dp.adjustments?.clarity ?? 0,
+          noiseReduction: dp.adjustments?.noiseReduction ?? 0,
+          skinToneGuard: dp.adjustments?.skinToneGuard ?? true,
+        },
+        crop: {
+          aspectRatio: dp.crop?.aspectRatio ?? 'original',
+          orientation: dp.crop?.orientation ?? ((dp.width || 4000) >= (dp.height || 3000) ? 'landscape' : 'portrait'),
+          offsetX: dp.crop?.offsetX ?? 0,
+          offsetY: dp.crop?.offsetY ?? 0,
+          zoom: dp.crop?.zoom ?? 1,
+          rotation: dp.crop?.rotation ?? 0,
+          straighten: dp.crop?.straighten ?? 0,
+          flipH: dp.crop?.flipH ?? false,
+          flipV: dp.crop?.flipV ?? false,
+        },
+        preset: dp.preset || 'custom',
+        isRaw: Boolean(dp.isRaw),
         metadata: dp.metadata,
       };
 

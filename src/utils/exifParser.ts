@@ -64,7 +64,7 @@ export async function extractPhotoMetadata(file: File): Promise<PhotoMetadata> {
 
     // Si no se encontró bloque TIFF, retornar fallback con la fecha del archivo
     if (tiffStart === -1 || tiffStart + 8 > bytes.length) {
-      return buildMetadataResult(fallbackDate);
+      return buildMetadataResult(fallbackDate, 'file-mtime');
     }
 
     const readUint16 = (off: number): number => {
@@ -189,12 +189,11 @@ export async function extractPhotoMetadata(file: File): Promise<PhotoMetadata> {
     }
 
     // Parsear la fecha encontrada
-    let captureDate = parseExifDateString(dateStr);
-    if (!captureDate) {
-      captureDate = fallbackDate;
-    }
+    const parsedDate = parseExifDateString(dateStr);
+    const captureDate = parsedDate || fallbackDate;
+    const dateSource: 'exif' | 'file-mtime' = parsedDate ? 'exif' : 'file-mtime';
 
-    const metadata = buildMetadataResult(captureDate);
+    const metadata = buildMetadataResult(captureDate, dateSource);
     metadata.cameraMake = cleanCameraString(cameraMake);
     metadata.cameraModel = cleanCameraString(cameraModel);
     metadata.lensModel = cleanCameraString(lensModel);
@@ -206,7 +205,7 @@ export async function extractPhotoMetadata(file: File): Promise<PhotoMetadata> {
     return metadata;
   } catch (err) {
     console.warn('[EXIF] No se pudo extraer EXIF de la imagen:', err);
-    return buildMetadataResult(fallbackDate);
+    return buildMetadataResult(fallbackDate, 'file-mtime');
   }
 }
 
@@ -238,7 +237,7 @@ function cleanCameraString(val?: string): string | undefined {
   return clean.length > 0 ? clean : undefined;
 }
 
-function buildMetadataResult(date: Date): PhotoMetadata {
+function buildMetadataResult(date: Date, dateSource: 'exif' | 'file-mtime' = 'file-mtime'): PhotoMetadata {
   const hours = date.getHours();
   const minutes = date.getMinutes().toString().padStart(2, '0');
   const ampm = hours >= 12 ? 'PM' : 'AM';
@@ -247,6 +246,7 @@ function buildMetadataResult(date: Date): PhotoMetadata {
 
   return {
     dateTimeOriginal: date,
+    dateSource,
     timeFormatted,
   };
 }

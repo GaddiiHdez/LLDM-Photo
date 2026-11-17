@@ -8,11 +8,12 @@ interface HapticRulerProps {
   onChange: (value: number) => void;
   accentColor?: string;
   formatValue?: (val: number) => string;
+  ariaLabel?: string;
 }
 
 /**
  * Regla graduada táctil analógica (Haptic Ruler Slider) inspirada en Samsung One UI.
- * Permite deslizar con el pulgar o ratón a 60-120fps sobre marcas verticales con indicador central.
+ * Permite deslizar con el pulgar o teclado a 60-120fps sobre marcas verticales con indicador central.
  */
 export const HapticRuler: React.FC<HapticRulerProps> = ({
   value,
@@ -21,6 +22,8 @@ export const HapticRuler: React.FC<HapticRulerProps> = ({
   step = 1,
   onChange,
   accentColor = '#f59e0b',
+  formatValue,
+  ariaLabel = 'Ajuste de parámetro',
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const isDraggingRef = useRef(false);
@@ -90,13 +93,9 @@ export const HapticRuler: React.FC<HapticRulerProps> = ({
       const isMedium = !isMajor && (Math.abs(markVal) % 5 === 0 || (step < 1 && Math.abs(markVal * 10) % 2 === 0));
 
       const tickHeight = isZero ? 24 : isMajor ? 18 : isMedium ? 12 : 7;
-      const tickColor = isZero
-        ? accentColor
-        : isMajor
-        ? 'rgba(255, 255, 255, 0.75)'
-        : isMedium
-        ? 'rgba(255, 255, 255, 0.45)'
-        : 'rgba(255, 255, 255, 0.22)';
+      const tickColor = isZero ? accentColor : 'var(--oneui-text)';
+      const tickContrast = isZero ? 1 : isMajor ? 0.78 : isMedium ? 0.48 : 0.26;
+      const distFade = Math.max(0.18, 1 - Math.abs(i) / (half + 2));
 
       ticks.push(
         <div
@@ -107,7 +106,7 @@ export const HapticRuler: React.FC<HapticRulerProps> = ({
             backgroundColor: isOutOfBounds ? 'transparent' : tickColor,
             width: isZero ? '2.5px' : isMajor ? '1.5px' : '1px',
             borderRadius: '1px',
-            opacity: Math.max(0.15, 1 - Math.abs(i) / (half + 2)),
+            opacity: tickContrast * distFade,
           }}
         />
       );
@@ -125,16 +124,50 @@ export const HapticRuler: React.FC<HapticRulerProps> = ({
     );
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const bigStep = Math.max(step, (max - min) >= 100 ? step * 5 : step * 2);
+    let next: number | null = null;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowUp') {
+      next = clampValue(value + step);
+    } else if (e.key === 'ArrowLeft' || e.key === 'ArrowDown') {
+      next = clampValue(value - step);
+    } else if (e.key === 'PageUp') {
+      next = clampValue(value + bigStep);
+    } else if (e.key === 'PageDown') {
+      next = clampValue(value - bigStep);
+    } else if (e.key === 'Home') {
+      next = min;
+    } else if (e.key === 'End') {
+      next = max;
+    } else if (e.key === '0') {
+      next = 0;
+    }
+    if (next !== null) {
+      e.preventDefault();
+      if (next !== value) {
+        onChangeRef.current(next);
+      }
+    }
+  };
+
   return (
     <div
       ref={containerRef}
+      role="slider"
+      tabIndex={0}
+      aria-label={ariaLabel}
+      aria-valuemin={min}
+      aria-valuemax={max}
+      aria-valuenow={value}
+      aria-valuetext={formatValue ? formatValue(value) : String(value)}
       className="oneui-haptic-ruler"
       onPointerDown={handlePointerDown}
       onPointerMove={handlePointerMove}
       onPointerUp={handlePointerUp}
       onPointerCancel={handlePointerUp}
+      onKeyDown={handleKeyDown}
       onDoubleClick={() => onChange(0)}
-      title="Desliza con el pulgar para calibrar • Doble toque para volver a 0"
+      title="Desliza con el pulgar o usa flechas • Doble toque para volver a 0"
     >
       {/* Indicador Central Fijo (Aguja amarilla One UI) */}
       <div className="ruler-center-needle" style={{ backgroundColor: accentColor }} />

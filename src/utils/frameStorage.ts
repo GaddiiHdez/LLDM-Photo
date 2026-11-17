@@ -132,6 +132,20 @@ export function deleteSavedPngFrame(id: string): SavedPngFrame[] {
 }
 
 /**
+ * Renombra un marco PNG personalizado guardado por el usuario
+ */
+export function renameSavedPngFrame(id: string, newName: string): SavedPngFrame[] {
+  const trimmed = newName.trim();
+  if (!trimmed || id.startsWith('official-frame-')) {
+    return getSavedPngFrames();
+  }
+  const current = readInitialUserFrames();
+  const updatedUserFrames = current.map((f) => (f.id === id ? { ...f, name: trimmed } : f));
+  persistUserFrames(updatedUserFrames);
+  return [...BUILTIN_FRAMES, ...updatedUserFrames];
+}
+
+/**
  * Establece un marco PNG como predeterminado por defecto
  */
 export function setDefaultPngFrame(id: string): SavedPngFrame[] {

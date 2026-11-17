@@ -36,8 +36,6 @@ interface SidebarControlsProps {
   onApplySettingsToAll: () => void;
   onApplyCropToAll?: () => void;
   onSmartCrop?: () => void;
-  onSyncFrameToAll?: () => void;
-  onSyncWatermarkToAll?: () => void;
   onSaveAsDefaultAppSettings: () => void;
   totalPhotos?: number;
   photos?: PhotoItem[];
@@ -68,9 +66,8 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
   onApplySettingsToAll,
   onApplyCropToAll,
   onSmartCrop,
-  onSyncFrameToAll,
-  onSyncWatermarkToAll,
   photos = [],
+  totalPhotos,
   onSelectPhoto,
   onDeletePhoto,
   onReplacePhoto,
@@ -111,16 +108,19 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
   const hasPngFrame = frame.style === 'custom-png' && Boolean(frame.pngDataUrl);
 
   return (
-    <aside className="oneui-bottom-system">
+    <aside className="sidebar-controls oneui-bottom-system">
       {activeTab && (
         <div className="oneui-floating-card card-glass">
-          <div
+          <button
+            type="button"
             className="oneui-sheet-handle-row"
+            style={{ background: 'none', border: 'none' }}
             onClick={() => onChangeTab?.(null)}
             title="Tocar para cerrar panel"
+            aria-label="Cerrar panel de herramientas"
           >
-            <div className="oneui-sheet-handle" />
-          </div>
+            <span className="oneui-sheet-handle" />
+          </button>
 
           {activeTab === 'develop' && (
             <DevelopTab
@@ -156,6 +156,7 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
           {activeTab === 'frame' && (
             <FrameTab
               photo={photo}
+              totalPhotos={totalPhotos || photos.length}
               frame={frame}
               watermark={watermark}
               savedFrames={savedFrames}
@@ -164,8 +165,12 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
               onChangeSavedLogos={setSavedLogos}
               onUpdateFrame={onUpdateFrame}
               onUpdateWatermark={onUpdateWatermark}
-              onSyncFrameToAll={onSyncFrameToAll}
-              onSyncWatermarkToAll={onSyncWatermarkToAll}
+              onAdaptCropToFrame={() =>
+                onUpdateCrop({
+                  ...photo.crop,
+                  aspectRatio: 'frame',
+                })
+              }
             />
           )}
 
@@ -184,12 +189,14 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
         </div>
       )}
 
-      <nav className="oneui-dock">
+      <nav className="oneui-dock" aria-label="Herramientas de edición">
         <button
           type="button"
           onClick={() => onApplyPreset('auto-church')}
-          className="oneui-dock-btn auto-highlight"
+          className={`oneui-dock-btn auto-highlight ${photo.preset === 'auto-church' ? 'active' : ''}`}
           title="Mejora automática con IA en un toque"
+          aria-label="Auto-Tono inteligente"
+          aria-pressed={photo.preset === 'auto-church'}
         >
           <div className="oneui-dock-icon-circle highlight">
             <Sparkles size={17} />
@@ -202,6 +209,8 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
           onClick={() => handleTabClick('crop')}
           className={`oneui-dock-btn ${activeTab === 'crop' ? 'active' : ''}`}
           title="Encuadre, proporción y nivelación"
+          aria-label="Encuadre"
+          aria-pressed={activeTab === 'crop'}
         >
           <div className="oneui-dock-icon-circle">
             <Crop size={18} />
@@ -214,6 +223,8 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
           onClick={() => handleTabClick('presets')}
           className={`oneui-dock-btn ${activeTab === 'presets' ? 'active' : ''}`}
           title="Filtros y estilos de revelado"
+          aria-label="Filtros"
+          aria-pressed={activeTab === 'presets'}
         >
           <div className="oneui-dock-icon-circle">
             <Wand2 size={18} />
@@ -226,6 +237,8 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
           onClick={() => handleTabClick('develop')}
           className={`oneui-dock-btn ${activeTab === 'develop' ? 'active' : ''}`}
           title="Ajustes de luz, sombras y color"
+          aria-label="Ajustes"
+          aria-pressed={activeTab === 'develop'}
         >
           <div className="oneui-dock-icon-circle">
             <SunMedium size={18} />
@@ -238,6 +251,8 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
           onClick={() => handleTabClick('frame')}
           className={`oneui-dock-btn ${activeTab === 'frame' ? 'active' : ''}`}
           title="Marco institucional y textos dinámicos"
+          aria-label="Marco"
+          aria-pressed={activeTab === 'frame'}
         >
           <div className="oneui-dock-icon-circle">
             <FrameIcon size={18} />
@@ -250,6 +265,8 @@ export const SidebarControls: React.FC<SidebarControlsProps> = ({
           onClick={() => handleTabClick('filmstrip')}
           className={`oneui-dock-btn ${activeTab === 'filmstrip' ? 'active' : ''}`}
           title="Abrir carrete de fotografías y reordenar"
+          aria-label="Carrete"
+          aria-pressed={activeTab === 'filmstrip'}
         >
           <div className="oneui-dock-icon-circle">
             <LayoutGrid size={18} />

@@ -1,3 +1,6 @@
+import { Capacitor } from '@capacitor/core';
+import { Directory, Encoding, Filesystem } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
 import type { ImageAdjustments } from '../types/editor';
 
 export interface CustomPreset {
@@ -7,7 +10,35 @@ export interface CustomPreset {
   createdAt: string;
 }
 
+export interface PresetExportResult {
+  success: boolean;
+  message: string;
+  cancelled?: boolean;
+}
+
 const STORAGE_KEY_CUSTOM_PRESETS = 'lldm_user_custom_presets';
+
+function clampAdjustment(val: unknown, min: number, max: number, fallback: number = 0): number {
+  const n = Number(val);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(min, Math.min(max, Math.round(n)));
+}
+
+function sanitizeAdjustments(raw: Partial<ImageAdjustments>): ImageAdjustments {
+  return {
+    brightness: clampAdjustment(raw.brightness, -100, 100),
+    contrast: clampAdjustment(raw.contrast, -100, 100),
+    saturation: clampAdjustment(raw.saturation, -100, 100),
+    warmth: clampAdjustment(raw.warmth, -100, 100),
+    tint: clampAdjustment(raw.tint, -100, 100),
+    shadows: clampAdjustment(raw.shadows, -100, 100),
+    highlights: clampAdjustment(raw.highlights, -100, 100),
+    sharpness: clampAdjustment(raw.sharpness, 0, 100),
+    clarity: clampAdjustment(raw.clarity, -100, 100),
+    noiseReduction: clampAdjustment(raw.noiseReduction, 0, 100),
+    skinToneGuard: raw.skinToneGuard !== false,
+  };
+}
 
 /**
  * Obtiene todos los presets personalizados guardados en localStorage
@@ -67,12 +98,12 @@ export function deleteCustomPreset(id: string): CustomPreset[] {
 }
 
 /**
- * Exporta todos los presets personalizados a un archivo .json descargable
+ * Exporta todos los presets personalizados a un archivo .json descargable (Web y Android nativo)
  */
-export function exportPresetsToFile(presets?: CustomPreset[]): boolean {
+export async function exportPresetsToFile(presets?: CustomPreset[]): Promise<PresetExportResult> {
   const data = presets || getCustomPresets();
   if (!data || data.length === 0) {
-    return false;
+    return { success: false, message: 'No hay filtros personalizados para exportar.' };
   }
 
   const payload = {
@@ -84,17 +115,69 @@ export function exportPresetsToFile(presets?: CustomPreset[]): boolean {
   };
 
   const jsonStr = JSON.stringify(payload, null, 2);
+  const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  const fileName = `BereaSnap_Presets_${dateStr}.json`;
+
+  if (Capacitor.isNativePlatform()) {
+    let savedUri = '';
+    let destination = `Documentos/BereaSnap/${fileName}`;
+    try {
+      const res = await Filesystem.writeFile({
+        path: `BereaSnap/${fileName}`,
+        data: jsonStr,
+        directory: Directory.Documents,
+        encoding: Encoding.UTF8,
+        recursive: true,
+      });
+      savedUri = res.uri;
+    } catch {
+      const resCache = await Filesystem.writeFile({
+        path: `BereaSnap_export/${fileName}`,
+        data: jsonStr,
+        directory: Directory.Cache,
+        encoding: Encoding.UTF8,
+        recursive: true,
+      });
+      savedUri = resCache.uri;
+      destination = fileName;
+    }
+
+    try {
+      await Share.share({
+        title: fileName,
+        url: savedUri,
+        dialogTitle: `Exportar filtros (${fileName})`,
+      });
+    } catch (shareErr: any) {
+      const msg = String(shareErr?.message || shareErr || '').toLowerCase();
+      if (msg.includes('cancel') || msg.includes('abort')) {
+        return {
+          success: true,
+          cancelled: true,
+          message: `Filtros guardados en ${destination}`,
+        };
+      }
+    }
+
+    return {
+      success: true,
+      message: `✓ ${data.length} filtro(s) guardados en ${destination}`,
+    };
+  }
+
   const blob = new Blob([jsonStr], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
-  const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
-  link.download = `BereaSnap_Presets_${dateStr}.json`;
+  link.download = fileName;
   link.href = url;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
   URL.revokeObjectURL(url);
-  return true;
+  return {
+    success: true,
+    message: `✓ ${data.length} filtro(s) exportados (${fileName})`,
+  };
 }
 
 /**
@@ -106,12 +189,12 @@ export function importPresetsFromJson(jsonContent: string): { success: boolean; 
     const parsed = JSON.parse(jsonContent);
     const presetsToImport: any[] = Array.isArray(parsed)
       ? parsed
-      : Array.isArray(parsed.presets)
+      : parsed && typeof parsed === 'object' && Array.isArray(parsed.presets)
       ? parsed.presets
       : [];
 
     if (presetsToImport.length === 0) {
-      return { success: false, addedCount: 0, message: 'El archivo no contiene presets válidos' };
+      return { success: false, addedCount: 0, message: 'El archivo no contiene filtros válidos' };
     }
 
     const current = getCustomPresets();
@@ -119,9 +202,12 @@ export function importPresetsFromJson(jsonContent: string): { success: boolean; 
     const validNewPresets: CustomPreset[] = [];
 
     for (const item of presetsToImport) {
-      if (!item || typeof item !== 'object' || !item.name || !item.adjustments) continue;
+      if (!item || typeof item !== 'object' || !item.name || !item.adjustments || typeof item.adjustments !== 'object') {
+        continue;
+      }
 
-      let baseName = String(item.name).trim();
+      let baseName = String(item.name).trim().slice(0, 48);
+      if (!baseName) continue;
       let finalName = baseName;
       let counter = 1;
       while (existingNames.has(finalName.toLowerCase())) {
@@ -132,14 +218,15 @@ export function importPresetsFromJson(jsonContent: string): { success: boolean; 
       validNewPresets.push({
         id: `custom-preset-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
         name: finalName,
-        adjustments: { ...item.adjustments },
+        adjustments: sanitizeAdjustments(item.adjustments),
         createdAt:
-          item.createdAt ||
-          new Date().toLocaleDateString('es-ES', {
-            day: 'numeric',
-            month: 'short',
-            year: 'numeric',
-          }),
+          typeof item.createdAt === 'string' && item.createdAt.trim()
+            ? item.createdAt
+            : new Date().toLocaleDateString('es-ES', {
+                day: 'numeric',
+                month: 'short',
+                year: 'numeric',
+              }),
       });
     }
 

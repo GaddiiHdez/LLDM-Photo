@@ -1,5 +1,6 @@
 import type { ImageAdjustments, WatermarkSettings, FrameSettings, CropSettings, AspectRatioType } from '../types/editor';
 import { processImagePixels, hasActiveCpuFilters, type PixelScratchRef } from './pixelFilters';
+import { resolveDynamicFrameTextLayout } from './frameLayout';
 
 export type DrawableSource = HTMLImageElement | HTMLCanvasElement;
 
@@ -743,123 +744,54 @@ function drawFrameOverlayAndWatermark(
 ): void {
   const { ctx, width, height, extraLeft, extraTop, resolvedPngFrame, resolvedLogo } = base;
 
-  // --- 6. OVERLAY PNG TRANSPARENTE (Marco PNG institucional) ---
+  // --- 6. OVERLAY PNG TRANSPARENTE (Marco PNG institucional sin efecto franja centrada) ---
   if (frame.style === 'custom-png' && resolvedPngFrame) {
     try {
       ctx.save();
-      const fRatio = resolvedPngFrame.width / resolvedPngFrame.height;
-      const canvasRatio = targetCanvas.width / targetCanvas.height;
+      const frameDrawX = 0;
+      const frameDrawY = 0;
+      const frameDrawW = targetCanvas.width;
+      const frameDrawH = targetCanvas.height;
 
-      let frameDrawX = 0;
-      let frameDrawY = 0;
-      let frameDrawW = targetCanvas.width;
-      let frameDrawH = targetCanvas.height;
-
-      if (Math.abs(fRatio - canvasRatio) < 0.15) {
-        ctx.drawImage(resolvedPngFrame, 0, 0, targetCanvas.width, targetCanvas.height);
-      } else {
-        if (fRatio > canvasRatio) {
-          frameDrawH = targetCanvas.width / fRatio;
-          frameDrawY = (targetCanvas.height - frameDrawH) / 2;
-        } else {
-          frameDrawW = targetCanvas.height * fRatio;
-          frameDrawX = (targetCanvas.width - frameDrawW) / 2;
-        }
-        ctx.drawImage(resolvedPngFrame, frameDrawX, frameDrawY, frameDrawW, frameDrawH);
-      }
+      // Siempre cubrimos los 4 bordes reales del lienzo (evita franjas horizontales/verticales en medio de la foto)
+      ctx.drawImage(resolvedPngFrame, frameDrawX, frameDrawY, frameDrawW, frameDrawH);
       ctx.restore();
 
       // --- 6.1 RENDERIZADO DE TEXTO DINÁMICO EN MARCO PNG ---
-      const isDynamicTemplate = Boolean(
-        frame.pngDataUrl?.includes('notexto') ||
-        frame.dynamicTextEnabled ||
-        (!frame.pngDataUrl?.includes('oracion7pm') && !frame.pngDataUrl?.includes('escuela-dominical') && frame.eventTitle)
-      );
+      if (frame.dynamicTextEnabled) {
+        const commands = resolveDynamicFrameTextLayout({
+          frame,
+          frameDrawX,
+          frameDrawY,
+          frameDrawW,
+          frameDrawH,
+        });
 
-      if (isDynamicTemplate && (frame.dynamicTextEnabled ?? true)) {
-        const textScale = (frame.dynamicTextScale || 100) / 100;
-        const applyDynamicTextStyle = (fontSize: number, textY: number) => {
+        for (const cmd of commands) {
+          ctx.save();
           ctx.shadowColor = 'rgba(0, 0, 0, 0.85)';
-          ctx.shadowBlur = Math.max(2, Math.round(fontSize * 0.15));
-          ctx.shadowOffsetX = Math.max(1, Math.round(fontSize * 0.06));
-          ctx.shadowOffsetY = Math.max(1, Math.round(fontSize * 0.06));
+          ctx.shadowBlur = Math.max(2, Math.round(cmd.fontSize * 0.15));
+          ctx.shadowOffsetX = Math.max(1, Math.round(cmd.fontSize * 0.06));
+          ctx.shadowOffsetY = Math.max(1, Math.round(cmd.fontSize * 0.06));
 
           if (frame.dynamicTextColorStyle === 'white') {
             ctx.fillStyle = '#ffffff';
           } else if (frame.dynamicTextColorStyle === 'silver') {
             ctx.fillStyle = '#cbd5e1';
           } else {
-            const goldGrad = ctx.createLinearGradient(0, textY - fontSize * 0.5, 0, textY + fontSize * 0.5);
+            const goldGrad = ctx.createLinearGradient(0, cmd.y - cmd.fontSize * 0.5, 0, cmd.y + cmd.fontSize * 0.5);
             goldGrad.addColorStop(0, '#fef08a');
             goldGrad.addColorStop(0.25, '#dab768');
             goldGrad.addColorStop(0.65, '#cea544');
             goldGrad.addColorStop(1, '#9b711d');
             ctx.fillStyle = goldGrad;
           }
-        };
 
-        const pos =
-          frame.dynamicTextPosition ||
-          (frame.pngDataUrl?.includes('centenario') || frame.pngDataUrl?.includes('notexto')
-            ? 'centenario-left'
-            : 'bottom-center');
-
-        const leftText = (frame.eventTitle || '').trim().toUpperCase();
-        const rawRight =
-          frame.dynamicTextRight !== undefined ? frame.dynamicTextRight : (frame.eventDate || '');
-        const rightText = rawRight.trim().toUpperCase();
-
-        if (pos === 'centenario-left') {
-          if (leftText.length > 0) {
-            ctx.save();
-            const textX = frameDrawX + frameDrawW * 0.121;
-            const textY = frameDrawY + frameDrawH * 0.9845;
-            const maxW = frameDrawW * 0.32;
-            const fontSize = Math.max(11, Math.round(frameDrawH * 0.0185 * textScale));
-
-            ctx.font = `700 ${fontSize}px 'Cinzel', 'Cinzel Decorative', 'Times New Roman', 'Georgia', serif`;
-            ctx.textBaseline = 'middle';
-            ctx.textAlign = 'left';
-            applyDynamicTextStyle(fontSize, textY);
-            ctx.fillText(leftText, textX, textY, maxW);
-            ctx.restore();
-          }
-
-          if (rightText.length > 0) {
-            ctx.save();
-            const textX = frameDrawX + frameDrawW * 0.879;
-            const textY = frameDrawY + frameDrawH * 0.9845;
-            const maxW = frameDrawW * 0.30;
-            const fontSize = Math.max(11, Math.round(frameDrawH * 0.0175 * textScale));
-
-            ctx.font = `700 ${fontSize}px 'Cinzel', 'Cinzel Decorative', 'Times New Roman', 'Georgia', serif`;
-            ctx.textBaseline = 'middle';
-            ctx.textAlign = 'right';
-            applyDynamicTextStyle(fontSize, textY);
-            ctx.fillText(rightText, textX, textY, maxW);
-            ctx.restore();
-          }
-        } else {
-          const combined = [leftText, rightText].filter(Boolean).join('  •  ');
-          if (combined.length > 0) {
-            ctx.save();
-            const textY = frameDrawY + frameDrawH * 0.975;
-            const fontSize = Math.max(12, Math.round(frameDrawH * 0.020 * textScale));
-            let textX = frameDrawX + frameDrawW * 0.5;
-            ctx.textAlign = 'center';
-            if (pos === 'bottom-left') {
-              textX = frameDrawX + frameDrawW * 0.055;
-              ctx.textAlign = 'left';
-            } else if (pos === 'bottom-right') {
-              textX = frameDrawX + frameDrawW * 0.945;
-              ctx.textAlign = 'right';
-            }
-            ctx.font = `700 ${fontSize}px 'Cinzel', 'Outfit', sans-serif`;
-            ctx.textBaseline = 'middle';
-            applyDynamicTextStyle(fontSize, textY);
-            ctx.fillText(combined, textX, textY, frameDrawW * 0.86);
-            ctx.restore();
-          }
+          ctx.font = `700 ${cmd.fontSize}px ${cmd.fontFamily}`;
+          ctx.textBaseline = 'middle';
+          ctx.textAlign = cmd.align;
+          ctx.fillText(cmd.text, cmd.x, cmd.y, cmd.maxW);
+          ctx.restore();
         }
       }
     } catch (err) {

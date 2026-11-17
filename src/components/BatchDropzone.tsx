@@ -102,8 +102,9 @@ export const BatchDropzone: React.FC<BatchDropzoneProps> = ({
                   onClick={onDiscardDraft}
                   className="draft-action-btn discard"
                   title="Descartar borrador"
+                  aria-label="Descartar borrador guardado"
                 >
-                  <X size={13} />
+                  <X size={15} />
                 </button>
               )}
             </div>

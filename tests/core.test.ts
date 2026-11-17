@@ -6,7 +6,24 @@ import { classifyChurchEvent, formatFrameDate } from '../src/utils/eventClassifi
 import { processImagePixels, hasActiveCpuFilters } from '../src/utils/pixelFilters';
 import { computeAdaptiveChurchEnhancement, type RawSensorData } from '../src/utils/rawProcessingEngine';
 import { resolveCropRatio } from '../src/utils/smartCrop';
-import type { ImageAdjustments, CropSettings } from '../src/types/editor';
+import {
+  shouldAutoFillFrameFromImport,
+  buildBatchAdjustmentsSnapshot,
+  describeEventSuggestion,
+} from '../src/utils/batchScope';
+import {
+  pushStudioHistoryEntry,
+  popUndoEntry,
+  popRedoEntry,
+  type StudioHistoryStack,
+} from '../src/utils/editorHistory';
+import {
+  hasCenterBottomEmblem,
+  isAspectRatioMismatched,
+  resolveDynamicFrameTextLayout,
+} from '../src/utils/frameLayout';
+import { validateIncomingMediaFiles } from '../src/utils/fileValidation';
+import type { ImageAdjustments, CropSettings, FrameSettings, WatermarkSettings, PhotoItem } from '../src/types/editor';
 
 describe('isNewerVersion (SemVer)', () => {
   it('detecta versiones mayores, menores y parches con o sin prefijo v', () => {
@@ -201,5 +218,198 @@ describe('resolveCropRatio', () => {
     assert.ok(Math.abs(resolveCropRatio({ ...baseCrop, rotation: 90 }, 3000, 2000, null) - 2 / 3) < 0.001);
     assert.equal(resolveCropRatio({ ...baseCrop, aspectRatio: 'frame' }, 3000, 2000, 1.25), 1.25);
     assert.equal(resolveCropRatio({ ...baseCrop, aspectRatio: '4:5' }, 3000, 2000, null), 0.8);
+  });
+});
+
+describe('batchScope (reglas de lote y metadatos EXIF)', () => {
+  it('auto-rellena marco solo al iniciar sesión vacía y protege decisiones manuales al agregar fotos', () => {
+    const meta = { detectedEvent: 'Escuela Dominical', dateFormatted: '18 de Noviembre, 2026', dateSource: 'exif' as const };
+    assert.equal(shouldAutoFillFrameFromImport(0, meta), true);
+    assert.equal(shouldAutoFillFrameFromImport(2, meta), false);
+    assert.equal(shouldAutoFillFrameFromImport(0, { detectedEvent: '', dateFormatted: '' }), false);
+  });
+
+  it('distingue entre fecha EXIF real y fecha aproximada de archivo en las sugerencias', () => {
+    const exif = describeEventSuggestion({
+      detectedEvent: 'Oración 7pm',
+      dateFormatted: '17 de Noviembre, 2026',
+      dateSource: 'exif',
+    });
+    assert.equal(exif.isEstimatedDate, false);
+    assert.ok(exif.label.includes('EXIF'));
+
+    const fallback = describeEventSuggestion({
+      detectedEvent: 'Culto Especial',
+      dateFormatted: '17 de Noviembre, 2026',
+      dateSource: 'file-mtime',
+    });
+    assert.equal(fallback.isEstimatedDate, true);
+    assert.ok(fallback.label.includes('archivo'));
+  });
+
+  it('Aplicar ajustes a todas copia luz, color y filtro sin sobrescribir encuadres individuales', () => {
+    const makePhoto = (id: string, brightness: number, cropRatio: CropSettings['aspectRatio'], zoom: number): PhotoItem => ({
+      id,
+      file: {} as File,
+      name: `${id}.jpg`,
+      sizeFormatted: '2.0 MB',
+      originalUrl: `blob:${id}`,
+      thumbnailUrl: `blob:${id}`,
+      width: 4000,
+      height: 3000,
+      isRaw: false,
+      adjustments: {
+        brightness,
+        contrast: brightness,
+        saturation: 0,
+        warmth: 0,
+        shadows: 0,
+        highlights: 0,
+        sharpness: 0,
+      },
+      crop: {
+        aspectRatio: cropRatio,
+        orientation: 'landscape',
+        offsetX: id === 'p2' ? 12 : 0,
+        offsetY: id === 'p2' ? -8 : 0,
+        zoom,
+        rotation: id === 'p2' ? 90 : 0,
+      },
+      preset: id === 'p1' ? 'vibrant-praise' : 'auto-church',
+    });
+
+    const p1 = makePhoto('p1', 25, '4:5', 1.25);
+    const p2 = makePhoto('p2', -10, '1:1', 1.6);
+    const result = buildBatchAdjustmentsSnapshot([p1, p2], p1);
+
+    assert.equal(result[1].adjustments.brightness, 25);
+    assert.equal(result[1].preset, 'vibrant-praise');
+    // El encuadre individual de p2 debe permanecer intacto
+    assert.equal(result[1].crop.aspectRatio, '1:1');
+    assert.equal(result[1].crop.zoom, 1.6);
+    assert.equal(result[1].crop.rotation, 90);
+    assert.equal(result[1].crop.offsetX, 12);
+  });
+});
+
+describe('editorHistory (Undo/Redo unificado para foto, marco, firma y lote)', () => {
+  it('permite deshacer y rehacer cambios globales de marco/firma y operaciones por lote en una sola unidad', () => {
+    let stack: StudioHistoryStack = { past: [], future: [] };
+
+    const baseFrame = { style: 'none', eventTitle: 'Escuela Dominical' } as FrameSettings;
+    const nextFrame = { style: 'custom-png', eventTitle: 'Culto Especial' } as FrameSettings;
+    const baseWm = { enabled: false, text: '' } as WatermarkSettings;
+    const nextWm = { enabled: true, text: 'Coro' } as WatermarkSettings;
+
+    stack = pushStudioHistoryEntry(stack, {
+      kind: 'global',
+      before: { frame: baseFrame, watermark: baseWm },
+      after: { frame: nextFrame, watermark: nextWm },
+      label: 'Marco / Texto',
+    });
+
+    const snapA = {
+      adjustments: { brightness: 0, contrast: 0, saturation: 0, warmth: 0, shadows: 0, highlights: 0, sharpness: 0 },
+      crop: { aspectRatio: 'original' as const, orientation: 'landscape' as const, offsetX: 0, offsetY: 0, zoom: 1 },
+      preset: 'custom' as const,
+    };
+    const snapB = {
+      ...snapA,
+      adjustments: { ...snapA.adjustments, brightness: 30 },
+      preset: 'warm-worship' as const,
+    };
+
+    stack = pushStudioHistoryEntry(stack, {
+      kind: 'batch-photos',
+      scope: 'adjustments',
+      before: [
+        { id: '1', snapshot: snapA },
+        { id: '2', snapshot: snapA },
+      ],
+      after: [
+        { id: '1', snapshot: snapB },
+        { id: '2', snapshot: snapB },
+      ],
+      label: 'Luz y color al lote',
+    });
+
+    assert.equal(stack.past.length, 2);
+
+    const u1 = popUndoEntry(stack);
+    assert.equal(u1.entry?.kind, 'batch-photos');
+    assert.equal(u1.entry?.kind === 'batch-photos' && u1.entry.before.length, 2);
+
+    const u2 = popUndoEntry(u1.nextStack);
+    assert.equal(u2.entry?.kind, 'global');
+    assert.equal(u2.entry?.kind === 'global' && u2.entry.before.frame.style, 'none');
+
+    const r1 = popRedoEntry(u2.nextStack);
+    assert.equal(r1.entry?.kind, 'global');
+    assert.equal(r1.entry?.kind === 'global' && r1.entry.after.watermark.enabled, true);
+  });
+});
+
+describe('frameLayout (zonas seguras de texto y proporción de marcos)', () => {
+  it('detecta marcos Centenario con emblema central inferior y desacopla bottom-center a alas seguras', () => {
+    assert.equal(hasCenterBottomEmblem('/frames/marco-centenario-V2-notexto.png'), true);
+    assert.equal(hasCenterBottomEmblem('/frames/personalizado-limpio.png'), false);
+
+    const frame = {
+      style: 'custom-png',
+      pngDataUrl: '/frames/marco-centenario-V2-notexto.png',
+      eventTitle: 'Escuela Dominical',
+      dynamicTextRight: '17 de Noviembre, 2026',
+      dynamicTextEnabled: true,
+      dynamicTextPosition: 'bottom-center',
+    } as FrameSettings;
+
+    const cmds = resolveDynamicFrameTextLayout({
+      frame,
+      frameDrawX: 0,
+      frameDrawY: 0,
+      frameDrawW: 1000,
+      frameDrawH: 667,
+    });
+
+    assert.equal(cmds.length, 2);
+    // Ala izquierda termina antes del emblema (x=85 + maxW=295 = 380 < 400)
+    assert.equal(cmds[0].align, 'left');
+    assert.ok(cmds[0].x + cmds[0].maxW <= 390);
+    // Ala derecha comienza después del emblema (915 - 295 = 620 > 600)
+    assert.equal(cmds[1].align, 'right');
+    assert.ok(cmds[1].x - cmds[1].maxW >= 610);
+  });
+
+  it('no dibuja texto dinámico cuando dynamicTextEnabled está en false y detecta diferencia 4:5 vs 3:2', () => {
+    const cmds = resolveDynamicFrameTextLayout({
+      frame: {
+        style: 'custom-png',
+        pngDataUrl: '/frames/marco-centenario-V2-notexto.png',
+        eventTitle: 'Oración 7pm',
+        dynamicTextEnabled: false,
+      } as FrameSettings,
+      frameDrawX: 0,
+      frameDrawY: 0,
+      frameDrawW: 1000,
+      frameDrawH: 667,
+    });
+    assert.equal(cmds.length, 0);
+    assert.equal(isAspectRatioMismatched(0.8, 1.5), true);
+    assert.equal(isAspectRatioMismatched(1.48, 1.5), false);
+  });
+});
+
+describe('fileValidation (validación de archivos de entrada)', () => {
+  it('filtra archivos vacíos o formatos no soportados conservando JPG y RAW válidos', () => {
+    const res = validateIncomingMediaFiles([
+      { name: 'culto.jpg', type: 'image/jpeg', size: 2500000 } as File,
+      { name: 'toma.NEF', type: '', size: 24000000 } as File,
+      { name: 'vacio.jpg', type: 'image/jpeg', size: 0 } as File,
+      { name: 'documento.pdf', type: 'application/pdf', size: 12000 } as File,
+    ]);
+
+    assert.equal(res.validFiles.length, 2);
+    assert.deepEqual(res.rejectedNames, ['vacio.jpg', 'documento.pdf']);
+    assert.ok(res.reasonSummary && res.reasonSummary.includes('2'));
   });
 });
