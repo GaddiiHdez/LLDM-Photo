@@ -4,6 +4,15 @@ Todas las actualizaciones y mejoras notables de BereaSnap están documentadas en
 
 ---
 
+## [1.8.1] - 2026-11-16
+
+### ✨ Rediseño Dinámico de Marcos, Texto y Logo
+* **Selector Segmentado (`Marcos | Texto | Logo`)**: Separa el selector de marcos de las opciones tipográficas en móvil para aprovechar toda la tarjeta sin tener que desplazarse verticalmente, con resumen interactivo `Editar texto ›` en la vista de marcos.
+* **Acciones Integradas en Campos (`Cultos`, `EXIF`, `Hoy`)**: Se eliminó la cuadrícula fija de botones repetidos. Ahora los selectores de evento y fecha viven dentro de sus campos y despliegan sugerencias rápidas solo cuando se solicitan.
+* **Barra Tipográfica Unificada**: Alinea posición (*Segmented Control*), selección visual de color mediante muestras circulares (*Oro / Blanco / Plata*) y control compacto de escala con slider deslizante (`70%–140%`) en una sola fila responsiva para Portrait y Landscape.
+
+---
+
 ## [1.8.0] - 2026-11-16
 
 ### 📱 Diseño Responsive, Temas y Visor Preciso
